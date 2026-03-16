@@ -1,0 +1,31 @@
+Website/.next/
+
+# Dependency directories
+Website/node_modules/
+
+# Next.js build output
+Website/.next/
+Website/out/
+
+# IDE and System files
+Website/.vscode/
+Website/.idea/
+Website/.DS_Store
+
+# Environment variables (SENSITIVE)
+Website/.env
+Website/.env.local
+Website/.env.production.local
+Website/.env.development.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+node_modules/
+.next/
+.env.local
+.env.staging
+.env.production
+.DS_Store
