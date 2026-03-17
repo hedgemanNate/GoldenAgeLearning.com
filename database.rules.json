@@ -2,47 +2,52 @@
   "rules": {
     "users": {
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-        ".write": "auth != null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
+        ".write": "auth != null && (auth.uid == $uid || auth.token.role == 'superAdmin')"
       }
     },
     "classes": {
       ".read": true,
       "$classId": {
-        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".write": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')"
       }
     },
     "bookings": {
-      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
       "$bookingId": {
-        ".read": "auth != null && (data.child('customerId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".read": "auth != null && (data.child('customerId').val() == auth.uid || auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
+        ".write": false
       }
     },
     "transferLog": {
-      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+      "$transferId": {
+        ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
+        ".write": false
+      }
     },
     "discounts": {
-      ".read": true,
       "$discountId": {
-        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".read": "data.child('status').val() == 'active' || (auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin'))",
+        ".write": "auth != null && (auth.token.role == 'superAdmin' || (auth.token.role == 'sponsor' && data.child('sponsorId').val() == auth.uid))"
       }
     },
     "messages": {
-      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+      "$messageId": {
+        ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin' || data.child('recipients').hasChild(auth.uid))",
+        ".write": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')"
+      }
     },
     "activityLog": {
-      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+      "$logId": {
+        ".read": "auth != null && auth.token.role == 'superAdmin'",
+        ".write": false
+      }
     },
     "payments": {
-      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
-      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')",
       "$paymentId": {
-        ".read": "auth != null && (data.child('customerId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'staff' || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".read": "auth != null && (data.child('customerId').val() == auth.uid || auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
+        ".write": false
       }
     }
   }
 }
+
