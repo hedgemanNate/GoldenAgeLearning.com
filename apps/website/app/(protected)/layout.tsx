@@ -3,10 +3,10 @@ import Footer from "../../components/layout/Footer";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      {children}
+      <main className="flex-1">{children}</main>
       <Footer />
-    </>
+    </div>
   );
 }
