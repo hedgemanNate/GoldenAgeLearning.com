@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import type { ClassWithId } from "../../../../types/class";
 
 type ClassStatus = "Upcoming" | "Full" | "Archived";
 
@@ -19,13 +21,23 @@ interface ClassItem {
   status: ClassStatus;
 }
 
-const MOCK_CLASSES: ClassItem[] = [
-  { id: "CLS-001", name: "Intro to Watercolour", category: "Arts & Crafts", date: "2025-06-29", time: "10:00 AM", duration: "2h", price: 35, seats: 8, booked: 6, location: "Room A", sponsor: "Sunrise Pharmacy", status: "Upcoming" },
-  { id: "CLS-002", name: "Memoir Writing", category: "Writing", date: "2025-07-03", time: "2:00 PM", duration: "1.5h", price: 25, seats: 12, booked: 5, location: "Room B", sponsor: "", status: "Upcoming" },
-  { id: "CLS-003", name: "Gentle Yoga & Mindfulness", category: "Wellness", date: "2025-07-05", time: "9:30 AM", duration: "1h", price: 20, seats: 10, booked: 10, location: "Studio", sponsor: "Valley Health Co-op", status: "Full" },
-  { id: "CLS-004", name: "iPad Basics for Beginners", category: "Technology", date: "2025-07-08", time: "11:00 AM", duration: "2h", price: 30, seats: 8, booked: 2, location: "Computer Lab", sponsor: "", status: "Upcoming" },
-  { id: "CLS-005", name: "Knitting Circle", category: "Arts & Crafts", date: "2025-05-10", time: "1:00 PM", duration: "2h", price: 15, seats: 10, booked: 8, location: "Room A", sponsor: "", status: "Archived" },
-];
+function fmtDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtTime(ts: number) {
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function fmtDuration(mins: number) {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+function classUIStatus(cls: ClassWithId): ClassStatus {
+  if (cls.status === "archived") return "Archived";
+  if (cls.seatsBooked >= cls.seatLimit) return "Full";
+  return "Upcoming";
+}
 
 const EMPTY_FORM: Omit<ClassItem, "id" | "status"> = {
   name: "", category: "", date: "", time: "", duration: "", price: 0, seats: 0, booked: 0, location: "", sponsor: "",
@@ -34,6 +46,7 @@ const EMPTY_FORM: Omit<ClassItem, "id" | "status"> = {
 type Filter = "All" | "Upcoming" | "Full" | "Archived";
 
 export default function AdminClasses() {
+  const { classes: rawClasses, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,7 +54,30 @@ export default function AdminClasses() {
   const [form, setForm] = useState<Omit<ClassItem, "id" | "status">>(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-  const filtered = MOCK_CLASSES.filter((c) => {
+  const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
+  const liveClasses: ClassItem[] = rawClasses
+    .filter((c) => c.status !== "deleted")
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      category: c.category,
+      date: fmtDate(c.date),
+      time: fmtTime(c.date),
+      duration: fmtDuration(c.duration),
+      price: Math.round(c.price / 100),
+      seats: c.seatLimit,
+      booked: c.seatsBooked,
+      location: c.location,
+      sponsor: c.sponsorId ? (usersById[c.sponsorId]?.name ?? "") : "",
+      status: classUIStatus(c),
+    }))
+    .sort((a, b) => {
+      if (a.status === "Archived" && b.status !== "Archived") return 1;
+      if (a.status !== "Archived" && b.status === "Archived") return -1;
+      return 0;
+    });
+
+  const filtered = liveClasses.filter((c) => {
     if (filter !== "All" && c.status !== filter) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -70,6 +106,14 @@ export default function AdminClasses() {
   const hasBookings = editTarget ? editTarget.booked > 0 : false;
 
   const FILTERS: Filter[] = ["All", "Upcoming", "Full", "Archived"];
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-[32px] font-sans">

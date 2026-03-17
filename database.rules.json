@@ -1,6 +1,7 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
         ".write": "auth != null && (auth.uid == $uid || auth.token.role == 'superAdmin')"
@@ -13,6 +14,7 @@
       }
     },
     "bookings": {
+      ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
       "$bookingId": {
         ".read": "auth != null && (data.child('customerId').val() == auth.uid || auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
         ".write": false
@@ -25,12 +27,14 @@
       }
     },
     "discounts": {
+      ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
       "$discountId": {
         ".read": "data.child('status').val() == 'active' || (auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin'))",
         ".write": "auth != null && (auth.token.role == 'superAdmin' || (auth.token.role == 'sponsor' && data.child('sponsorId').val() == auth.uid))"
       }
     },
     "messages": {
+      ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')",
       "$messageId": {
         ".read": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin' || data.child('recipients').hasChild(auth.uid))",
         ".write": "auth != null && (auth.token.role == 'staff' || auth.token.role == 'superAdmin')"

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import { useDiscounts } from "../../../../hooks/useDiscounts";
 
 interface Sponsor {
-  id: string;
+  uid: string;
   name: string;
   contact: string;
   phone: string;
@@ -16,26 +18,41 @@ interface Sponsor {
   discounts: string[];
 }
 
-const MOCK_SPONSORS: Sponsor[] = [
-  { id: "SP-001", name: "Sunrise Pharmacy", contact: "Tom Bradley", phone: "555-0210", email: "tom@sunrisepharmacy.com", address: "45 Elm Street", stars: 5, dateJoined: "Jan 2024", notes: "Our longest-running sponsor. Always happy to co-promote.", redemptions: 84, discounts: ["10% off first prescription fill", "Free blood pressure screening"] },
-  { id: "SP-002", name: "Valley Health Co-op", contact: "Sandra Wells", phone: "555-0336", email: "swells@valleyhealth.ca", address: "120 Oak Ave", stars: 4, dateJoined: "Mar 2024", notes: "Focus on wellness classes.", redemptions: 47, discounts: ["Free wellness consultation"] },
-  { id: "SP-003", name: "Maple Hearing Clinic", contact: "Dr. Patel", phone: "555-0449", email: "clinic@maplehearing.ca", address: "9 Cedar Blvd", stars: 3, dateJoined: "Jun 2024", notes: "", redemptions: 21, discounts: ["Free hearing test"] },
-];
+type ProfileTab = "details" | "metrics" | "discounts";
 
-const EMPTY_FORM: Omit<Sponsor, "id" | "redemptions" | "discounts"> = {
+const EMPTY_FORM: Omit<Sponsor, "uid" | "redemptions" | "discounts"> = {
   name: "", contact: "", phone: "", email: "", address: "", stars: 3, dateJoined: "", notes: "",
 };
 
-type ProfileTab = "details" | "metrics" | "discounts";
-
 export default function AdminSponsors() {
+  const { users, loading } = useAdminData();
+  const { discounts } = useDiscounts();
   const [profileOpen, setProfileOpen] = useState(false);
   const [selected, setSelected] = useState<Sponsor | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Sponsor | null>(null);
-  const [form, setForm] = useState<Omit<Sponsor, "id" | "redemptions" | "discounts">>(EMPTY_FORM);
+  const [form, setForm] = useState<Omit<Sponsor, "uid" | "redemptions" | "discounts">>(EMPTY_FORM);
+
+  const liveSponsors: Sponsor[] = users
+    .filter((u) => u.role === "sponsor")
+    .map((u) => {
+      const sponsorDiscounts = discounts.filter((d) => d.sponsorId === u.uid);
+      return {
+        uid: u.uid,
+        name: u.name,
+        contact: (u.contact ?? []).join(", "),
+        phone: u.phone ?? "",
+        email: u.email ?? "",
+        address: u.address ?? "",
+        stars: u.starRating ?? 3,
+        dateJoined: new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+        notes: u.notes ?? "",
+        redemptions: u.totalRedemptions,
+        discounts: sponsorDiscounts.map((d) => d.title),
+      };
+    });
 
   function openProfile(s: Sponsor) {
     setSelected(s);
@@ -51,12 +68,20 @@ export default function AdminSponsors() {
 
   function openEdit(s: Sponsor) {
     setEditTarget(s);
-    const { id: _id, redemptions: _r, discounts: _d, ...rest } = s;
+    const { uid: _uid, redemptions: _r, discounts: _d, ...rest } = s;
     setForm(rest);
     setEditOpen(true);
   }
 
-  const sorted = [...MOCK_SPONSORS].sort((a, b) => b.redemptions - a.redemptions);
+  const sorted = [...liveSponsors].sort((a, b) => b.redemptions - a.redemptions);
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-[32px] font-sans">
@@ -77,7 +102,7 @@ export default function AdminSponsors() {
       {/* Sponsor cards */}
       <div className="flex flex-col gap-[10px]">
         {sorted.map((s) => (
-          <div key={s.id} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px]">
+          <div key={s.uid} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px]">
             {/* Logo placeholder */}
             <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(201,168,76,0.08)] border border-[rgba(201,168,76,0.15)] flex items-center justify-center flex-shrink-0">
               <span className="text-[var(--color-gold)] font-bold text-[14px]">{s.name.charAt(0)}</span>

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import { useAuthContext } from "../../../../context/AuthContext";
+import { updateUser } from "../../../../lib/firebase/db";
+import type { UserRole } from "../../../../types/user";
 
-type StaffRole = "super_admin" | "staff";
-
-const MOCK_CURRENT_USER_ID = "STF-001"; // The owner/current session
+type StaffRole = "superAdmin" | "staff";
 
 interface StaffMember {
-  id: string;
+  uid: string;
   name: string;
   email: string;
   role: StaffRole;
@@ -15,26 +17,41 @@ interface StaffMember {
   isOwner?: boolean;
 }
 
-const MOCK_STAFF: StaffMember[] = [
-  { id: "STF-001", name: "Helen Rosewood", email: "helen@goldenagelearning.com", role: "super_admin", lastLogin: "Today, 9:14 AM", isOwner: true },
-  { id: "STF-002", name: "Marcus Lin", email: "marcus@goldenagelearning.com", role: "super_admin", lastLogin: "Yesterday, 4:30 PM" },
-  { id: "STF-003", name: "Claire Ford", email: "claire@goldenagelearning.com", role: "staff", lastLogin: "3 days ago" },
-  { id: "STF-004", name: "Ray Johansson", email: "ray@goldenagelearning.com", role: "staff", lastLogin: "1 week ago" },
-];
-
 export default function AdminStaff() {
-  const [staff, setStaff] = useState<StaffMember[]>(MOCK_STAFF);
+  const { users, loading } = useAdminData();
+  const { user: currentUser } = useAuthContext();
   const [addEmail, setAddEmail] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
   const [deleteModal, setDeleteModal] = useState(false);
 
-  function changeRole(id: string, newRole: StaffRole) {
-    setStaff((prev) => prev.map((s) => s.id === id ? { ...s, role: newRole } : s));
+  const staff: StaffMember[] = users
+    .filter((u) => u.role === "staff" || u.role === "superAdmin")
+    .map((u) => ({
+      uid: u.uid,
+      name: u.name,
+      email: u.email ?? "",
+      role: u.role as StaffRole,
+      lastLogin: u.lastLoginAt
+        ? new Date(u.lastLoginAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : "Never",
+      isOwner: u.uid === currentUser?.uid,
+    }));
+
+  async function changeRole(uid: string, newRole: StaffRole) {
+    await updateUser(uid, { role: newRole as UserRole });
   }
 
   function confirmDelete(member: StaffMember) {
     setDeleteTarget(member);
     setDeleteModal(true);
+  }
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
   }
 
   return (
@@ -48,7 +65,7 @@ export default function AdminStaff() {
       {/* Staff list */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden mb-[32px]">
         {staff.map((member, i) => (
-          <div key={member.id} className={`flex items-center gap-[14px] px-[20px] py-[16px] ${i < staff.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}`}>
+          <div key={member.uid} className={`flex items-center gap-[14px] px-[20px] py-[16px] ${i < staff.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}`}>
             {/* Avatar */}
             <div className="w-[40px] h-[40px] rounded-full bg-[rgba(201,168,76,0.12)] flex items-center justify-center flex-shrink-0">
               <span className="text-[var(--color-gold)] font-bold text-[13px]">
@@ -59,7 +76,7 @@ export default function AdminStaff() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-[8px]">
                 <p className="text-[14px] font-semibold text-[var(--color-cream)]">{member.name}</p>
-                {member.role === "super_admin" ? (
+                {member.role === "superAdmin" ? (
                   <span className="px-[7px] py-[2px] rounded-full bg-[rgba(201,168,76,0.12)] text-[var(--color-gold)] text-[10px] font-semibold">Super Admin</span>
                 ) : (
                   <span className="px-[7px] py-[2px] rounded-full bg-[rgba(122,174,173,0.12)] text-[var(--color-teal)] text-[10px] font-semibold">Staff</span>
@@ -76,14 +93,14 @@ export default function AdminStaff() {
               <div className="flex items-center gap-[10px] flex-shrink-0">
                 {member.role === "staff" ? (
                   <button
-                    onClick={() => changeRole(member.id, "super_admin")}
+                    onClick={() => changeRole(member.uid, "superAdmin")}
                     className="text-[12px] text-[rgba(245,237,214,0.45)] hover:text-[var(--color-cream)] border border-[rgba(245,237,214,0.1)] px-[12px] py-[6px] rounded-[6px] transition"
                   >
                     Make Super Admin
                   </button>
                 ) : (
                   <button
-                    onClick={() => changeRole(member.id, "staff")}
+                    onClick={() => changeRole(member.uid, "staff")}
                     className="text-[12px] text-[rgba(245,237,214,0.45)] hover:text-[var(--color-cream)] border border-[rgba(245,237,214,0.1)] px-[12px] py-[6px] rounded-[6px] transition"
                   >
                     Make Staff
@@ -135,7 +152,7 @@ export default function AdminStaff() {
               <button onClick={() => setDeleteModal(false)} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition">Cancel</button>
               <button
                 onClick={() => {
-                  setStaff((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+                  updateUser(deleteTarget.uid, { role: "customer" as UserRole });
                   setDeleteModal(false);
                 }}
                 className="bg-[rgba(220,38,38,0.15)] border border-[rgba(220,38,38,0.3)] text-[#F87171] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:bg-[rgba(220,38,38,0.25)] transition"

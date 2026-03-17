@@ -1,33 +1,85 @@
 "use client";
 
-const MOCK_ROLE: "super_admin" | "staff" = "super_admin";
+import { useAdminData } from "../../../hooks/useAdminData";
+import { useAuthContext } from "../../../context/AuthContext";
 
-const MOCK_METRICS = [
-  { label: "Today's Bookings", value: "4", sub: "+2 from yesterday" },
-  { label: "Month Bookings", value: "61", sub: "June 2025" },
-  { label: "Year Bookings", value: "284", sub: "2025 YTD" },
-  { label: "Today's Revenue", value: "$320", sub: "4 paid bookings" },
-  { label: "Month Revenue", value: "$4,880", sub: "June 2025" },
-  { label: "Active Customers", value: "47", sub: "Last 45 days" },
-];
-
-const MOCK_UPCOMING_CLASSES = [
-  { name: "Intro to Watercolour", date: "Jun 29", time: "10:00 AM", seats: 8, booked: 6 },
-  { name: "Memoir Writing", date: "Jul 3", time: "2:00 PM", seats: 12, booked: 5 },
-  { name: "Gentle Yoga & Mindfulness", date: "Jul 5", time: "9:30 AM", seats: 10, booked: 10 },
-  { name: "iPad Basics for Beginners", date: "Jul 8", time: "11:00 AM", seats: 8, booked: 2 },
-];
-
-const MOCK_RECENT_BOOKINGS = [
-  { id: "BK-091", customer: "Margaret P.", classname: "Intro to Watercolour", date: "Jun 27", status: "Paid" },
-  { id: "BK-090", customer: "Harold S.", classname: "Memoir Writing", date: "Jun 27", status: "Reserved" },
-  { id: "BK-089", customer: "Evelyn T.", classname: "Gentle Yoga & Mindfulness", date: "Jun 26", status: "Paid" },
-  { id: "BK-088", customer: "Bernard K.", classname: "iPad Basics for Beginners", date: "Jun 26", status: "Paid" },
-  { id: "BK-087", customer: "Rosemary H.", classname: "Intro to Watercolour", date: "Jun 25", status: "Paid" },
-];
+function fmtDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function fmtTime(ts: number) {
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function isActiveCustomer(lastLoginAt: number | null) {
+  return lastLoginAt ? (Date.now() - lastLoginAt) < 45 * 24 * 60 * 60 * 1000 : false;
+}
 
 export default function AdminDashboard() {
-  const role = MOCK_ROLE;
+  const { user: currentUser } = useAuthContext();
+  const { classes, bookings, users, loading } = useAdminData();
+
+  const role = currentUser?.role ?? "staff";
+
+  const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+
+  const todayBk = bookings.filter((b) => b.createdAt >= todayStart);
+  const monthBk = bookings.filter((b) => b.createdAt >= monthStart);
+  const yearBk = bookings.filter((b) => b.createdAt >= yearStart);
+  const todayRev = todayBk.filter((b) => b.status === "paid").reduce((s, b) => s + b.amount, 0) / 100;
+  const monthRev = monthBk.filter((b) => b.status === "paid").reduce((s, b) => s + b.amount, 0) / 100;
+  const monthName = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const year = new Date().getFullYear();
+  const activeCount = users.filter((u) => u.role === "customer" && isActiveCustomer(u.lastLoginAt)).length;
+
+  const metrics = [
+    { label: "Today's Bookings", value: String(todayBk.length), sub: "" },
+    { label: "Month Bookings", value: String(monthBk.length), sub: monthName },
+    { label: "Year Bookings", value: String(yearBk.length), sub: `${year} YTD` },
+    { label: "Today's Revenue", value: `$${Math.round(todayRev)}`, sub: `${todayBk.filter((b) => b.status === "paid").length} paid bookings` },
+    { label: "Month Revenue", value: `$${Math.round(monthRev).toLocaleString()}`, sub: monthName },
+    { label: "Active Customers", value: String(activeCount), sub: "Last 45 days" },
+  ];
+
+  const upcomingDisplay = [...classes]
+    .filter((c) => c.status === "upcoming")
+    .sort((a, b) => a.date - b.date)
+    .slice(0, 4)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      date: fmtDate(c.date),
+      time: fmtTime(c.date),
+      seats: c.seatLimit,
+      booked: c.seatsBooked,
+    }));
+
+  const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
+  const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
+  const recentBookingsDisplay = [...bookings]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 5)
+    .map((b) => {
+      const cust = usersById[b.customerId];
+      const cls = classesById[b.classId];
+      const parts = cust?.name.split(" ") ?? [];
+      const custDisplay = parts.length >= 2 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : (cust?.name ?? "Unknown");
+      return {
+        id: b.id.slice(-6).toUpperCase(),
+        customer: custDisplay,
+        classname: cls?.name ?? "Unknown",
+        date: fmtDate(b.createdAt),
+        status: b.status === "paid" ? "Paid" : "Reserved",
+      };
+    });
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-[32px] font-sans">
@@ -38,9 +90,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* Metric cards — Super Admin only */}
-      {role === "super_admin" && (
+      {role === "superAdmin" && (
         <div className="grid grid-cols-3 gap-[16px] mb-[32px]">
-          {MOCK_METRICS.map((m) => (
+          {metrics.map((m) => (
             <div key={m.label} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[18px]">
               <p className="font-sans text-[9px] uppercase tracking-widest text-[rgba(245,237,214,0.4)] mb-[8px]">{m.label}</p>
               <p className="font-display text-[22px] font-bold text-[var(--color-cream)]">{m.value}</p>
@@ -55,11 +107,11 @@ export default function AdminDashboard() {
         <div>
           <h2 className="font-sans text-[11px] uppercase tracking-widest text-[rgba(245,237,214,0.4)] mb-[14px]">Upcoming Classes</h2>
           <div className="flex flex-col gap-[10px]">
-            {MOCK_UPCOMING_CLASSES.map((cls) => {
-              const pct = Math.round((cls.booked / cls.seats) * 100);
+            {upcomingDisplay.map((cls) => {
+              const pct = cls.seats > 0 ? Math.round((cls.booked / cls.seats) * 100) : 0;
               const isFull = cls.booked >= cls.seats;
               return (
-                <div key={cls.name} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[18px] py-[14px]">
+                <div key={cls.id} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[18px] py-[14px]">
                   <div className="flex justify-between items-start mb-[8px]">
                     <div>
                       <p className="text-[13px] font-semibold text-[var(--color-cream)]">{cls.name}</p>
@@ -100,8 +152,8 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_RECENT_BOOKINGS.map((b, i) => (
-                  <tr key={b.id} className={i < MOCK_RECENT_BOOKINGS.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
+                {recentBookingsDisplay.map((b, i) => (
+                  <tr key={b.id} className={i < recentBookingsDisplay.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
                     <td className="px-[16px] py-[11px] text-[var(--color-gold)] font-mono text-[11px]">{b.id}</td>
                     <td className="px-[16px] py-[11px] text-[var(--color-cream)]">{b.customer}</td>
                     <td className="px-[16px] py-[11px] text-[rgba(245,237,214,0.6)]">{b.classname}</td>

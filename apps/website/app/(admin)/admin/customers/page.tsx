@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import { updateUser } from "../../../../lib/firebase/db";
 
 interface Customer {
-  id: string;
+  uid: string;
   name: string;
   email: string;
   phone: string;
@@ -15,23 +17,28 @@ interface Customer {
   isActive: boolean;
 }
 
-const MOCK_CUSTOMERS: Customer[] = [
-  { id: "CST-001", name: "Margaret Patterson", email: "margaret@email.com", phone: "555-0191", joined: "Jan 2024", lastActive: "Jun 27, 2025", totalBookings: 12, totalSpent: 370, notes: "Prefers morning classes. Mobility considerations — avoids stairs.", isActive: true },
-  { id: "CST-002", name: "Harold Stevens", email: "harold@email.com", phone: "555-0102", joined: "Mar 2024", lastActive: "Jun 27, 2025", totalBookings: 7, totalSpent: 205, notes: "", isActive: true },
-  { id: "CST-003", name: "Evelyn Thornton", email: "evelyn@email.com", phone: "555-0183", joined: "Feb 2024", lastActive: "Jun 26, 2025", totalBookings: 9, totalSpent: 260, notes: "Interested in watercolour and writing.", isActive: true },
-  { id: "CST-004", name: "Bernard Klein", email: "bernard@email.com", phone: "555-0174", joined: "Apr 2024", lastActive: "Jun 26, 2025", totalBookings: 5, totalSpent: 150, notes: "", isActive: true },
-  { id: "CST-005", name: "Rosemary Holt", email: "rosemary@email.com", phone: "555-0165", joined: "Jun 2024", lastActive: "Apr 10, 2025", totalBookings: 3, totalSpent: 75, notes: "", isActive: false },
-];
+interface CustomerBooking {
+  id: string;
+  classname: string;
+  date: string;
+  status: string;
+  amount: number;
+}
 
-const MOCK_BOOKINGS_FOR = [
-  { id: "BK-091", classname: "Intro to Watercolour", date: "Jun 29", status: "Paid", amount: 35 },
-  { id: "BK-083", classname: "Memoir Writing", date: "May 15", status: "Paid", amount: 25 },
-  { id: "BK-071", classname: "Gentle Yoga", date: "Apr 8", status: "Paid", amount: 20 },
-];
+function fmtMonthYear(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+function fmtDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function isActive(lastLoginAt: number | null) {
+  return lastLoginAt ? (Date.now() - lastLoginAt) < 45 * 24 * 60 * 60 * 1000 : false;
+}
 
 type ProfileTab = "details" | "bookings" | "payments" | "notes";
 
 export default function AdminCustomers() {
+  const { classes, bookings, users, loading } = useAdminData();
   const [showActive, setShowActive] = useState(false);
   const [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -41,7 +48,44 @@ export default function AdminCustomers() {
   const [editNotes, setEditNotes] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
 
-  const filtered = MOCK_CUSTOMERS.filter((c) => {
+  const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
+
+  const liveCustomers: Customer[] = users
+    .filter((u) => u.role === "customer")
+    .map((u) => {
+      const custBookings = bookings.filter((b) => b.customerId === u.uid);
+      const totalSpent = custBookings.filter((b) => b.status === "paid").reduce((s, b) => s + b.amount, 0) / 100;
+      return {
+        uid: u.uid,
+        name: u.name,
+        email: u.email ?? "",
+        phone: u.phone ?? "",
+        joined: fmtMonthYear(u.createdAt),
+        lastActive: u.lastLoginAt ? fmtDate(u.lastLoginAt) : "Never",
+        totalBookings: custBookings.length,
+        totalSpent: Math.round(totalSpent),
+        notes: u.notes ?? "",
+        isActive: isActive(u.lastLoginAt),
+      };
+    });
+
+  const selectedBookings: CustomerBooking[] = selected
+    ? bookings
+        .filter((b) => b.customerId === selected.uid)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map((b) => {
+          const cls = classesById[b.classId];
+          return {
+            id: b.id,
+            classname: cls?.name ?? "Unknown Class",
+            date: new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            status: b.status === "paid" ? "Paid" : "Reserved",
+            amount: Math.round(b.amount / 100),
+          };
+        })
+    : [];
+
+  const filtered = liveCustomers.filter((c) => {
     if (showActive && !c.isActive) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -56,7 +100,21 @@ export default function AdminCustomers() {
     setProfileOpen(true);
   }
 
-  const hasPaidBookings = true; // In real app, check if customer has paid bookings
+  const hasPaidBookings = selected ? selectedBookings.some((b) => b.status === "Paid") : false;
+
+  async function saveNotes() {
+    if (!selected) return;
+    await updateUser(selected.uid, { notes: editNotes });
+    setEditingNotes(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-[32px] font-sans">
@@ -64,7 +122,7 @@ export default function AdminCustomers() {
       <div className="flex items-center justify-between mb-[24px]">
         <div>
           <h1 className="font-display text-[28px] font-bold text-[var(--color-cream)]">Customers</h1>
-          <p className="text-[13px] text-[rgba(245,237,214,0.45)] mt-[4px]">{MOCK_CUSTOMERS.length} registered customers.</p>
+          <p className="text-[13px] text-[rgba(245,237,214,0.45)] mt-[4px]">{liveCustomers.length} registered customers.</p>
         </div>
       </div>
 
@@ -105,7 +163,7 @@ export default function AdminCustomers() {
             {filtered.length === 0 ? (
               <tr><td colSpan={7} className="px-[16px] py-[32px] text-center text-[rgba(245,237,214,0.3)] text-[13px]">No customers found.</td></tr>
             ) : filtered.map((c, i) => (
-              <tr key={c.id} className={`${i < filtered.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${!c.isActive ? "opacity-60" : ""}`}>
+              <tr key={c.uid} className={`${i < filtered.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${!c.isActive ? "opacity-60" : ""}`}>
                 <td className="px-[16px] py-[13px]">
                   <div className="flex items-center gap-[10px]">
                     <div className="w-[32px] h-[32px] rounded-full bg-[rgba(201,168,76,0.15)] flex items-center justify-center flex-shrink-0">
@@ -113,7 +171,7 @@ export default function AdminCustomers() {
                     </div>
                     <div>
                       <p className="text-[var(--color-cream)] font-medium">{c.name}</p>
-                      <p className="text-[11px] text-[rgba(245,237,214,0.35)]">{c.id}</p>
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)]">{c.uid.slice(-8).toUpperCase()}</p>
                     </div>
                   </div>
                 </td>
@@ -146,7 +204,7 @@ export default function AdminCustomers() {
                 </div>
                 <div>
                   <p className="text-[16px] font-bold text-[var(--color-cream)]">{selected.name}</p>
-                  <p className="text-[12px] text-[rgba(245,237,214,0.4)]">{selected.id} · Joined {selected.joined}</p>
+                  <p className="text-[12px] text-[rgba(245,237,214,0.4)]">{selected.uid.slice(-8).toUpperCase()} · Joined {selected.joined}</p>
                 </div>
               </div>
               <button onClick={() => setProfileOpen(false)} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] text-[20px] leading-none">&times;</button>
@@ -179,7 +237,7 @@ export default function AdminCustomers() {
               )}
               {profileTab === "bookings" && (
                 <div className="space-y-[8px]">
-                  {MOCK_BOOKINGS_FOR.map((b) => (
+                  {selectedBookings.map((b) => (
                     <div key={b.id} className="bg-[var(--color-dark-bg)] rounded-[8px] px-[14px] py-[11px] flex justify-between items-center">
                       <div>
                         <p className="text-[13px] text-[var(--color-cream)]">{b.classname}</p>
@@ -222,7 +280,7 @@ export default function AdminCustomers() {
                       />
                       <div className="flex gap-[10px] mt-[8px]">
                         <button onClick={() => setEditingNotes(false)} className="text-[12px] text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] transition">Cancel</button>
-                        <button onClick={() => setEditingNotes(false)} className="text-[12px] text-[var(--color-gold)] font-semibold hover:underline">Save</button>
+                        <button onClick={saveNotes} className="text-[12px] text-[var(--color-gold)] font-semibold hover:underline">Save</button>
                       </div>
                     </div>
                   )}

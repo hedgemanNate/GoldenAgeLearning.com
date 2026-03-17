@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useDiscounts } from "../../../../hooks/useDiscounts";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import type { DiscountWithId } from "../../../../types/discount";
 
 type DiscountStatus = "Active" | "Archived";
 
@@ -15,15 +18,24 @@ interface Discount {
   status: DiscountStatus;
 }
 
-const MOCK_DISCOUNTS: Discount[] = [
-  { id: "DC-001", title: "10% off first prescription fill", description: "One-time offer for new customers at Sunrise Pharmacy.", sponsor: "Sunrise Pharmacy", estimatedValue: "$15", expiry: "2025-12-31", classes: "all", status: "Active" },
-  { id: "DC-002", title: "Free blood pressure screening", description: "Available at any Sunrise Pharmacy location.", sponsor: "Sunrise Pharmacy", estimatedValue: "$30", expiry: "2025-09-30", classes: ["Intro to Watercolour", "Memoir Writing"], status: "Active" },
-  { id: "DC-003", title: "Free wellness consultation", description: "30-minute wellness check with a Valley Health practitioner.", sponsor: "Valley Health Co-op", estimatedValue: "$60", expiry: "2025-08-01", classes: ["Gentle Yoga & Mindfulness"], status: "Active" },
-  { id: "DC-004", title: "Free hearing test", description: "Complimentary new patient hearing assessment.", sponsor: "Maple Hearing Clinic", estimatedValue: "$80", expiry: "2025-06-01", classes: "all", status: "Archived" },
-];
-
-const MOCK_SPONSORS = ["Sunrise Pharmacy", "Valley Health Co-op", "Maple Hearing Clinic"];
-const MOCK_CLASSES = ["Intro to Watercolour", "Memoir Writing", "Gentle Yoga & Mindfulness", "iPad Basics for Beginners"];
+function fmtExpiry(ts: number) {
+  return new Date(ts).toISOString().slice(0, 10);
+}
+function fmtValue(cents: number) {
+  return `$${Math.round(cents / 100)}`;
+}
+function mapDiscount(d: DiscountWithId, sponsorName: string, classNames: Map<string, string>): Discount {
+  return {
+    id: d.id,
+    title: d.title,
+    description: d.description,
+    sponsor: sponsorName,
+    estimatedValue: fmtValue(d.estimatedValue),
+    expiry: fmtExpiry(d.expiresAt),
+    classes: d.appliesToAll ? "all" : d.appliesToClasses.map((cid) => classNames.get(cid) ?? cid),
+    status: d.status === "active" ? "Active" : "Archived",
+  };
+}
 
 type Filter = "Active" | "Archived";
 
@@ -32,6 +44,8 @@ const EMPTY_FORM: Omit<Discount, "id" | "status"> = {
 };
 
 export default function AdminDiscounts() {
+  const { discounts: rawDiscounts } = useDiscounts();
+  const { classes, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("Active");
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Discount | null>(null);
@@ -40,7 +54,19 @@ export default function AdminDiscounts() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<Discount | null>(null);
 
-  const filtered = MOCK_DISCOUNTS.filter((d) => d.status === filter);
+  const sponsorUsers = users.filter((u) => u.role === "sponsor");
+  const sponsorNames = sponsorUsers.map((u) => u.name);
+  const sponsorByName = Object.fromEntries(sponsorUsers.map((u) => [u.name, u]));
+  const sponsorById = Object.fromEntries(sponsorUsers.map((u) => [u.uid, u]));
+  const classNameMap = new Map(classes.map((c) => [c.id, c.name]));
+  const classNames = classes.filter((c) => c.status !== "deleted").map((c) => c.name);
+
+  const liveDiscounts: Discount[] = rawDiscounts.map((d) => {
+    const sponsor = sponsorById[d.sponsorId];
+    return mapDiscount(d, sponsor?.name ?? d.sponsorId, classNameMap);
+  });
+
+  const filtered = liveDiscounts.filter((d) => d.status === filter);
 
   function openAdd() {
     setEditTarget(null);
@@ -68,6 +94,14 @@ export default function AdminDiscounts() {
   function handleDelete(d: Discount) {
     setModalOpen(false);
     setDeleteConfirm(d);
+  }
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
   }
 
   return (
@@ -148,7 +182,7 @@ export default function AdminDiscounts() {
                 <label className="block text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">Linked Sponsor</label>
                 <select value={form.sponsor} onChange={(e) => setForm({ ...form, sponsor: e.target.value })} className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]">
                   <option value="">Select sponsor…</option>
-                  {MOCK_SPONSORS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {sponsorNames.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               {/* Value + Expiry */}
@@ -181,7 +215,7 @@ export default function AdminDiscounts() {
                 </div>
                 {classMode === "specific" && (
                   <div className="flex flex-wrap gap-[6px]">
-                    {MOCK_CLASSES.map((cls) => (
+                    {classNames.map((cls) => (
                       <button
                         key={cls}
                         onClick={() => toggleClass(cls)}

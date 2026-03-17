@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAdminData } from "../../../../hooks/useAdminData";
 
 type BookingStatus = "Paid" | "Reserved";
 
@@ -16,20 +17,18 @@ interface Booking {
   amount: number;
 }
 
-const MOCK_BOOKINGS: Booking[] = [
-  { id: "BK-091", customer: "Margaret P.", email: "margaret@email.com", phone: "555-0191", classname: "Intro to Watercolour", classDate: "Jun 29, 10:00 AM", bookedOn: "Jun 20", status: "Paid", amount: 35 },
-  { id: "BK-090", customer: "Harold S.", email: "harold@email.com", phone: "555-0102", classname: "Memoir Writing", classDate: "Jul 3, 2:00 PM", bookedOn: "Jun 19", status: "Reserved", amount: 25 },
-  { id: "BK-089", customer: "Evelyn T.", email: "evelyn@email.com", phone: "555-0183", classname: "Gentle Yoga", classDate: "Jul 5, 9:30 AM", bookedOn: "Jun 18", status: "Paid", amount: 20 },
-  { id: "BK-088", customer: "Bernard K.", email: "bernard@email.com", phone: "555-0174", classname: "iPad Basics", classDate: "Jul 8, 11:00 AM", bookedOn: "Jun 17", status: "Paid", amount: 30 },
-  { id: "BK-087", customer: "Rosemary H.", email: "rosemary@email.com", phone: "555-0165", classname: "Intro to Watercolour", classDate: "Jun 29, 10:00 AM", bookedOn: "Jun 16", status: "Reserved", amount: 35 },
-];
-
-const MOCK_CLASSES = ["Intro to Watercolour", "Memoir Writing", "Gentle Yoga & Mindfulness", "iPad Basics for Beginners"];
-const MOCK_CUSTOMERS = ["Margaret P.", "Harold S.", "Evelyn T.", "Bernard K.", "Rosemary H."];
+function fmtDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function fmtDateTime(ts: number) {
+  const d = new Date(ts);
+  return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
 
 type Filter = "All" | "Paid" | "Reserved";
 
 export default function AdminBookings() {
+  const { classes, bookings: rawBookings, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
 
@@ -45,7 +44,31 @@ export default function AdminBookings() {
   const [newClass, setNewClass] = useState("");
   const [newStatus, setNewStatus] = useState<BookingStatus>("Reserved");
 
-  const filtered = MOCK_BOOKINGS.filter((b) => {
+  const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
+  const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
+
+  const liveBookings: Booking[] = [...rawBookings]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((b) => {
+      const cust = usersById[b.customerId];
+      const cls = classesById[b.classId];
+      return {
+        id: b.id,
+        customer: cust?.name ?? "Unknown",
+        email: cust?.email ?? "",
+        phone: cust?.phone ?? "",
+        classname: cls?.name ?? "Unknown Class",
+        classDate: cls ? fmtDateTime(cls.date) : "",
+        bookedOn: fmtDate(b.createdAt),
+        status: b.status === "paid" ? "Paid" : "Reserved",
+        amount: Math.round(b.amount / 100),
+      };
+    });
+
+  const classOptions = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
+  const customerOptions = users.filter((u) => u.role === "customer").map((u) => u.name);
+
+  const filtered = liveBookings.filter((b) => {
     if (filter !== "All" && b.status !== filter) return false;
     if (search && !b.customer.toLowerCase().includes(search.toLowerCase()) && !b.classname.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -56,6 +79,14 @@ export default function AdminBookings() {
     setTransferClass(b.classname);
     setTransferCustomer(b.customer);
     setManageOpen(true);
+  }
+
+  if (loading) {
+    return (
+      <div className="p-[32px] font-sans flex items-center justify-center min-h-[300px]">
+        <div className="text-[rgba(245,237,214,0.3)] text-[14px]">Loading…</div>
+      </div>
+    );
   }
 
   return (
@@ -161,7 +192,7 @@ export default function AdminBookings() {
                   onChange={(e) => setTransferClass(e.target.value)}
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
-                  {MOCK_CLASSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               {/* Transfer customer */}
@@ -172,7 +203,7 @@ export default function AdminBookings() {
                   onChange={(e) => setTransferCustomer(e.target.value)}
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
-                  {MOCK_CUSTOMERS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {customerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               {/* Mark as paid */}
@@ -210,7 +241,7 @@ export default function AdminBookings() {
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
                   <option value="">Select customer…</option>
-                  {MOCK_CUSTOMERS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {customerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -221,7 +252,7 @@ export default function AdminBookings() {
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
                   <option value="">Select class…</option>
-                  {MOCK_CLASSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>

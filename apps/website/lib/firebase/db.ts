@@ -247,3 +247,18 @@ export function subscribeToCustomerBookings(
     callback(Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Booking) })));
   });
 }
+
+export function subscribeToMessages(callback: (messages: MessageWithId[]) => void) {
+  return onValue(ref(db, "messages"), (snap) => {
+    if (!snap.exists()) { callback([]); return; }
+    const msgs = Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Message) }));
+    callback(msgs.sort((a, b) => b.createdAt - a.createdAt));
+  });
+}
+
+export function subscribeToUsers(callback: (users: UserWithId[]) => void) {
+  return onValue(ref(db, "users"), (snap) => {
+    if (!snap.exists()) { callback([]); return; }
+    callback(Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) })));
+  });
+}

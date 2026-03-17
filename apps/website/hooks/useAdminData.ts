@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { subscribeToClasses, subscribeToBookings } from "../lib/firebase/db";
 import { ref, onValue } from "firebase/database";
-import { db } from "../lib/firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
+import { db, auth } from "../lib/firebase/client";
 import type { ClassWithId, Class } from "../types/class";
 import type { BookingWithId } from "../types/booking";
 import type { UserWithId, User } from "../types/user";
@@ -18,20 +19,44 @@ export function useAdminData() {
   const loading = !classesLoaded || !bookingsLoaded || !usersLoaded;
 
   useEffect(() => {
-    const unsubClasses = subscribeToClasses((c) => { setClasses(c); setClassesLoaded(true); });
-    const unsubBookings = subscribeToBookings((b) => { setBookings(b); setBookingsLoaded(true); });
-    const unsubUsers = onValue(ref(db, "users"), (snap) => {
-      setUsers(
-        snap.exists()
-          ? Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }))
-          : []
-      );
-      setUsersLoaded(true);
+    let unsubClasses: (() => void) | null = null;
+    let unsubBookings: (() => void) | null = null;
+    let unsubUsers: (() => void) | null = null;
+
+    const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
+      // Tear down previous subscriptions if auth state changes
+      unsubClasses?.();
+      unsubBookings?.();
+      unsubUsers?.();
+
+      if (!fbUser) {
+        // Not signed in — resolve loading immediately with empty data
+        setClasses([]);
+        setBookings([]);
+        setUsers([]);
+        setClassesLoaded(true);
+        setBookingsLoaded(true);
+        setUsersLoaded(true);
+        return;
+      }
+
+      unsubClasses = subscribeToClasses((c) => { setClasses(c); setClassesLoaded(true); });
+      unsubBookings = subscribeToBookings((b) => { setBookings(b); setBookingsLoaded(true); });
+      unsubUsers = onValue(ref(db, "users"), (snap) => {
+        setUsers(
+          snap.exists()
+            ? Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }))
+            : []
+        );
+        setUsersLoaded(true);
+      });
     });
+
     return () => {
-      unsubClasses();
-      unsubBookings();
-      unsubUsers();
+      unsubAuth();
+      unsubClasses?.();
+      unsubBookings?.();
+      unsubUsers?.();
     };
   }, []);
 

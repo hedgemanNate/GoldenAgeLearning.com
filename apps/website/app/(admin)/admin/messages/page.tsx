@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { subscribeToMessages } from "../../../../lib/firebase/db";
+import { useAdminData } from "../../../../hooks/useAdminData";
+import type { MessageWithId } from "../../../../types/message";
 
 type MsgChannel = "Email" | "SMS";
 type MsgStatus = "Sent" | "Scheduled";
 
-interface Message {
+interface DisplayMessage {
   id: string;
   sentTo: string;
   channel: MsgChannel;
@@ -15,18 +18,19 @@ interface Message {
   status: MsgStatus;
 }
 
-const MOCK_MESSAGES: Message[] = [
-  { id: "MSG-012", sentTo: "All customers", channel: "Email", subject: "June Newsletter", preview: "Welcome to our June lineup of classes…", date: "Jun 1", status: "Sent" },
-  { id: "MSG-011", sentTo: "Intro to Watercolour", channel: "SMS", subject: "", preview: "Reminder: your class is this Sunday at 10am!", date: "Jun 27", status: "Sent" },
-  { id: "MSG-010", sentTo: "Active customers", channel: "Email", subject: "New class announcement", preview: "We're excited to announce two new classes…", date: "May 28", status: "Sent" },
-  { id: "MSG-009", sentTo: "Memoir Writing", channel: "SMS", subject: "", preview: "Class update: please bring a notebook Thursday.", date: "Jul 1", status: "Scheduled" },
-];
-
-const MOCK_CLASSES = ["Intro to Watercolour", "Memoir Writing", "Gentle Yoga & Mindfulness", "iPad Basics for Beginners"];
+function recipientLabel(m: MessageWithId): string {
+  if (m.recipientType === "all") return "All customers";
+  if (m.recipientType === "active") return "Active customers";
+  if (m.recipientType === "inactive") return "Inactive customers";
+  if (m.recipientType === "class") return m.recipientId ?? "Class attendees";
+  return m.recipientId ?? "Unknown";
+}
 
 const SMS_LIMIT = 160;
 
 export default function AdminMessages() {
+  const { classes } = useAdminData();
+  const [rawMessages, setRawMessages] = useState<MessageWithId[]>([]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [sendTo, setSendTo] = useState("all");
   const [channel, setChannel] = useState<MsgChannel>("Email");
@@ -34,6 +38,23 @@ export default function AdminMessages() {
   const [body, setBody] = useState("");
   const [scheduled, setScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
+
+  useEffect(() => {
+    const unsub = subscribeToMessages(setRawMessages);
+    return () => unsub();
+  }, []);
+
+  const messages: DisplayMessage[] = rawMessages.map((m) => ({
+    id: m.id,
+    sentTo: recipientLabel(m),
+    channel: m.channel === "sms" ? "SMS" : "Email",
+    subject: m.subject ?? "",
+    preview: m.body.slice(0, 100),
+    date: new Date(m.sentAt ?? m.scheduledAt ?? m.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    status: m.status === "scheduled" ? "Scheduled" : "Sent",
+  }));
+
+  const upcomingClassNames = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
 
   return (
     <div className="p-[32px] font-sans">
@@ -53,7 +74,7 @@ export default function AdminMessages() {
 
       {/* Sent history */}
       <div className="flex flex-col gap-[8px]">
-        {MOCK_MESSAGES.map((m) => (
+        {messages.map((m) => (
           <div key={m.id} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px]">
             {/* Channel badge */}
             {m.channel === "Email" ? (
@@ -95,7 +116,7 @@ export default function AdminMessages() {
                 >
                   <option value="all">All customers</option>
                   <option value="active">Active customers (last 45 days)</option>
-                  {MOCK_CLASSES.map((c) => <option key={c} value={c}>{c} — class attendees</option>)}
+                  {upcomingClassNames.map((c) => <option key={c} value={c}>{c} — class attendees</option>)}
                 </select>
               </div>
 
