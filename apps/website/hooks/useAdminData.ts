@@ -41,15 +41,22 @@ export function useAdminData() {
       }
 
       unsubClasses = subscribeToClasses((c) => { setClasses(c); setClassesLoaded(true); });
-      unsubBookings = subscribeToBookings((b) => { setBookings(b); setBookingsLoaded(true); });
-      unsubUsers = onValue(ref(db, "users"), (snap) => {
-        setUsers(
-          snap.exists()
-            ? Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }))
-            : []
-        );
-        setUsersLoaded(true);
-      });
+      unsubBookings = subscribeToBookings(
+        (b) => { setBookings(b); setBookingsLoaded(true); },
+        () => { setBookings([]); setBookingsLoaded(true); }
+      );
+      unsubUsers = onValue(
+        ref(db, "users"),
+        (snap) => {
+          setUsers(
+            snap.exists()
+              ? Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }))
+              : []
+          );
+          setUsersLoaded(true);
+        },
+        () => { setUsers([]); setUsersLoaded(true); }
+      );
     });
 
     return () => {

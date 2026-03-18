@@ -223,11 +223,18 @@ export function subscribeToClasses(callback: (classes: ClassWithId[]) => void) {
   });
 }
 
-export function subscribeToBookings(callback: (bookings: BookingWithId[]) => void) {
-  return onValue(ref(db, "bookings"), (snap) => {
-    if (!snap.exists()) { callback([]); return; }
-    callback(Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Booking) })));
-  });
+export function subscribeToBookings(
+  callback: (bookings: BookingWithId[]) => void,
+  onCancelled?: (error: Error) => void
+) {
+  return onValue(
+    ref(db, "bookings"),
+    (snap) => {
+      if (!snap.exists()) { callback([]); return; }
+      callback(Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Booking) })));
+    },
+    onCancelled
+  );
 }
 
 export function subscribeToDiscounts(callback: (discounts: DiscountWithId[]) => void) {
