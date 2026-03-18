@@ -203,17 +203,30 @@ export default function AdminClasses() {
               <button onClick={closeModal} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] text-[20px] leading-none">&times;</button>
             </div>
             <div className="px-[24px] py-[20px] flex flex-col gap-[14px]">
-              {(["name", "category", "date", "time", "duration", "location", "sponsor"] as const).map((field) => (
+              {(["name", "category", "date", "time", "duration", "location"] as const).map((field) => (
                 <div key={field}>
                   <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px] capitalize">{field}</label>
                   <input
-                    type={field === "date" ? "date" : "text"}
+                    type={field === "date" ? "date" : field === "time" ? "time" : field === "duration" ? "number" : "text"}
                     value={(form as Record<string, string | number>)[field] as string}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                     className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                   />
                 </div>
               ))}
+              <div>
+                <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">SPONSOR</label>
+                <select
+                  value={form.sponsor}
+                  onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                >
+                  <option value="">— None —</option>
+                  {users.filter((u) => u.role === "sponsor").map((u) => (
+                    <option key={u.uid} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-[12px]">
                 {(["price", "seats"] as const).map((field) => (
                   <div key={field}>
