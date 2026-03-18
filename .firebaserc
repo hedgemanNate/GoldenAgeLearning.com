@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "golden-age-dev",
-    "dev": "golden-age-dev",
+    "default": "golden-age-learning",
+    "dev": "golden-age-learning",
     "staging": "golden-age-staging",
     "prod": "golden-age-prod"
   }
