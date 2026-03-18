@@ -65,7 +65,7 @@ export default function AdminBookings() {
       };
     });
 
-  const classOptions = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
+  const classOptions = classes.filter((c) => c.status === "upcoming").map((c) => ({ value: c.name, label: `${c.name} · ${fmtDate(c.date)}` }));
   const customerOptions = users.filter((u) => u.role === "customer").map((u) => u.name);
 
   const filtered = liveBookings.filter((b) => {
@@ -192,7 +192,7 @@ export default function AdminBookings() {
                   onChange={(e) => setTransferClass(e.target.value)}
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
-                  {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {classOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               {/* Transfer customer */}
@@ -252,7 +252,7 @@ export default function AdminBookings() {
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
                   <option value="">Select class…</option>
-                  {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {classOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               <div>
