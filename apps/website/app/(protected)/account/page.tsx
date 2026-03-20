@@ -56,13 +56,13 @@ export default function AccountPage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  if (!user || !firebaseUser) {
+  if (!firebaseUser) {
     return null;
   }
 
-  const displayName = user.name || firebaseUser.email || "Account";
-  const displayEmail = user.email || firebaseUser.email || "";
-  const displayPhone = user.phone || "";
+  const displayName = user?.name || firebaseUser.email || "Account";
+  const displayEmail = user?.email || firebaseUser.email || "";
+  const displayPhone = user?.phone || "";
 
   const initials = displayName
     .split(" ")
@@ -266,11 +266,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Full name"
-              value={user.name}
+              value={user?.name || "—"}
               editLabel="Edit"
               isEditing={editingField === "name"}
               isFlashing={flashField === "name"}
-              onEdit={() => startEdit("name", user.name)}
+              onEdit={() => startEdit("name", user?.name || "")}
               editContent={
                 <InlineEdit
                   type="text"
@@ -285,11 +285,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Email address"
-              value={user.email || "—"}
+              value={user?.email || "—"}
               editLabel="Edit"
               isEditing={editingField === "email"}
               isFlashing={flashField === "email"}
-              onEdit={() => startEdit("email", user.email)}
+              onEdit={() => startEdit("email", user?.email || "")}
               editContent={
                 <InlineEdit
                   type="email"
@@ -304,11 +304,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Phone number"
-              value={user.phone || "—"}
+              value={user?.phone || "—"}
               editLabel="Edit"
               isEditing={editingField === "phone"}
               isFlashing={flashField === "phone"}
-              onEdit={() => startEdit("phone", user.phone)}
+              onEdit={() => startEdit("phone", user?.phone || "")}
               editContent={
                 <InlineEdit
                   type="tel"
