@@ -1,16 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { useAuthContext } from "../../context/AuthContext";
+import { signOut } from "../../lib/firebase/auth";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { firebaseUser, user } = useAuthContext();
+  const [signingOut, setSigningOut] = useState(false);
 
-  // Mocking auth state for now
-  const isLoggedIn = false;
+  const isLoggedIn = !!firebaseUser;
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.push("/");
+    } catch (err) {
+      console.error("Sign out error:", err);
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   const links = [
     { name: "Home", path: "/" },
@@ -53,12 +69,20 @@ export default function Navbar() {
 
           {!isLoggedIn ? (
             <Link
-              href="/account"
+              href="/auth/login"
               className="font-sans text-[16px] text-[var(--color-gold)] border-[1.5px] border-[var(--color-gold)] px-[16px] py-[8px] rounded-btn min-h-[44px] flex items-center justify-center"
             >
               Sign In
             </Link>
-          ) : null}
+          ) : (
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="font-sans text-[16px] text-[var(--color-gold)] border-[1.5px] border-[var(--color-gold)] px-[16px] py-[8px] rounded-btn min-h-[44px] flex items-center justify-center hover:bg-[rgba(202,174,98,0.1)] disabled:opacity-50 transition-colors"
+            >
+              {signingOut ? "Signing Out..." : "Sign Out"}
+            </button>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -91,12 +115,24 @@ export default function Navbar() {
           })}
           {!isLoggedIn && (
             <Link
-              href="/account"
+              href="/auth/login"
               className="mt-[24px] font-sans text-[20px] text-[var(--color-gold)] border-[1.5px] border-[var(--color-gold)] h-[60px] flex items-center justify-center rounded-btn"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Sign In
             </Link>
+          )}
+          {isLoggedIn && (
+            <button
+              onClick={() => {
+                handleSignOut();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={signingOut}
+              className="mt-[24px] font-sans text-[20px] text-[var(--color-gold)] border-[1.5px] border-[var(--color-gold)] h-[60px] flex items-center justify-center rounded-btn hover:bg-[rgba(202,174,98,0.1)] disabled:opacity-50 transition-colors w-full"
+            >
+              {signingOut ? "Signing Out..." : "Sign Out"}
+            </button>
           )}
         </div>
       )}
