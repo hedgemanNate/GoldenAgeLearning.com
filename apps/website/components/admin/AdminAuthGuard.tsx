@@ -50,6 +50,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
           notes: null,
           contact: [],
           discounts: [],
+          bookedClasses: [],
           starRating: null,
           profilePicture: null,
           totalRedemptions: 0,

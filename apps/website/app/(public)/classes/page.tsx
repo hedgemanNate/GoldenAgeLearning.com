@@ -1,22 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getAllClasses } from "../../../lib/firebase/db";
+import type { ClassWithId } from "../../../types/class";
 
-const MOCK_CLASSES = [
-  { id: 1, title: 'Navigating Your Smartphone', category: 'Smartphones', date: 'Tuesday, April 8', time: '10:00–11:00 AM', seats: 6, desc: 'Learn the essentials of using your iPhone or Android. We will cover making calls, sending texts, and taking photos.', isFull: false },
-  { id: 2, title: 'Intro to Video Calling', category: 'Computers', date: 'Thursday, April 10', time: '2:00–3:30 PM', seats: 4, desc: 'Connect with family using Zoom and FaceTime. Step-by-step guidance on setting up an account and making your first call.', isFull: false },
-  { id: 3, title: 'Safe Online Shopping', category: 'Internet', date: 'Monday, April 14', time: '11:00 AM–12:30 PM', seats: 0, desc: 'Discover how to spot scams and shop securely on sites like Amazon. We will help you protect your personal information.', isFull: true },
-  { id: 4, title: 'Organizing Family Photos', category: 'Smartphones', date: 'Wednesday, April 16', time: '1:00–2:00 PM', seats: 8, desc: 'Clear the clutter from your device. Learn how to create albums and share pictures with your loved ones.', isFull: false },
-  { id: 5, title: 'Using Email Effectively', category: 'Internet', date: 'Friday, April 18', time: '10:00–11:30 AM', seats: 2, desc: 'A gentle introduction to managing your inbox, avoiding spam, and sending attachments.', isFull: false },
-  { id: 6, title: 'Basic Troubleshooting', category: 'Computers', date: 'Tuesday, April 22', time: '3:00–4:30 PM', seats: 5, desc: 'What to do when things go wrong. Simple tricks to freeze-proof your laptop and when it is time to reboot.', isFull: false },
-];
+interface UIClass extends Omit<ClassWithId, 'name' | 'description' | 'date'> {
+  title: string;
+  desc: string;
+  date: string;
+  time: string;
+  seats: number;
+  isFull: boolean;
+}
+
+function formatTimestamp(timestamp: number): { date: string; time: string } {
+  const date = new Date(timestamp);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  const dayName = days[date.getDay()];
+  const monthName = months[date.getMonth()];
+  const dayNum = date.getDate();
+  
+  const dateStr = `${dayName}, ${monthName} ${dayNum}`;
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  
+  return { date: dateStr, time: timeStr };
+}
+
+function transformClassData(firebaseClass: ClassWithId): UIClass {
+  const { date: dateStr, time: timeStr } = formatTimestamp(firebaseClass.date);
+  const seatsRemaining = firebaseClass.seatLimit - firebaseClass.seatsBooked;
+  const isFull = firebaseClass.seatsBooked >= firebaseClass.seatLimit;
+  
+  return {
+    ...firebaseClass,
+    title: firebaseClass.name,
+    desc: firebaseClass.description,
+    date: dateStr,
+    time: timeStr,
+    seats: Math.max(0, seatsRemaining),
+    isFull,
+  };
+}
 
 export default function ClassesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [topic, setTopic] = useState("All Topics");
   const [dateMonth, setDateMonth] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [classes, setClasses] = useState<UIClass[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const firebaseClasses = await getAllClasses();
+        const transformedClasses = firebaseClasses
+          .filter(cls => cls.status === 'upcoming')
+          .map(transformClassData)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        setClasses(transformedClasses);
+      } catch (err) {
+        console.error('Failed to fetch classes:', err);
+        setError('Failed to load classes. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClasses();
+  }, []);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -24,7 +82,7 @@ export default function ClassesPage() {
     setDateMonth("");
   };
 
-  const filteredClasses = MOCK_CLASSES.filter(c => {
+  const filteredClasses = classes.filter(c => {
     if (searchTerm && !c.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (topic !== 'All Topics' && c.category !== topic) return false;
     if (dateMonth && !c.date.toLowerCase().includes(dateMonth.toLowerCase())) return false;
@@ -120,7 +178,22 @@ export default function ClassesPage() {
 
       {/* Section 4: Class Cards Grid */}
       <section className="max-w-7xl mx-auto px-[24px] md:px-[40px] pt-[32px] pb-[80px]">
-        {filteredClasses.length === 0 ? (
+        {loading ? (
+          <div className="bg-[var(--color-dark-bg)] border border-dashed border-[rgba(245,237,214,0.1)] rounded-[10px] p-[32px] md:p-[48px] text-center max-w-2xl mx-auto mt-[16px]">
+            <div className="flex flex-col items-center gap-[16px]">
+              <div className="w-[40px] h-[40px] border-4 border-[rgba(201,168,76,0.3)] border-t-[var(--color-gold)] rounded-full animate-spin"></div>
+              <p className="font-sans text-[16px] text-[rgba(245,237,214,0.7)]">Loading classes...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-[var(--color-dark-bg)] border border-dashed border-[rgba(245,237,214,0.1)] rounded-[10px] p-[32px] md:p-[48px] text-center max-w-2xl mx-auto mt-[16px]">
+            <h3 className="font-sans text-[18px] font-medium text-[rgba(245,237,214,0.5)] mb-[12px]">{error}</h3>
+            <p className="font-sans text-[14px] text-[rgba(245,237,214,0.3)]">
+              Please give us a call at{' '}
+              <a href="tel:1-800-555-1234" className="text-[var(--color-teal)] hover:text-[#93c7c6] transition-colors underline">1-800-555-1234</a>.
+            </p>
+          </div>
+        ) : filteredClasses.length === 0 ? (
           <div className="bg-[var(--color-dark-bg)] border border-dashed border-[rgba(245,237,214,0.1)] rounded-[10px] p-[32px] md:p-[48px] text-center max-w-2xl mx-auto mt-[16px]">
             <h3 className="font-sans text-[18px] font-medium text-[rgba(245,237,214,0.5)] mb-[12px]">No classes match your search</h3>
             <p className="font-sans text-[14px] text-[rgba(245,237,214,0.3)]">
@@ -131,7 +204,7 @@ export default function ClassesPage() {
         ) : (
           <>
             <div className="flex justify-between items-center mb-[16px]">
-              <p className="font-sans text-[13px] text-[rgba(245,237,214,0.45)]">Showing {filteredClasses.length} of {MOCK_CLASSES.length} classes</p>
+              <p className="font-sans text-[13px] text-[rgba(245,237,214,0.45)]">Showing {filteredClasses.length} of {classes.length} classes</p>
               <p className="font-sans text-[12px] text-[var(--color-teal)]">Sorted by: soonest first</p>
             </div>
             

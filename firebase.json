@@ -4,7 +4,8 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs18"
+    "runtime": "nodejs20",
+    "codebase": "default"
   },
   "hosting": {
     "public": "apps/website/.next",

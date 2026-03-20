@@ -3,13 +3,9 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-
-// Mock data — will be replaced with Firebase
-const MOCK_USER = {
-  name: "Margaret Johnson",
-  email: "margaret@email.com",
-  phone: "(555) 123-4567",
-};
+import { useAuthContext } from "../../../context/AuthContext";
+import { changePassword } from "../../../lib/firebase/auth";
+import { updateUser } from "../../../lib/firebase/db";
 
 const MOCK_UPCOMING = [
   {
@@ -40,9 +36,8 @@ type Tab = "bookings" | "details" | "card";
 
 export default function AccountPage() {
   const router = useRouter();
-
+  const { user, firebaseUser } = useAuthContext();
   const [activeTab, setActiveTab] = useState<Tab>("bookings");
-  const [user, setUser] = useState(MOCK_USER);
 
   // Modals
   const [cancelModalId, setCancelModalId] = useState<string | null>(null);
@@ -60,8 +55,20 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  
+  // Password field focus tracking
+  const [focusedPasswordField, setFocusedPasswordField] = useState<number | null>(null);
 
-  const initials = user.name
+  if (!firebaseUser) {
+    return null;
+  }
+
+  const displayName = user?.name || firebaseUser.email || "Account";
+  const displayEmail = user?.email || firebaseUser.email || "";
+  const displayPhone = user?.phone || "";
+
+  const initials = displayName
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -85,7 +92,7 @@ export default function AccountPage() {
     setPasswordError("");
   };
 
-  const saveField = (field: keyof typeof MOCK_USER) => {
+  const saveField = async (field: string) => {
     setEditError("");
     if (!editValue.trim()) {
       setEditError("This field cannot be empty.");
@@ -95,22 +102,23 @@ export default function AccountPage() {
       setEditError("That doesn't look like a valid email address.");
       return;
     }
-    setUser((prev) => ({ ...prev, [field]: editValue }));
-    setEditingField(null);
-    setFlashField(field);
-    setTimeout(() => setFlashField(null), 1500);
+    
+    try {
+      // Save to database
+      await updateUser(firebaseUser!.uid, {
+        [field]: editValue,
+      });
+      
+      setEditingField(null);
+      setFlashField(field);
+      setTimeout(() => setFlashField(null), 1500);
+    } catch (err: any) {
+      setEditError(err.message || "Failed to save changes");
+    }
   };
 
-  const savePassword = () => {
+  const savePassword = async () => {
     setPasswordError("");
-    if (!currentPassword) {
-      setPasswordError("Enter your current password to confirm it's you.");
-      return;
-    }
-    if (currentPassword !== "password123") {
-      setPasswordError("That password is not correct. Please try again.");
-      return;
-    }
     if (!newPassword || newPassword.length < 8) {
       setPasswordError("Your password needs to be at least 8 characters.");
       return;
@@ -119,8 +127,23 @@ export default function AccountPage() {
       setPasswordError("Those passwords do not match — please try again.");
       return;
     }
-    cancelEdit();
+    
+    try {
+      await changePassword(newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        cancelEdit();
+      }, 10000);
+    } catch (err: any) {
+      setPasswordError(err.message || "Failed to change password");
+    }
   };
+
+
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "bookings", label: "My Bookings" },
@@ -140,19 +163,13 @@ export default function AccountPage() {
             </div>
             <div className="flex flex-col">
               <span className="font-sans font-medium text-[20px] text-[var(--color-cream)]">
-                {user.name}
+                {displayName}
               </span>
               <span className="font-sans text-[13px] text-[rgba(245,237,214,0.45)]">
-                {user.email}{user.phone ? ` · ${user.phone}` : ""}
+                {displayEmail}{displayPhone ? ` · ${displayPhone}` : ""}
               </span>
             </div>
           </div>
-          <button
-            onClick={() => router.push("/")}
-            className="font-sans text-[13px] text-[rgba(245,237,214,0.35)] hover:text-[rgba(245,237,214,0.6)] transition-colors flex-shrink-0"
-          >
-            Sign out
-          </button>
         </div>
 
         {/* ── Tab Bar ── */}
@@ -253,11 +270,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Full name"
-              value={user.name}
+              value={user?.name || "—"}
               editLabel="Edit"
               isEditing={editingField === "name"}
               isFlashing={flashField === "name"}
-              onEdit={() => startEdit("name", user.name)}
+              onEdit={() => startEdit("name", user?.name || "")}
               editContent={
                 <InlineEdit
                   type="text"
@@ -272,11 +289,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Email address"
-              value={user.email || "—"}
+              value={user?.email || "—"}
               editLabel="Edit"
               isEditing={editingField === "email"}
               isFlashing={flashField === "email"}
-              onEdit={() => startEdit("email", user.email)}
+              onEdit={() => startEdit("email", user?.email || "")}
               editContent={
                 <InlineEdit
                   type="email"
@@ -291,11 +308,11 @@ export default function AccountPage() {
 
             <SettingsRow
               label="Phone number"
-              value={user.phone || "—"}
+              value={user?.phone || "—"}
               editLabel="Edit"
               isEditing={editingField === "phone"}
               isFlashing={flashField === "phone"}
-              onEdit={() => startEdit("phone", user.phone)}
+              onEdit={() => startEdit("phone", user?.phone || "")}
               editContent={
                 <InlineEdit
                   type="tel"
@@ -322,24 +339,29 @@ export default function AccountPage() {
               editContent={
                 <div className="flex flex-col gap-[8px] mt-[12px]">
                   <p className="font-sans text-[13px] text-[rgba(245,237,214,0.5)]">
-                    Enter your current password to confirm it's you.
+                    Enter a new password for your account.
                   </p>
-                  {(["Current password", "New password", "Confirm new password"] as const).map((ph, i) => {
-                    const vals = [currentPassword, newPassword, confirmNewPassword];
-                    const setters = [setCurrentPassword, setNewPassword, setConfirmNewPassword];
+                  {(["New password", "Confirm new password"] as const).map((ph, i) => {
+                    const vals = [newPassword, confirmNewPassword];
+                    const setters = [setNewPassword, setConfirmNewPassword];
                     return (
                       <input
                         key={ph}
-                        type="password"
+                        type={focusedPasswordField === i ? "text" : "password"}
                         placeholder={ph}
                         value={vals[i]}
                         onChange={(e) => setters[i](e.target.value)}
+                        onFocus={() => setFocusedPasswordField(i)}
+                        onBlur={() => setFocusedPasswordField(null)}
                         className="bg-[#222E36] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[52px] px-[16px] text-[var(--color-cream)] font-sans text-[16px] outline-none w-full transition-colors"
                       />
                     );
                   })}
                   {passwordError && (
                     <p className="font-sans text-[13px] text-[#EB5757]">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="font-sans text-[13px] text-[var(--color-teal)] animate-pulse">✓ Password changed successfully</p>
                   )}
                   <button
                     onClick={savePassword}

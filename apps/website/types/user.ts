@@ -14,6 +14,7 @@ export interface User {
   notes: string | null;
   contact: string[];
   discounts: DiscountRedemption[];
+  bookedClasses: string[];
   starRating: number | null;
   profilePicture: string | null;
   totalRedemptions: number;
