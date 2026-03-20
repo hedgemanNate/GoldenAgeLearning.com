@@ -11,6 +11,22 @@
       ".read": true,
       "$classId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      },
+      "active": {
+        ".read": true,
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        "$classId": {
+          ".read": true,
+          ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+        }
+      },
+      "archived": {
+        ".read": true,
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        "$classId": {
+          ".read": true,
+          ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+        }
       }
     },
     "bookings": {

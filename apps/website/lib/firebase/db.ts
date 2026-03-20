@@ -40,35 +40,97 @@ export async function getAllUsers(): Promise<UserWithId[]> {
   return Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }));
 }
 
+export async function getUserBookedClasses(uid: string): Promise<ClassWithId[]> {
+  const userSnap = await get(ref(db, `users/${uid}`));
+  if (!userSnap.exists()) return [];
+  
+  const user = userSnap.val() as User;
+  const bookedClassIds = user.bookedClasses || [];
+  
+  if (bookedClassIds.length === 0) return [];
+  
+  const classes: ClassWithId[] = [];
+  
+  for (const classId of bookedClassIds) {
+    let classData = await getClass(classId);
+    if (classData) {
+      classes.push(classData);
+    }
+  }
+  
+  return classes;
+}
+
 // ─── Classes ──────────────────────────────────────────────────────────────────
 
 export async function getClass(classId: string): Promise<ClassWithId | null> {
-  const snap = await get(ref(db, `classes/${classId}`));
-  if (!snap.exists()) return null;
-  return { id: classId, ...snap.val() } as ClassWithId;
+  // Try active classes first
+  let snap = await get(ref(db, `classes/active/${classId}`));
+  if (snap.exists()) return { id: classId, ...snap.val() } as ClassWithId;
+  
+  // Fall back to archived classes
+  snap = await get(ref(db, `classes/archived/${classId}`));
+  if (snap.exists()) return { id: classId, ...snap.val() } as ClassWithId;
+  
+  return null;
 }
 
 export async function createClass(data: Class): Promise<string> {
-  const newRef = push(ref(db, "classes"));
+  const newRef = push(ref(db, "classes/active"));
   await set(newRef, data);
   return newRef.key!;
 }
 
 export async function updateClass(classId: string, data: Partial<Class>): Promise<void> {
-  await update(ref(db, `classes/${classId}`), data);
+  // Check if class is in active or archived
+  const activeSnap = await get(ref(db, `classes/active/${classId}`));
+  if (activeSnap.exists()) {
+    await update(ref(db, `classes/active/${classId}`), data);
+    return;
+  }
+  
+  const archivedSnap = await get(ref(db, `classes/archived/${classId}`));
+  if (archivedSnap.exists()) {
+    await update(ref(db, `classes/archived/${classId}`), data);
+    return;
+  }
+}
+
+export async function moveClassToArchived(classId: string): Promise<void> {
+  // Get the class from active
+  const snap = await get(ref(db, `classes/active/${classId}`));
+  if (!snap.exists()) return;
+  
+  const classData = snap.val();
+  // Update status to archived and set archivedAt timestamp
+  classData.status = "archived";
+  classData.archivedAt = Date.now();
+  
+  // Copy to archived path
+  await set(ref(db, `classes/archived/${classId}`), classData);
+  
+  // Delete from active path
+  await set(ref(db, `classes/active/${classId}`), null);
 }
 
 export async function getAllClasses(): Promise<ClassWithId[]> {
-  const snap = await get(ref(db, "classes"));
+  const snap = await get(ref(db, "classes/active"));
   if (!snap.exists()) return [];
   return Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) }));
 }
 
-export async function getUpcomingClasses(): Promise<ClassWithId[]> {
-  const q = query(ref(db, "classes"), orderByChild("status"), equalTo("upcoming"));
-  const snap = await get(q);
+export async function getArchivedClasses(): Promise<ClassWithId[]> {
+  const snap = await get(ref(db, "classes/archived"));
   if (!snap.exists()) return [];
-  return Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) }));
+  return Object.entries(snap.val()).map(([id, val] ) => ({ id, ...(val as Class) }));
+}
+
+export async function getUpcomingClasses(): Promise<ClassWithId[]> {
+  const snap = await get(ref(db, "classes/active"));
+  if (!snap.exists()) return [];
+  return Object.entries(snap.val())
+    .filter(([_, val]) => (val as Class).status === "upcoming")
+    .map(([id, val]) => ({ id, ...(val as Class) }));
 }
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
@@ -82,7 +144,21 @@ export async function getBooking(bookingId: string): Promise<BookingWithId | nul
 export async function createBooking(data: Booking): Promise<string> {
   const newRef = push(ref(db, "bookings"));
   await set(newRef, data);
-  return newRef.key!;
+  const bookingId = newRef.key!;
+  
+  // Add classId to user's bookedClasses array
+  const userRef = ref(db, `users/${data.customerId}`);
+  const userSnap = await get(userRef);
+  if (userSnap.exists()) {
+    const user = userSnap.val();
+    const bookedClasses = user.bookedClasses || [];
+    if (!bookedClasses.includes(data.classId)) {
+      bookedClasses.push(data.classId);
+      await update(userRef, { bookedClasses });
+    }
+  }
+  
+  return bookingId;
 }
 
 export async function updateBooking(bookingId: string, data: Partial<Booking>): Promise<void> {
@@ -217,7 +293,7 @@ export async function getActivityLogs(limit?: number): Promise<ActivityLogWithId
 // ─── Real-time subscriptions ───────────────────────────────────────────────────
 
 export function subscribeToClasses(callback: (classes: ClassWithId[]) => void) {
-  return onValue(ref(db, "classes"), (snap) => {
+  return onValue(ref(db, "classes/active"), (snap) => {
     if (!snap.exists()) { callback([]); return; }
     callback(Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) })));
   });
