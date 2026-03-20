@@ -7,13 +7,13 @@ export default function Home() {
       {/* Hero Section */}
       <section className="w-full bg-[var(--color-dark-bg)] px-[24px] py-[80px] flex flex-col items-center text-center">
         <p className="font-sans text-[13px] text-[var(--color-teal)] tracking-[0.1em] mb-[8px]">
-          Welcome to Golden Age Learning
+          Welcome To...
         </p>
         <Image
-          src="/assests/GoldenAgeLearningLogo2.png"
+          src="/assests/GALTextLogoTrans.png"
           alt="Golden Age Learning Logo"
-          width={300}
-          height={300}
+          width={400}
+          height={400}
           className="mb-[24px]"
         />
         <h1 className="font-display font-bold text-[48px] text-[var(--color-cream)] leading-tight mb-[12px] max-w-3xl">
