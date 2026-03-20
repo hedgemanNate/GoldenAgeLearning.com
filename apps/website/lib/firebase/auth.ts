@@ -27,15 +27,11 @@ export async function resetPassword(email: string) {
   return sendPasswordResetEmail(auth, email);
 }
 
-export async function changePassword(currentPassword: string, newPassword: string) {
+export async function changePassword(newPassword: string) {
   const user = auth.currentUser;
-  if (!user || !user.email) {
+  if (!user) {
     throw new Error("No user logged in");
   }
-  
-  // Re-authenticate to verify current password
-  const credential = EmailAuthProvider.credential(user.email, currentPassword);
-  await reauthenticateWithCredential(user, credential);
   
   // Update password
   await updatePassword(user, newPassword);

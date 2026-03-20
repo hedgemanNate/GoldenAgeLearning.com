@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "../../../context/AuthContext";
-import { signOut, changePassword } from "../../../lib/firebase/auth";
+import { changePassword } from "../../../lib/firebase/auth";
 import { updateUser } from "../../../lib/firebase/db";
 
 const MOCK_UPCOMING = [
@@ -38,7 +38,6 @@ export default function AccountPage() {
   const router = useRouter();
   const { user, firebaseUser } = useAuthContext();
   const [activeTab, setActiveTab] = useState<Tab>("bookings");
-  const [signingOut, setSigningOut] = useState(false);
 
   // Modals
   const [cancelModalId, setCancelModalId] = useState<string | null>(null);
@@ -56,6 +55,10 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  
+  // Password field focus tracking
+  const [focusedPasswordField, setFocusedPasswordField] = useState<number | null>(null);
 
   if (!firebaseUser) {
     return null;
@@ -116,10 +119,6 @@ export default function AccountPage() {
 
   const savePassword = async () => {
     setPasswordError("");
-    if (!currentPassword) {
-      setPasswordError("Enter your current password to confirm it's you.");
-      return;
-    }
     if (!newPassword || newPassword.length < 8) {
       setPasswordError("Your password needs to be at least 8 characters.");
       return;
@@ -130,31 +129,21 @@ export default function AccountPage() {
     }
     
     try {
-      await changePassword(currentPassword, newPassword);
-      cancelEdit();
-      setFlashField("password");
-      setTimeout(() => setFlashField(null), 1500);
+      await changePassword(newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        cancelEdit();
+      }, 10000);
     } catch (err: any) {
-      const msg = err.message || String(err);
-      if (msg.includes("INVALID_LOGIN_CREDENTIALS") || msg.includes("wrong password")) {
-        setPasswordError("Current password is incorrect.");
-      } else {
-        setPasswordError(msg || "Failed to change password");
-      }
+      setPasswordError(err.message || "Failed to change password");
     }
   };
 
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    try {
-      await signOut();
-      router.push("/");
-    } catch (err) {
-      console.error("Sign out error:", err);
-    } finally {
-      setSigningOut(false);
-    }
-  };
+
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "bookings", label: "My Bookings" },
@@ -181,13 +170,6 @@ export default function AccountPage() {
               </span>
             </div>
           </div>
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="font-sans text-[13px] text-[rgba(245,237,214,0.35)] hover:text-[rgba(245,237,214,0.6)] transition-colors flex-shrink-0 disabled:opacity-50"
-          >
-            {signingOut ? "Signing Out..." : "Sign Out"}
-          </button>
         </div>
 
         {/* ── Tab Bar ── */}
@@ -357,24 +339,29 @@ export default function AccountPage() {
               editContent={
                 <div className="flex flex-col gap-[8px] mt-[12px]">
                   <p className="font-sans text-[13px] text-[rgba(245,237,214,0.5)]">
-                    Enter your current password to confirm it's you.
+                    Enter a new password for your account.
                   </p>
-                  {(["Current password", "New password", "Confirm new password"] as const).map((ph, i) => {
-                    const vals = [currentPassword, newPassword, confirmNewPassword];
-                    const setters = [setCurrentPassword, setNewPassword, setConfirmNewPassword];
+                  {(["New password", "Confirm new password"] as const).map((ph, i) => {
+                    const vals = [newPassword, confirmNewPassword];
+                    const setters = [setNewPassword, setConfirmNewPassword];
                     return (
                       <input
                         key={ph}
-                        type="password"
+                        type={focusedPasswordField === i ? "text" : "password"}
                         placeholder={ph}
                         value={vals[i]}
                         onChange={(e) => setters[i](e.target.value)}
+                        onFocus={() => setFocusedPasswordField(i)}
+                        onBlur={() => setFocusedPasswordField(null)}
                         className="bg-[#222E36] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[52px] px-[16px] text-[var(--color-cream)] font-sans text-[16px] outline-none w-full transition-colors"
                       />
                     );
                   })}
                   {passwordError && (
                     <p className="font-sans text-[13px] text-[#EB5757]">{passwordError}</p>
+                  )}
+                  {passwordSuccess && (
+                    <p className="font-sans text-[13px] text-[var(--color-teal)] animate-pulse">✓ Password changed successfully</p>
                   )}
                   <button
                     onClick={savePassword}
