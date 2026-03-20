@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "../../../context/AuthContext";
-import { signOut } from "../../../lib/firebase/auth";
+import { signOut, changePassword } from "../../../lib/firebase/auth";
+import { updateUser } from "../../../lib/firebase/db";
 
 const MOCK_UPCOMING = [
   {
@@ -88,7 +89,7 @@ export default function AccountPage() {
     setPasswordError("");
   };
 
-  const saveField = (field: string) => {
+  const saveField = async (field: string) => {
     setEditError("");
     if (!editValue.trim()) {
       setEditError("This field cannot be empty.");
@@ -98,13 +99,22 @@ export default function AccountPage() {
       setEditError("That doesn't look like a valid email address.");
       return;
     }
-    // TODO: Save to Firebase
-    setEditingField(null);
-    setFlashField(field);
-    setTimeout(() => setFlashField(null), 1500);
+    
+    try {
+      // Save to database
+      await updateUser(firebaseUser!.uid, {
+        [field]: editValue,
+      });
+      
+      setEditingField(null);
+      setFlashField(field);
+      setTimeout(() => setFlashField(null), 1500);
+    } catch (err: any) {
+      setEditError(err.message || "Failed to save changes");
+    }
   };
 
-  const savePassword = () => {
+  const savePassword = async () => {
     setPasswordError("");
     if (!currentPassword) {
       setPasswordError("Enter your current password to confirm it's you.");
@@ -118,8 +128,20 @@ export default function AccountPage() {
       setPasswordError("Those passwords do not match — please try again.");
       return;
     }
-    // TODO: Save password to Firebase
-    cancelEdit();
+    
+    try {
+      await changePassword(currentPassword, newPassword);
+      cancelEdit();
+      setFlashField("password");
+      setTimeout(() => setFlashField(null), 1500);
+    } catch (err: any) {
+      const msg = err.message || String(err);
+      if (msg.includes("INVALID_LOGIN_CREDENTIALS") || msg.includes("wrong password")) {
+        setPasswordError("Current password is incorrect.");
+      } else {
+        setPasswordError(msg || "Failed to change password");
+      }
+    }
   };
 
   const handleSignOut = async () => {
