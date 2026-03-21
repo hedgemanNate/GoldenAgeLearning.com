@@ -52,6 +52,7 @@ export default function AdminDashboard() {
       time: fmtTime(c.date),
       seats: c.seatLimit,
       booked: c.seatsBooked,
+      revenue: c.price * c.seatsBooked,
     }));
 
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
@@ -122,6 +123,10 @@ export default function AdminDashboard() {
                     ) : (
                       <span className="text-[10px] text-[rgba(245,237,214,0.35)]">{cls.booked}/{cls.seats}</span>
                     )}
+                  </div>
+                  <div className="flex justify-between items-center mb-[8px]">
+                    <span className="text-[12px] font-semibold text-[var(--color-gold)]">${cls.revenue.toLocaleString()}</span>
+                    <span className="text-[10px] text-[rgba(245,237,214,0.3)]">revenue</span>
                   </div>
                   <div className="h-[4px] rounded-full bg-[rgba(245,237,214,0.08)] overflow-hidden">
                     <div
