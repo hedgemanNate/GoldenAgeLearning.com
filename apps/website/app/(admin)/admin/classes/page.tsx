@@ -6,6 +6,7 @@ import { useClassTemplates } from "../../../../hooks/useClassTemplates";
 import { useAuthContext } from "../../../../context/AuthContext";
 import { createClass, updateClass, moveClassToArchived, unarchiveClass, deleteClass } from "../../../../lib/firebase/db";
 import type { ClassWithId, Class } from "../../../../types/class";
+import PlacesAutocompleteInput from "../../../../components/admin/PlacesAutocompleteInput";
 
 type ClassStatus = "Upcoming" | "Full" | "Archived";
 
@@ -372,7 +373,7 @@ export default function AdminClasses() {
                   )}
                 </div>
               )}
-              {(["name", "category", "date", "time", "duration", "location", "description"] as const).map((field) => (
+              {(["name", "category", "date", "time", "duration", "description"] as const).map((field) => (
                 <div key={field}>
                   <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px] capitalize">{field}</label>
                   {field === "description" ? (
@@ -387,7 +388,7 @@ export default function AdminClasses() {
                         type={field === "date" ? "date" : field === "time" ? "time" : field === "duration" ? "number" : "text"}
                         value={(form as Record<string, string | number>)[field] as string}
                         onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                        list={field === "category" ? "cls-cat-list" : field === "location" ? "cls-loc-list" : undefined}
+                        list={field === "category" ? "cls-cat-list" : undefined}
                         className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                       />
                       {field === "category" && (
@@ -395,15 +396,18 @@ export default function AdminClasses() {
                           {categories.map((tag) => <option key={tag.id} value={tag.value} />)}
                         </datalist>
                       )}
-                      {field === "location" && (
-                        <datalist id="cls-loc-list">
-                          {locations.map((tag) => <option key={tag.id} value={tag.value} />)}
-                        </datalist>
-                      )}
                     </>
                   )}
                 </div>
               ))}
+              <div>
+                <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px] capitalize">location</label>
+                <PlacesAutocompleteInput
+                  value={form.location}
+                  onChange={(val) => setForm({ ...form, location: val })}
+                  placeholder="Search for a location…"
+                />
+              </div>
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">SPONSOR</label>
                 <select

@@ -11,6 +11,7 @@ import {
   deleteTaxonomyTag,
 } from "../../../../../lib/firebase/db";
 import type { ClassTemplateWithId, ClassTemplate } from "../../../../../types/classTemplate";
+import PlacesAutocompleteInput from "../../../../../components/admin/PlacesAutocompleteInput";
 
 type TemplateForm = {
   name: string;
@@ -265,15 +266,14 @@ export default function AdminClassTemplates() {
           </div>
           {addingTag === "location" && (
             <div className="flex gap-[8px] mb-[12px]">
-              <input
-                type="text"
-                value={newLocationInput}
-                onChange={(e) => setNewLocationInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddTag("locations", newLocationInput); if (e.key === "Escape") setAddingTag(null); }}
-                placeholder="Location name…"
-                autoFocus
-                className="flex-1 bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[10px] py-[7px] text-[12px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)]"
-              />
+              <div className="flex-1">
+                <PlacesAutocompleteInput
+                  value={newLocationInput}
+                  onChange={setNewLocationInput}
+                  placeholder="Search for a location…"
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[10px] py-[7px] text-[12px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)]"
+                />
+              </div>
               <button
                 onClick={() => handleAddTag("locations", newLocationInput)}
                 className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[12px] px-[12px] py-[7px] rounded-[6px] hover:brightness-110 transition"
@@ -376,16 +376,11 @@ export default function AdminClassTemplates() {
               </div>
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">DEFAULT LOCATION</label>
-                <select
+                <PlacesAutocompleteInput
                   value={form.defaultLocation}
-                  onChange={(e) => setForm({ ...form, defaultLocation: e.target.value })}
-                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
-                >
-                  <option value="">— None —</option>
-                  {locations.map((tag) => (
-                    <option key={tag.id} value={tag.value}>{tag.value}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setForm({ ...form, defaultLocation: val })}
+                  placeholder="Search for a location…"
+                />
               </div>
             </div>
             <div className="px-[24px] pb-[24px] flex items-center justify-between gap-[10px]">
