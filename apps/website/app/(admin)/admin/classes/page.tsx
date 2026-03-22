@@ -6,7 +6,6 @@ import { useClassTemplates } from "../../../../hooks/useClassTemplates";
 import { useAuthContext } from "../../../../context/AuthContext";
 import { createClass, updateClass, moveClassToArchived, unarchiveClass, deleteClass } from "../../../../lib/firebase/db";
 import type { ClassWithId, Class } from "../../../../types/class";
-import PlacesAutocompleteInput from "../../../../components/admin/PlacesAutocompleteInput";
 
 type ClassStatus = "Upcoming" | "Full" | "Archived";
 
@@ -402,11 +401,16 @@ export default function AdminClasses() {
               ))}
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px] capitalize">location</label>
-                <PlacesAutocompleteInput
+                <select
                   value={form.location}
-                  onChange={(val) => setForm({ ...form, location: val })}
-                  placeholder="Search for a location…"
-                />
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                >
+                  <option value="">— Select a location —</option>
+                  {locations.map((tag) => (
+                    <option key={tag.id} value={tag.value}>{tag.value}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">SPONSOR</label>
