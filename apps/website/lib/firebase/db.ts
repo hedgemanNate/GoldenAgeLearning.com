@@ -17,6 +17,7 @@ import type { Discount, DiscountWithId } from "../../types/discount";
 import type { Message, MessageWithId } from "../../types/message";
 import type { Payment, PaymentWithId } from "../../types/payment";
 import type { ActivityLog, ActivityLogWithId } from "../../types/activityLog";
+import type { ClassTemplate, ClassTemplateWithId, TaxonomyTag } from "../../types/classTemplate";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,39 @@ export async function moveClassToArchived(classId: string): Promise<void> {
   
   // Delete from active path
   await set(ref(db, `classes/active/${classId}`), null);
+}
+
+export async function unarchiveClass(classId: string): Promise<void> {
+  // Get the class from archived
+  const snap = await get(ref(db, `classes/archived/${classId}`));
+  if (!snap.exists()) return;
+  
+  const classData = snap.val();
+  // Update status to upcoming and remove archivedAt timestamp
+  classData.status = "upcoming";
+  delete classData.archivedAt;
+  
+  // Copy back to active path
+  await set(ref(db, `classes/active/${classId}`), classData);
+  
+  // Delete from archived path
+  await set(ref(db, `classes/archived/${classId}`), null);
+}
+
+export async function deleteClass(classId: string): Promise<void> {
+  // Try to delete from active first
+  const activeSnap = await get(ref(db, `classes/active/${classId}`));
+  if (activeSnap.exists()) {
+    await set(ref(db, `classes/active/${classId}`), null);
+    return;
+  }
+  
+  // Try archived
+  const archivedSnap = await get(ref(db, `classes/archived/${classId}`));
+  if (archivedSnap.exists()) {
+    await set(ref(db, `classes/archived/${classId}`), null);
+    return;
+  }
 }
 
 export async function getAllClasses(): Promise<ClassWithId[]> {
@@ -293,10 +327,81 @@ export async function getActivityLogs(limit?: number): Promise<ActivityLogWithId
 // ─── Real-time subscriptions ───────────────────────────────────────────────────
 
 export function subscribeToClasses(callback: (classes: ClassWithId[]) => void) {
-  return onValue(ref(db, "classes/active"), (snap) => {
-    if (!snap.exists()) { callback([]); return; }
-    callback(Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) })));
+  let activeClasses: ClassWithId[] = [];
+  let archivedClasses: ClassWithId[] = [];
+  
+  // Subscribe to active classes
+  const unsubActive = onValue(ref(db, "classes/active"), (snap) => {
+    activeClasses = snap.exists() ? Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) })) : [];
+    callback([...activeClasses, ...archivedClasses]);
   });
+  
+  // Subscribe to archived classes
+  const unsubArchived = onValue(ref(db, "classes/archived"), (snap) => {
+    archivedClasses = snap.exists() ? Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Class) })) : [];
+    callback([...activeClasses, ...archivedClasses]);
+  });
+  
+  // Return unsubscribe function
+  return () => {
+    unsubActive();
+    unsubArchived();
+  };
+}
+
+// ─── Class Templates ──────────────────────────────────────────────────────────
+
+export async function createClassTemplate(data: ClassTemplate): Promise<string> {
+  const newRef = push(ref(db, "classTemplates"));
+  await set(newRef, data);
+  return newRef.key!;
+}
+
+export async function updateClassTemplate(templateId: string, data: Partial<ClassTemplate>): Promise<void> {
+  await update(ref(db, `classTemplates/${templateId}`), data);
+}
+
+export async function deleteClassTemplate(templateId: string): Promise<void> {
+  await set(ref(db, `classTemplates/${templateId}`), null);
+}
+
+export function subscribeToClassTemplates(callback: (templates: ClassTemplateWithId[]) => void, onError?: () => void) {
+  return onValue(ref(db, "classTemplates"), (snap) => {
+    const templates: ClassTemplateWithId[] = snap.exists()
+      ? Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as ClassTemplate) }))
+      : [];
+    callback(templates);
+  }, onError);
+}
+
+// ─── Class Taxonomy ───────────────────────────────────────────────────────────
+
+export async function addTaxonomyTag(type: "categories" | "locations", value: string): Promise<string> {
+  const newRef = push(ref(db, `classTaxonomy/${type}`));
+  await set(newRef, { value });
+  return newRef.key!;
+}
+
+export async function deleteTaxonomyTag(type: "categories" | "locations", tagId: string): Promise<void> {
+  await set(ref(db, `classTaxonomy/${type}/${tagId}`), null);
+}
+
+export function subscribeToTaxonomyCategories(callback: (tags: TaxonomyTag[]) => void, onError?: () => void) {
+  return onValue(ref(db, "classTaxonomy/categories"), (snap) => {
+    const tags: TaxonomyTag[] = snap.exists()
+      ? Object.entries(snap.val() as Record<string, { value: string }>).map(([id, data]) => ({ id, value: data.value }))
+      : [];
+    callback(tags);
+  }, onError);
+}
+
+export function subscribeToTaxonomyLocations(callback: (tags: TaxonomyTag[]) => void, onError?: () => void) {
+  return onValue(ref(db, "classTaxonomy/locations"), (snap) => {
+    const tags: TaxonomyTag[] = snap.exists()
+      ? Object.entries(snap.val() as Record<string, { value: string }>).map(([id, data]) => ({ id, value: data.value }))
+      : [];
+    callback(tags);
+  }, onError);
 }
 
 export function subscribeToBookings(

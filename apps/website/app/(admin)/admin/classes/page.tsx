@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useAdminData } from "../../../../hooks/useAdminData";
-import type { ClassWithId } from "../../../../types/class";
+import { useClassTemplates } from "../../../../hooks/useClassTemplates";
+import { useAuthContext } from "../../../../context/AuthContext";
+import { createClass, updateClass, moveClassToArchived, unarchiveClass, deleteClass } from "../../../../lib/firebase/db";
+import type { ClassWithId, Class } from "../../../../types/class";
 
 type ClassStatus = "Upcoming" | "Full" | "Archived";
 
@@ -17,7 +20,9 @@ interface ClassItem {
   seats: number;
   booked: number;
   location: string;
+  description: string;
   sponsor: string;
+  instructor: string;
   status: ClassStatus;
 }
 
@@ -40,19 +45,24 @@ function classUIStatus(cls: ClassWithId): ClassStatus {
 }
 
 const EMPTY_FORM: Omit<ClassItem, "id" | "status"> = {
-  name: "", category: "", date: "", time: "", duration: "", price: 0, seats: 0, booked: 0, location: "", sponsor: "",
+  name: "", category: "", date: "", time: "", duration: "", price: 0, seats: 0, booked: 0, location: "", description: "", sponsor: "", instructor: "",
 };
 
 type Filter = "All" | "Upcoming" | "Full" | "Archived";
 
 export default function AdminClasses() {
   const { classes: rawClasses, users, loading } = useAdminData();
+  const { templates, categories, locations } = useClassTemplates();
+  const { user: currentUser } = useAuthContext();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ClassItem | null>(null);
   const [form, setForm] = useState<Omit<ClassItem, "id" | "status">>(EMPTY_FORM);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
   const liveClasses: ClassItem[] = rawClasses
@@ -64,11 +74,13 @@ export default function AdminClasses() {
       date: fmtDate(c.date),
       time: fmtTime(c.date),
       duration: fmtDuration(c.duration),
-      price: Math.round(c.price / 100),
+      price: c.price,
       seats: c.seatLimit,
       booked: c.seatsBooked,
       location: c.location,
+      description: c.description,
       sponsor: c.sponsorId ? (usersById[c.sponsorId]?.name ?? "") : "",
+      instructor: c.instructorId ? (usersById[c.instructorId]?.name ?? "") : "",
       status: classUIStatus(c),
     }))
     .sort((a, b) => {
@@ -83,10 +95,25 @@ export default function AdminClasses() {
     return true;
   });
 
+  function applyTemplate(templateId: string) {
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    setForm((prev) => ({
+      ...prev,
+      name: tpl.name,
+      price: tpl.price,
+      seats: tpl.seatLimit,
+      duration: String(tpl.duration),
+      ...(tpl.defaultCategory && { category: tpl.defaultCategory }),
+      ...(tpl.defaultLocation && { location: tpl.defaultLocation }),
+    }));
+  }
+
   function openAdd() {
     setEditTarget(null);
-    setForm(EMPTY_FORM);
+    setSelectedTemplateId("");
     setDeleteConfirm(false);
+    setError("");
     setModalOpen(true);
   }
 
@@ -95,12 +122,128 @@ export default function AdminClasses() {
     const { id: _id, status: _status, ...rest } = cls;
     setForm(rest);
     setDeleteConfirm(false);
+    setError("");
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
     setDeleteConfirm(false);
+    setError("");
+  }
+
+  async function handleSave() {
+    setError("");
+    
+    // Validate required fields
+    if (!form.name.trim()) {
+      setError("Class name is required");
+      return;
+    }
+    if (form.price < 0) {
+      setError("Price cannot be negative");
+      return;
+    }
+    if (form.seats <= 0) {
+      setError("Seat limit must be greater than 0");
+      return;
+    }
+    if (!form.date) {
+      setError("Date is required");
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      // Convert date + time strings to timestamp
+      let dateTs = new Date(form.date).getTime();
+      if (form.time) {
+        const [hours, mins] = form.time.split(":").map(Number);
+        const d = new Date(dateTs);
+        d.setHours(hours, mins, 0, 0);
+        dateTs = d.getTime();
+      }
+      
+      if (editTarget) {
+        // Update existing class
+        const updatedSponsors = users.find((u) => u.name === form.sponsor);
+        const instructor = users.find((u) => u.name === form.instructor);
+        await updateClass(editTarget.id, {
+          name: form.name,
+          category: form.category,
+          date: dateTs,
+          duration: Number(form.duration),
+          price: Number(form.price),
+          seatLimit: Number(form.seats),
+          location: form.location,
+          description: form.description,
+          sponsorId: updatedSponsors?.uid ?? null,
+          instructorId: instructor?.uid ?? null,
+        });
+      } else {
+        // Create new class
+        const sponsor = users.find((u) => u.name === form.sponsor);
+        const instructor = users.find((u) => u.name === form.instructor);
+        const classData: Class = {
+          name: form.name,
+          category: form.category,
+          date: dateTs,
+          duration: Number(form.duration),
+          price: Number(form.price),
+          seatLimit: Number(form.seats),
+          seatsBooked: 0,
+          location: form.location,
+          description: form.description,
+          sponsorId: sponsor?.uid ?? null,
+          instructorId: instructor?.uid ?? null,
+          status: "upcoming",
+          archivedAt: null,
+          createdAt: Date.now(),
+          createdBy: currentUser?.uid ?? "unknown",
+        };
+        await createClass(classData);
+        setForm(EMPTY_FORM);
+      }
+      closeModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save class");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleArchiveToggle() {
+    if (!editTarget) return;
+    
+    setError("");
+    setSubmitting(true);
+    try {
+      if (editTarget.status === "Archived") {
+        await unarchiveClass(editTarget.id);
+      } else {
+        await moveClassToArchived(editTarget.id);
+      }
+      closeModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update class status");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!editTarget) return;
+    
+    setError("");
+    setSubmitting(true);
+    try {
+      await deleteClass(editTarget.id);
+      closeModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete class");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const hasBookings = editTarget ? editTarget.booked > 0 : false;
@@ -203,15 +346,62 @@ export default function AdminClasses() {
               <button onClick={closeModal} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] text-[20px] leading-none">&times;</button>
             </div>
             <div className="px-[24px] py-[20px] flex flex-col gap-[14px]">
-              {(["name", "category", "date", "time", "duration", "location"] as const).map((field) => (
+              {error && (
+                <div className="px-[12px] py-[10px] rounded-[6px] bg-[rgba(220,38,38,0.1)] border border-[rgba(220,38,38,0.2)] text-[#F87171] text-[12px]">
+                  {error}
+                </div>
+              )}
+              {!editTarget && templates.length > 0 && (
+                <div className="pb-[4px] border-b border-[rgba(245,237,214,0.07)]">
+                  <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">USE A TEMPLATE</label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => {
+                      setSelectedTemplateId(e.target.value);
+                      if (e.target.value) applyTemplate(e.target.value);
+                    }}
+                    className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                  >
+                    <option value="">— Select a template —</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {selectedTemplateId && (
+                    <p className="text-[11px] text-[rgba(245,237,214,0.3)] mt-[5px]">Fields pre-filled — edit as needed.</p>
+                  )}
+                </div>
+              )}
+              {(["name", "category", "date", "time", "duration", "location", "description"] as const).map((field) => (
                 <div key={field}>
                   <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px] capitalize">{field}</label>
-                  <input
-                    type={field === "date" ? "date" : field === "time" ? "time" : field === "duration" ? "number" : "text"}
-                    value={(form as Record<string, string | number>)[field] as string}
-                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
-                  />
+                  {field === "description" ? (
+                    <textarea
+                      value={(form as Record<string, string | number>)[field] as string}
+                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                      className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] min-h-[80px]"
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type={field === "date" ? "date" : field === "time" ? "time" : field === "duration" ? "number" : "text"}
+                        value={(form as Record<string, string | number>)[field] as string}
+                        onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                        list={field === "category" ? "cls-cat-list" : field === "location" ? "cls-loc-list" : undefined}
+                        className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                      />
+                      {field === "category" && (
+                        <datalist id="cls-cat-list">
+                          {categories.map((tag) => <option key={tag.id} value={tag.value} />)}
+                        </datalist>
+                      )}
+                      {field === "location" && (
+                        <datalist id="cls-loc-list">
+                          {locations.map((tag) => <option key={tag.id} value={tag.value} />)}
+                        </datalist>
+                      )}
+                    </>
+                  )}
                 </div>
               ))}
               <div>
@@ -223,6 +413,19 @@ export default function AdminClasses() {
                 >
                   <option value="">— None —</option>
                   {users.filter((u) => u.role === "sponsor").map((u) => (
+                    <option key={u.uid} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">INSTRUCTOR</label>
+                <select
+                  value={form.instructor}
+                  onChange={(e) => setForm({ ...form, instructor: e.target.value })}
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                >
+                  <option value="">— None —</option>
+                  {users.filter((u) => u.role === "staff").map((u) => (
                     <option key={u.uid} value={u.name}>{u.name}</option>
                   ))}
                 </select>
@@ -245,16 +448,17 @@ export default function AdminClasses() {
               {editTarget && (
                 <div className="flex gap-[10px]">
                   <button
-                    onClick={() => {}}
-                    className="text-[12px] text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] border border-[rgba(245,237,214,0.12)] px-[14px] py-[8px] rounded-[6px] transition"
+                    onClick={handleArchiveToggle}
+                    disabled={submitting}
+                    className="text-[12px] text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] border border-[rgba(245,237,214,0.12)] px-[14px] py-[8px] rounded-[6px] transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {editTarget.status === "Archived" ? "Unarchive" : "Archive"}
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(true)}
-                    disabled={hasBookings}
+                    disabled={hasBookings || submitting}
                     className={`text-[12px] px-[14px] py-[8px] rounded-[6px] border transition ${
-                      hasBookings
+                      hasBookings || submitting
                         ? "text-[rgba(245,237,214,0.2)] border-[rgba(245,237,214,0.05)] cursor-not-allowed"
                         : "text-[#F87171] border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.1)]"
                     }`}
@@ -266,14 +470,15 @@ export default function AdminClasses() {
               )}
               {!editTarget && <div />}
               <div className="flex gap-[10px]">
-                <button onClick={closeModal} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition">
+                <button onClick={closeModal} disabled={submitting} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition disabled:opacity-50">
                   Cancel
                 </button>
                 <button
-                  onClick={closeModal}
-                  className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition"
+                  onClick={handleSave}
+                  disabled={submitting}
+                  className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editTarget ? "Save Changes" : "Add Class"}
+                  {submitting ? "Saving…" : editTarget ? "Save Changes" : "Add Class"}
                 </button>
               </div>
             </div>
@@ -283,8 +488,10 @@ export default function AdminClasses() {
               <div className="mx-[24px] mb-[24px] p-[16px] rounded-[8px] bg-[rgba(220,38,38,0.08)] border border-[rgba(220,38,38,0.2)]">
                 <p className="text-[13px] text-[var(--color-cream)] mb-[12px]">Permanently delete this class? This cannot be undone.</p>
                 <div className="flex gap-[10px]">
-                  <button onClick={() => setDeleteConfirm(false)} className="text-[12px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] transition">Cancel</button>
-                  <button onClick={closeModal} className="text-[12px] text-[#F87171] font-semibold hover:underline">Yes, Delete</button>
+                  <button onClick={() => setDeleteConfirm(false)} disabled={submitting} className="text-[12px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] transition disabled:opacity-50">Cancel</button>
+                  <button onClick={handleDelete} disabled={submitting} className="text-[12px] text-[#F87171] font-semibold hover:underline disabled:opacity-50">
+                    {submitting ? "Deleting…" : "Yes, Delete"}
+                  </button>
                 </div>
               </div>
             )}
