@@ -5,4 +5,7 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Cloud Function triggers
+export { processScheduledMessages } from "./messages";
+export { onCustomerCreated } from "./customers";
 
