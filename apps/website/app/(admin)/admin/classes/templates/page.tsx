@@ -15,6 +15,7 @@ import PlacesAutocompleteInput from "../../../../../components/admin/PlacesAutoc
 
 type TemplateForm = {
   name: string;
+  description: string;
   price: number;
   seatLimit: number;
   duration: number;
@@ -24,6 +25,7 @@ type TemplateForm = {
 
 const EMPTY_FORM: TemplateForm = {
   name: "",
+  description: "",
   price: 0,
   seatLimit: 0,
   duration: 60,
@@ -65,6 +67,7 @@ export default function AdminClassTemplates() {
     setEditTarget(t);
     setForm({
       name: t.name,
+      description: t.description ?? "",
       price: t.price,
       seatLimit: t.seatLimit,
       duration: t.duration,
@@ -92,6 +95,7 @@ export default function AdminClassTemplates() {
       if (editTarget) {
         await updateClassTemplate(editTarget.id, {
           name: form.name,
+          description: form.description,
           price: Number(form.price),
           seatLimit: Number(form.seatLimit),
           duration: Number(form.duration),
@@ -101,6 +105,7 @@ export default function AdminClassTemplates() {
       } else {
         const data: ClassTemplate = {
           name: form.name,
+          description: form.description,
           price: Number(form.price),
           seatLimit: Number(form.seatLimit),
           duration: Number(form.duration),
@@ -329,6 +334,14 @@ export default function AdminClassTemplates() {
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 />
               </div>
+              <div>
+                <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">DESCRIPTION</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] min-h-[80px] resize-y"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-[12px]">
                 <div>
                   <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">PRICE ($)</label>
@@ -376,11 +389,16 @@ export default function AdminClassTemplates() {
               </div>
               <div>
                 <label className="block font-sans text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[6px]">DEFAULT LOCATION</label>
-                <PlacesAutocompleteInput
+                <select
                   value={form.defaultLocation}
-                  onChange={(val) => setForm({ ...form, defaultLocation: val })}
-                  placeholder="Search for a location…"
-                />
+                  onChange={(e) => setForm({ ...form, defaultLocation: e.target.value })}
+                  className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
+                >
+                  <option value="">— None —</option>
+                  {locations.map((tag) => (
+                    <option key={tag.id} value={tag.value}>{tag.value}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="px-[24px] pb-[24px] flex items-center justify-between gap-[10px]">

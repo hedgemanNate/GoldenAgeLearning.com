@@ -5,6 +5,7 @@ export interface TaxonomyTag {
 
 export interface ClassTemplate {
   name: string;
+  description: string;
   price: number;
   seatLimit: number;
   duration: number;

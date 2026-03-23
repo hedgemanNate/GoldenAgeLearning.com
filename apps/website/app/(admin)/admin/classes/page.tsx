@@ -106,6 +106,7 @@ export default function AdminClasses() {
       duration: String(tpl.duration),
       ...(tpl.defaultCategory && { category: tpl.defaultCategory }),
       ...(tpl.defaultLocation && { location: tpl.defaultLocation }),
+      ...(tpl.description && { description: tpl.description }),
     }));
   }
 
