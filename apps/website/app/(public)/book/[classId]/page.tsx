@@ -1,18 +1,47 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getClass } from "../../../../lib/firebase/db";
+import type { ClassWithId } from "../../../../types/class";
 
-// Mock data (matching what we have on the Classes page for consistency)
-const MOCK_CLASSES = [
-  { id: '1', title: 'Navigating Your Smartphone', category: 'Smartphones', date: 'Tuesday, April 8', time: '10:00–11:00 AM', duration: '1 hour', location: 'Main Community Hall', seats: 6 },
-  { id: '2', title: 'Intro to Video Calling', category: 'Computers', date: 'Thursday, April 10', time: '2:00–3:30 PM', duration: '1.5 hours', location: 'Tech Lab', seats: 4 },
-  { id: '3', title: 'Safe Online Shopping', category: 'Internet', date: 'Monday, April 14', time: '11:00 AM–12:30 PM', duration: '1.5 hours', location: 'Main Community Hall', seats: 0 },
-  { id: '4', title: 'Organizing Family Photos', category: 'Smartphones', date: 'Wednesday, April 16', time: '1:00–2:00 PM', duration: '1 hour', location: 'Tech Lab', seats: 8 },
-  { id: '5', title: 'Using Email Effectively', category: 'Internet', date: 'Friday, April 18', time: '10:00–11:30 AM', duration: '1.5 hours', location: 'Room 2B', seats: 2 },
-  { id: '6', title: 'Basic Troubleshooting', category: 'Computers', date: 'Tuesday, April 22', time: '3:00–4:30 PM', duration: '1.5 hours', location: 'Tech Lab', seats: 5 },
-];
+function formatTimestamp(timestamp: number): { date: string; time: string } {
+  const d = new Date(timestamp);
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return {
+    date: `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`,
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
+  };
+}
+
+interface UIClass {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: string;
+  location: string;
+  seats: number;
+  price: number;
+}
+
+function toUIClass(c: ClassWithId): UIClass {
+  const { date, time } = formatTimestamp(c.date);
+  return {
+    id: c.id,
+    title: c.name,
+    date,
+    time,
+    duration: c.duration >= 60
+      ? `${Math.floor(c.duration / 60)}${c.duration % 60 > 0 ? ` hr ${c.duration % 60} min` : " hour"}`
+      : `${c.duration} min`,
+    location: c.location,
+    seats: Math.max(0, c.seatLimit - c.seatsBooked),
+    price: c.price,
+  };
+}
 
 const STEPS = [
   "Confirm",
@@ -43,11 +72,23 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   // Step 5 State
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  
+
+  // Class data from Firebase
+  const [selectedClass, setSelectedClass] = useState<UIClass | null>(null);
+  const [classLoading, setClassLoading] = useState(true);
+  const [classError, setClassError] = useState<string | null>(null);
+
   const resolvedParams = use(params);
-  
-  // Find the selected class
-  const selectedClass = MOCK_CLASSES.find(c => c.id === resolvedParams.classId) || MOCK_CLASSES[0];
+
+  useEffect(() => {
+    getClass(resolvedParams.classId)
+      .then((cls) => {
+        if (!cls) { setClassError("Class not found."); return; }
+        setSelectedClass(toUIClass(cls));
+      })
+      .catch(() => setClassError("Failed to load class details."))
+      .finally(() => setClassLoading(false));
+  }, [resolvedParams.classId]);
 
   const handleStep2Submit = () => {
     setStep2Error('');
@@ -132,6 +173,23 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     setStep3Error('');
     setCurrentStep(2);
   };
+
+  if (classLoading) {
+    return (
+      <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex items-center justify-center">
+        <p className="font-sans text-[18px] text-[rgba(245,237,214,0.5)]">Loading class details…</p>
+      </main>
+    );
+  }
+
+  if (classError || !selectedClass) {
+    return (
+      <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex flex-col items-center justify-center gap-[20px] px-[24px]">
+        <p className="font-sans text-[18px] text-[rgba(245,237,214,0.7)] text-center">{classError ?? "Class not found."}</p>
+        <Link href="/classes" className="text-[var(--color-gold)] underline text-[16px]">Browse all classes</Link>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex flex-col">
