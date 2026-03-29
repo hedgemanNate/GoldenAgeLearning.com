@@ -91,7 +91,11 @@ export default function AdminClasses() {
 
   const filtered = liveClasses.filter((c) => {
     if (filter !== "All" && c.status !== filter) return false;
-    if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      // Match name or date string
+      if (!c.name.toLowerCase().includes(s) && !c.date.toLowerCase().includes(s)) return false;
+    }
     return true;
   });
 
