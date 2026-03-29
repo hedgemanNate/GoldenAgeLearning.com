@@ -9,4 +9,5 @@ if (!admin.apps.length) {
 export { processScheduledMessages } from "./messages";
 export { onCustomerCreated } from "./customers";
 export { twilioInbound } from "./webhooks";
+export { onBookingCreated } from "./bookings";
 

@@ -8,6 +8,7 @@ import {
   orderByChild,
   equalTo,
   onValue,
+  runTransaction,
 } from "firebase/database";
 import { db } from "./client";
 import type { User, UserWithId } from "../../types/user";
@@ -179,7 +180,15 @@ export async function createBooking(data: Booking): Promise<string> {
   const newRef = push(ref(db, "bookings"));
   await set(newRef, data);
   const bookingId = newRef.key!;
-  
+
+  // Atomically increment seatsBooked on the class
+  await runTransaction(ref(db, `classes/active/${data.classId}`), (classData) => {
+    if (classData) {
+      classData.seatsBooked = (classData.seatsBooked || 0) + 1;
+    }
+    return classData;
+  });
+
   // Add classId to user's bookedClasses array
   const userRef = ref(db, `users/${data.customerId}`);
   const userSnap = await get(userRef);

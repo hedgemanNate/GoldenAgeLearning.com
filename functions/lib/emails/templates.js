@@ -19,6 +19,7 @@ exports.paymentReceivedTemplate = paymentReceivedTemplate;
 exports.paymentDeclinedTemplate = paymentDeclinedTemplate;
 exports.passwordResetTemplate = passwordResetTemplate;
 exports.welcomeTemplate = welcomeTemplate;
+exports.bookingNotificationTemplate = bookingNotificationTemplate;
 const PHONE = "(555) 123-4567";
 const WEBSITE = "goldenagelearning.com";
 const BG = "#F5EDD6";
@@ -198,5 +199,21 @@ function welcomeTemplate(v) {
     ${para("<em>The Golden Age Learning Team</em>")}
   `;
     return base("Welcome — Golden Age Learning", body);
+}
+function bookingNotificationTemplate(v) {
+    const body = `
+    ${heading("New Booking Received")}
+    ${para("A new booking has been placed. Details below.")}
+    ${detailBox(detailRow("Customer", v.customerName) +
+        detailRow("Contact", v.customerContact) +
+        detailRow("Class", v.className) +
+        detailRow("Date", v.classDate) +
+        detailRow("Time", v.classTime) +
+        detailRow("Location", v.classLocation) +
+        detailRow("Status", v.status.charAt(0).toUpperCase() + v.status.slice(1)) +
+        detailRow("Amount", v.amount) +
+        detailRow("Booking #", v.bookingId))}
+  `;
+    return base("New Booking — Golden Age Learning", body);
 }
 //# sourceMappingURL=templates.js.map

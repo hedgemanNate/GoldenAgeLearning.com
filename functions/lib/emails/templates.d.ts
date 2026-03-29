@@ -58,4 +58,16 @@ export interface WelcomeVars {
     customerName: string;
 }
 export declare function welcomeTemplate(v: WelcomeVars): string;
+export interface BookingNotificationVars {
+    customerName: string;
+    customerContact: string;
+    className: string;
+    classDate: string;
+    classTime: string;
+    classLocation: string;
+    status: string;
+    amount: string;
+    bookingId: string;
+}
+export declare function bookingNotificationTemplate(v: BookingNotificationVars): string;
 //# sourceMappingURL=templates.d.ts.map

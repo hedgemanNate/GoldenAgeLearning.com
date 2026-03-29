@@ -31,6 +31,7 @@ export default function AdminBookings() {
   const { classes, bookings: rawBookings, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   // Manage modal
   const [manageOpen, setManageOpen] = useState(false);
@@ -48,7 +49,7 @@ export default function AdminBookings() {
   const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
 
   const liveBookings: Booking[] = [...rawBookings]
-    .sort((a, b) => b.createdAt - a.createdAt)
+    .sort((a, b) => sortDir === "desc" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt)
     .map((b) => {
       const cust = usersById[b.customerId];
       const cls = classesById[b.classId];
@@ -120,12 +121,19 @@ export default function AdminBookings() {
             {f}
           </button>
         ))}
+        <button
+          onClick={() => setSortDir((d) => d === "desc" ? "asc" : "desc")}
+          className="ml-auto flex items-center gap-[6px] bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[12px] text-[rgba(245,237,214,0.6)] hover:text-[var(--color-cream)] hover:border-[rgba(245,237,214,0.25)] transition"
+        >
+          <span>{sortDir === "desc" ? "↓" : "↑"}</span>
+          <span>{sortDir === "desc" ? "Newest first" : "Oldest first"}</span>
+        </button>
         <input
           type="text"
           placeholder="Search customer or class…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="ml-auto bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
         />
       </div>
 

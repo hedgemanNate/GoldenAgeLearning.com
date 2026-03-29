@@ -15,6 +15,7 @@ exports.sendPaymentReceived = sendPaymentReceived;
 exports.sendPaymentDeclined = sendPaymentDeclined;
 exports.sendPasswordReset = sendPasswordReset;
 exports.sendWelcomeEmail = sendWelcomeEmail;
+exports.sendBookingNotification = sendBookingNotification;
 const sendEmail_1 = require("../utils/sendEmail");
 const templates_1 = require("./templates");
 async function sendBookingConfirmation(to, vars) {
@@ -64,6 +65,13 @@ async function sendWelcomeEmail(to, vars) {
         to,
         subject: "Welcome to Your Golden Age of Learning!",
         html: (0, templates_1.welcomeTemplate)(vars),
+    });
+}
+async function sendBookingNotification(to, vars) {
+    await (0, sendEmail_1.sendEmail)({
+        to,
+        subject: `New Booking: ${vars.customerName} — ${vars.className}`,
+        html: (0, templates_1.bookingNotificationTemplate)(vars),
     });
 }
 //# sourceMappingURL=index.js.map

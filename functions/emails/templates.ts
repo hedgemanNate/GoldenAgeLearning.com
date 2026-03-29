@@ -277,3 +277,36 @@ export function welcomeTemplate(v: WelcomeVars): string {
   `;
   return base("Welcome — Golden Age Learning", body);
 }
+
+// ─── 8. Booking Notification (Internal Admin) ─────────────────────────────── //
+
+export interface BookingNotificationVars {
+  customerName: string;
+  customerContact: string;
+  className: string;
+  classDate: string;
+  classTime: string;
+  classLocation: string;
+  status: string;
+  amount: string;
+  bookingId: string;
+}
+
+export function bookingNotificationTemplate(v: BookingNotificationVars): string {
+  const body = `
+    ${heading("New Booking Received")}
+    ${para("A new booking has been placed. Details below.")}
+    ${detailBox(
+      detailRow("Customer", v.customerName) +
+      detailRow("Contact", v.customerContact) +
+      detailRow("Class", v.className) +
+      detailRow("Date", v.classDate) +
+      detailRow("Time", v.classTime) +
+      detailRow("Location", v.classLocation) +
+      detailRow("Status", v.status.charAt(0).toUpperCase() + v.status.slice(1)) +
+      detailRow("Amount", v.amount) +
+      detailRow("Booking #", v.bookingId)
+    )}
+  `;
+  return base("New Booking — Golden Age Learning", body);
+}

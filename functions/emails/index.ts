@@ -16,6 +16,7 @@ import {
   paymentDeclinedTemplate,
   passwordResetTemplate,
   welcomeTemplate,
+  bookingNotificationTemplate,
   type BookingConfirmationVars,
   type ClassReminderVars,
   type TransferConfirmationVars,
@@ -23,6 +24,7 @@ import {
   type PaymentDeclinedVars,
   type PasswordResetVars,
   type WelcomeVars,
+  type BookingNotificationVars,
 } from "./templates";
 
 export async function sendBookingConfirmation(
@@ -99,5 +101,16 @@ export async function sendWelcomeEmail(
     to,
     subject: "Welcome to Your Golden Age of Learning!",
     html: welcomeTemplate(vars),
+  });
+}
+
+export async function sendBookingNotification(
+  to: string,
+  vars: BookingNotificationVars
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `New Booking: ${vars.customerName} — ${vars.className}`,
+    html: bookingNotificationTemplate(vars),
   });
 }
