@@ -9,6 +9,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { sendClassReminder } from "../emails";
+import { sendClassReminderSms } from "./sms";
 
 interface ClassRecord {
   name: string;
@@ -86,7 +87,6 @@ export const processScheduledMessages = functions.pubsub
               .then(async (userSnap) => {
                 if (!userSnap.exists()) return;
                 const user = userSnap.val() as UserRecord;
-                if (!user.email) return; // SMS handled separately
 
                 const classDate = new Date(cls.date).toLocaleDateString("en-US", {
                   weekday: "long",
@@ -94,14 +94,28 @@ export const processScheduledMessages = functions.pubsub
                   month: "long",
                   day: "numeric",
                 });
+                const classTime = cls.time ?? "See your booking details";
 
-                await sendClassReminder(user.email, {
-                  customerName: user.name,
-                  className: cls.name,
-                  classDate,
-                  classTime: cls.time ?? "See your booking details",
-                  classLocation: cls.location,
-                });
+                const sends: Promise<void>[] = [];
+
+                if (user.email) {
+                  sends.push(sendClassReminder(user.email, {
+                    customerName: user.name,
+                    className: cls.name,
+                    classDate,
+                    classTime,
+                    classLocation: cls.location,
+                  }));
+                }
+
+                if (user.phone) {
+                  sends.push(sendClassReminderSms(user.phone, {
+                    className: cls.name,
+                    classTime,
+                  }));
+                }
+
+                await Promise.all(sends);
               });
 
             reminderPromises.push(p2);

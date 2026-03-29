@@ -44,6 +44,7 @@ exports.processScheduledMessages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const emails_1 = require("../emails");
+const sms_1 = require("./sms");
 exports.processScheduledMessages = functions.pubsub
     .schedule("every 5 minutes")
     .onRun(async () => {
@@ -94,21 +95,30 @@ exports.processScheduledMessages = functions.pubsub
                     if (!userSnap.exists())
                         return;
                     const user = userSnap.val();
-                    if (!user.email)
-                        return; // SMS handled separately
                     const classDate = new Date(cls.date).toLocaleDateString("en-US", {
                         weekday: "long",
                         year: "numeric",
                         month: "long",
                         day: "numeric",
                     });
-                    await (0, emails_1.sendClassReminder)(user.email, {
-                        customerName: user.name,
-                        className: cls.name,
-                        classDate,
-                        classTime: cls.time ?? "See your booking details",
-                        classLocation: cls.location,
-                    });
+                    const classTime = cls.time ?? "See your booking details";
+                    const sends = [];
+                    if (user.email) {
+                        sends.push((0, emails_1.sendClassReminder)(user.email, {
+                            customerName: user.name,
+                            className: cls.name,
+                            classDate,
+                            classTime,
+                            classLocation: cls.location,
+                        }));
+                    }
+                    if (user.phone) {
+                        sends.push((0, sms_1.sendClassReminderSms)(user.phone, {
+                            className: cls.name,
+                            classTime,
+                        }));
+                    }
+                    await Promise.all(sends);
                 });
                 reminderPromises.push(p2);
             });

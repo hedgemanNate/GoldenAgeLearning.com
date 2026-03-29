@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onCustomerCreated = exports.processScheduledMessages = void 0;
+exports.twilioInbound = exports.onCustomerCreated = exports.processScheduledMessages = void 0;
 const admin = __importStar(require("firebase-admin"));
 // Initialize admin SDK
 if (!admin.apps.length) {
@@ -44,4 +44,6 @@ var messages_1 = require("./messages");
 Object.defineProperty(exports, "processScheduledMessages", { enumerable: true, get: function () { return messages_1.processScheduledMessages; } });
 var customers_1 = require("./customers");
 Object.defineProperty(exports, "onCustomerCreated", { enumerable: true, get: function () { return customers_1.onCustomerCreated; } });
+var webhooks_1 = require("./webhooks");
+Object.defineProperty(exports, "twilioInbound", { enumerable: true, get: function () { return webhooks_1.twilioInbound; } });
 //# sourceMappingURL=index.js.map

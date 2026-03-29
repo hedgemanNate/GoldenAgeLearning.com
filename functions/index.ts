@@ -8,4 +8,5 @@ if (!admin.apps.length) {
 // Cloud Function triggers
 export { processScheduledMessages } from "./messages";
 export { onCustomerCreated } from "./customers";
+export { twilioInbound } from "./webhooks";
 

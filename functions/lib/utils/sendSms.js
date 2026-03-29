@@ -1,11 +1,4 @@
 "use strict";
-/**
- * onCustomerCreated
- *
- * Fires when a new Firebase Auth user is created.
- * Looks up the user's profile in RTDB and sends a welcome email
- * if an email address is on file.
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -39,27 +32,38 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onCustomerCreated = void 0;
+exports.sendSms = sendSms;
 const functions = __importStar(require("firebase-functions"));
-const admin = __importStar(require("firebase-admin"));
-const emails_1 = require("../emails");
-const sms_1 = require("../messages/sms");
-exports.onCustomerCreated = functions.auth.user().onCreate(async (user) => {
-    // Look up the user's profile from RTDB
-    const db = admin.database();
-    const userSnap = await db.ref(`users/${user.uid}`).once("value");
-    const profile = userSnap.exists() ? userSnap.val() : null;
-    const name = profile?.name ?? user.displayName ?? "Friend";
-    const email = user.email ?? profile?.email ?? null;
-    const phone = profile?.phone ?? null;
-    const sends = [];
-    if (email) {
-        sends.push((0, emails_1.sendWelcomeEmail)(email, { customerName: name }));
+const twilio_1 = __importDefault(require("twilio"));
+const PREFIX = "Golden Age Learning: ";
+const MAX_CHARS = 160;
+// Lazy singleton
+let _client = null;
+function getClient() {
+    if (!_client) {
+        const cfg = (functions.config().twilio ?? {});
+        _client = (0, twilio_1.default)(cfg.account_sid ?? "", cfg.auth_token ?? "");
     }
-    if (phone) {
-        sends.push((0, sms_1.sendWelcomeSms)(phone));
+    return _client;
+}
+function buildBody(message) {
+    const full = `${PREFIX}${message}`;
+    if (full.length > MAX_CHARS) {
+        console.warn(`SMS exceeds 160 chars (${full.length}): ${full}`);
     }
-    await Promise.all(sends);
-});
-//# sourceMappingURL=index.js.map
+    return full;
+}
+async function sendSms(params) {
+    const cfg = (functions.config().twilio ?? {});
+    const from = cfg.from_number ?? "";
+    await getClient().messages.create({
+        from,
+        to: params.to,
+        body: buildBody(params.message),
+    });
+}
+//# sourceMappingURL=sendSms.js.map
