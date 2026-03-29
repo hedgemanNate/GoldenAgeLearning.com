@@ -47,7 +47,7 @@ export async function getUserBookedClasses(uid: string): Promise<ClassWithId[]> 
   if (!userSnap.exists()) return [];
   
   const user = userSnap.val() as User;
-  const bookedClassIds = user.bookedClasses || [];
+  const bookedClassIds = Object.keys(user.bookedClasses || {});
   
   if (bookedClassIds.length === 0) return [];
   
@@ -189,18 +189,16 @@ export async function createBooking(data: Booking): Promise<string> {
     return classData;
   });
 
-  // Add classId to user's bookedClasses array
+  // Store classId → bookingId in user's bookedClasses map
   const userRef = ref(db, `users/${data.customerId}`);
   const userSnap = await get(userRef);
   if (userSnap.exists()) {
     const user = userSnap.val();
-    const bookedClasses = user.bookedClasses || [];
-    if (!bookedClasses.includes(data.classId)) {
-      bookedClasses.push(data.classId);
-      await update(userRef, { bookedClasses });
-    }
+    const bookedClasses: Record<string, string> = user.bookedClasses || {};
+    bookedClasses[data.classId] = bookingId;
+    await update(userRef, { bookedClasses });
   }
-  
+
   return bookingId;
 }
 
@@ -215,10 +213,12 @@ export async function getAllBookings(): Promise<BookingWithId[]> {
 }
 
 export async function getBookingsByCustomer(customerId: string): Promise<BookingWithId[]> {
-  const q = query(ref(db, "bookings"), orderByChild("customerId"), equalTo(customerId));
-  const snap = await get(q);
+  // Read booking IDs from the user's bookedClasses map (classId → bookingId)
+  const snap = await get(ref(db, `users/${customerId}/bookedClasses`));
   if (!snap.exists()) return [];
-  return Object.entries(snap.val()).map(([id, val]) => ({ id, ...(val as Booking) }));
+  const bookingIds = Object.values(snap.val() as Record<string, string>);
+  const results = await Promise.all(bookingIds.map((id) => getBooking(id)));
+  return results.filter((b): b is BookingWithId => b !== null);
 }
 
 export async function getBookingsByClass(classId: string): Promise<BookingWithId[]> {
