@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getAllClasses } from "../../../lib/firebase/db";
+import { useAuthContext } from "../../../context/AuthContext";
 import type { ClassWithId } from "../../../types/class";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface UIClass extends Omit<ClassWithId, 'name' | 'description' | 'date'> {
   title: string;
@@ -12,6 +15,7 @@ interface UIClass extends Omit<ClassWithId, 'name' | 'description' | 'date'> {
   time: string;
   seats: number;
   isFull: boolean;
+  dateRaw: number;
 }
 
 function formatTimestamp(timestamp: number): { date: string; time: string } {
@@ -42,13 +46,15 @@ function transformClassData(firebaseClass: ClassWithId): UIClass {
     time: timeStr,
     seats: Math.max(0, seatsRemaining),
     isFull,
+    dateRaw: firebaseClass.date,
   };
 }
 
 export default function ClassesPage() {
+  const { user } = useAuthContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [topic, setTopic] = useState("All Topics");
-  const [dateMonth, setDateMonth] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [classes, setClasses] = useState<UIClass[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,14 +84,23 @@ export default function ClassesPage() {
 
   const clearFilters = () => {
     setSearchTerm("");
+    setSelectedDate(null);
     setTopic("All Topics");
-    setDateMonth("");
   };
 
   const filteredClasses = classes.filter(c => {
     if (searchTerm && !c.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (topic !== 'All Topics' && c.category !== topic) return false;
-    if (dateMonth && !c.date.toLowerCase().includes(dateMonth.toLowerCase())) return false;
+    if (selectedDate) {
+      const classDate = new Date(c.dateRaw);
+      if (
+        classDate.getFullYear() !== selectedDate.getFullYear() ||
+        classDate.getMonth() !== selectedDate.getMonth() ||
+        classDate.getDate() !== selectedDate.getDate()
+      ) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -154,12 +169,14 @@ export default function ClassesPage() {
 
           <div className="flex-[1] flex flex-col gap-[8px]">
             <label className="font-sans text-[11px] uppercase tracking-[0.05em] text-[rgba(245,237,214,0.55)] font-semibold">Date</label>
-            <input 
-              type="text"
-              placeholder="e.g. April 2026"
-              value={dateMonth}
-              onChange={(e) => setDateMonth(e.target.value)}
+            <DatePicker
+              selected={selectedDate}
+              onChange={date => setSelectedDate(date)}
+              placeholderText="Select a date"
               className="h-[60px] md:min-h-[56px] md:h-[56px] bg-[var(--color-dark-bg)] border-[1.5px] border-[rgba(201,168,76,0.3)] focus:border-[var(--color-gold)] focus:outline-none focus:ring-[3px] focus:ring-[rgba(201,168,76,0.3)] rounded-[8px] px-[16px] text-[16px] text-[var(--color-cream)] w-full placeholder:text-[rgba(245,237,214,0.3)] transition-all"
+              dateFormat="MMMM d, yyyy"
+              isClearable
+              popperPlacement="bottom"
             />
           </div>
 
@@ -209,53 +226,64 @@ export default function ClassesPage() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[4px] border-[10px] border-transparent rounded-[10px] bg-transparent">
-              {filteredClasses.map((cls) => (
-                <div 
-                  key={cls.id} 
-                  className={`class-card p-[18px] flex flex-col h-full border border-transparent transition-all duration-150 ${
-                    cls.isFull 
-                    ? 'opacity-[0.55] border-l-[5px] border-l-[rgba(136,135,128,0.3)]' 
-                    : 'border-l-[5px] border-l-[var(--color-gold)] hover:border-l-[7px] hover:border-[1.5px] hover:border-[var(--color-gold)]'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-[12px]">
-                    <span className={`uppercase font-sans text-[10px] font-bold px-[8px] py-[4px] rounded-[4px] tracking-wide ${
-                      cls.isFull ? 'bg-[rgba(136,135,128,0.15)] text-[#888780]' : 'bg-[rgba(122,174,173,0.15)] text-[var(--color-teal)]'
-                    }`}>
-                      {cls.category}
-                    </span>
-                    <span className={`font-sans text-[11px] font-medium px-[8px] py-[4px] rounded-[4px] ${
-                      cls.isFull ? 'bg-[rgba(136,135,128,0.15)] text-[#888780]' : 'bg-[rgba(201,168,76,0.15)] text-[var(--color-gold)]'
-                    }`}>
-                      {cls.isFull ? 'Class full' : `${cls.seats} seats remaining`}
-                    </span>
-                  </div>
-                  
-                  <h3 className={`font-sans text-[28px] font-medium leading-[1.2] mb-[6px] ${
-                    cls.isFull ? 'text-[rgba(245,237,214,0.55)]' : 'text-[var(--color-cream)]'
-                  }`}>
-                    {cls.title}
-                  </h3>
-                  <p className="font-sans text-[20px] text-[rgba(245,237,214,0.85)] mb-[16px]">
-                    {cls.date} &middot; {cls.time}
-                  </p>
-                  
-                  <p className="font-sans text-[13px] text-[rgba(245,237,214,0.7)] leading-[1.6] mb-[24px] flex-grow">
-                    {cls.desc}
-                  </p>
-                  
-                  <Link 
-                    href={cls.isFull ? "#" : `/book/${cls.id}`}
-                    className={`w-full h-[48px] rounded-[8px] font-sans text-[16px] font-medium flex items-center justify-center transition-all ${
-                      cls.isFull 
-                      ? 'bg-[rgba(136,135,128,0.2)] text-[#888780] cursor-default pointer-events-none' 
-                      : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+              {filteredClasses.map((cls) => {
+                const isBooked = !!user?.bookedClasses?.[cls.id];
+                return (
+                  <div
+                    key={cls.id}
+                    className={`class-card p-[18px] flex flex-col h-full border border-transparent transition-all duration-150 ${
+                      isBooked
+                        ? 'border-l-[5px] border-l-[var(--color-teal)] hover:border-l-[7px] hover:border-[1.5px] hover:border-[var(--color-teal)]'
+                        : cls.isFull
+                          ? 'opacity-[0.55] border-l-[5px] border-l-[rgba(136,135,128,0.3)]'
+                          : 'border-l-[5px] border-l-[var(--color-gold)] hover:border-l-[7px] hover:border-[1.5px] hover:border-[var(--color-gold)]'
                     }`}
                   >
-                    {cls.isFull ? 'Class Full' : 'Book This Class'}
-                  </Link>
-                </div>
-              ))}
+                    <div className="flex justify-between items-start mb-[12px]">
+                      <span className={`uppercase font-sans text-[10px] font-bold px-[8px] py-[4px] rounded-[4px] tracking-wide ${
+                        cls.isFull && !isBooked ? 'bg-[rgba(136,135,128,0.15)] text-[#888780]' : 'bg-[rgba(122,174,173,0.15)] text-[var(--color-teal)]'
+                      }`}>
+                        {cls.category}
+                      </span>
+                      <span className={`font-sans text-[11px] font-medium px-[8px] py-[4px] rounded-[4px] ${
+                        isBooked
+                          ? 'bg-[rgba(122,174,173,0.15)] text-[var(--color-teal)]'
+                          : cls.isFull
+                            ? 'bg-[rgba(136,135,128,0.15)] text-[#888780]'
+                            : 'bg-[rgba(201,168,76,0.15)] text-[var(--color-gold)]'
+                      }`}>
+                        {isBooked ? "You're Signed Up" : cls.isFull ? 'Class full' : `${cls.seats} seats remaining`}
+                      </span>
+                    </div>
+
+                    <h3 className={`font-sans text-[28px] font-medium leading-[1.2] mb-[6px] ${
+                      cls.isFull && !isBooked ? 'text-[rgba(245,237,214,0.55)]' : 'text-[var(--color-cream)]'
+                    }`}>
+                      {cls.title}
+                    </h3>
+                    <p className="font-sans text-[20px] text-[rgba(245,237,214,0.85)] mb-[16px]">
+                      {cls.date} &middot; {cls.time}
+                    </p>
+
+                    <p className="font-sans text-[13px] text-[rgba(245,237,214,0.7)] leading-[1.6] mb-[24px] flex-grow">
+                      {cls.desc}
+                    </p>
+
+                    <Link
+                      href={isBooked || cls.isFull ? "#" : `/book/${cls.id}`}
+                      className={`w-full h-[48px] rounded-[8px] font-sans text-[16px] font-medium flex items-center justify-center transition-all ${
+                        isBooked
+                          ? 'bg-[rgba(122,174,173,0.12)] text-[var(--color-teal)] border border-[rgba(122,174,173,0.4)] cursor-default pointer-events-none'
+                          : cls.isFull
+                            ? 'bg-[rgba(136,135,128,0.2)] text-[#888780] cursor-default pointer-events-none'
+                            : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+                      }`}
+                    >
+                      {isBooked ? "You're Already Signed Up" : cls.isFull ? 'Class Full' : 'Book This Class'}
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
