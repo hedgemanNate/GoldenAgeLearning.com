@@ -5,4 +5,9 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Cloud Function triggers
+export { processScheduledMessages } from "./messages";
+export { onCustomerCreated } from "./customers";
+export { twilioInbound } from "./webhooks";
+export { onBookingCreated } from "./bookings";
 

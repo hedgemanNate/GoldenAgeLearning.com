@@ -27,7 +27,7 @@ export function useAuth() {
             notes: null,
             contact: [],
             discounts: [],
-            bookedClasses: [],
+            bookedClasses: {},
             starRating: null,
             profilePicture: null,
             totalRedemptions: 0,

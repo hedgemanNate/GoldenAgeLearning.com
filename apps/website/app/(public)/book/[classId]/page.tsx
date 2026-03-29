@@ -1,18 +1,48 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getClass, createBooking } from "../../../../lib/firebase/db";
+import type { ClassWithId } from "../../../../types/class";
+import { useAuthContext } from "../../../../context/AuthContext";
 
-// Mock data (matching what we have on the Classes page for consistency)
-const MOCK_CLASSES = [
-  { id: '1', title: 'Navigating Your Smartphone', category: 'Smartphones', date: 'Tuesday, April 8', time: '10:00–11:00 AM', duration: '1 hour', location: 'Main Community Hall', seats: 6 },
-  { id: '2', title: 'Intro to Video Calling', category: 'Computers', date: 'Thursday, April 10', time: '2:00–3:30 PM', duration: '1.5 hours', location: 'Tech Lab', seats: 4 },
-  { id: '3', title: 'Safe Online Shopping', category: 'Internet', date: 'Monday, April 14', time: '11:00 AM–12:30 PM', duration: '1.5 hours', location: 'Main Community Hall', seats: 0 },
-  { id: '4', title: 'Organizing Family Photos', category: 'Smartphones', date: 'Wednesday, April 16', time: '1:00–2:00 PM', duration: '1 hour', location: 'Tech Lab', seats: 8 },
-  { id: '5', title: 'Using Email Effectively', category: 'Internet', date: 'Friday, April 18', time: '10:00–11:30 AM', duration: '1.5 hours', location: 'Room 2B', seats: 2 },
-  { id: '6', title: 'Basic Troubleshooting', category: 'Computers', date: 'Tuesday, April 22', time: '3:00–4:30 PM', duration: '1.5 hours', location: 'Tech Lab', seats: 5 },
-];
+function formatTimestamp(timestamp: number): { date: string; time: string } {
+  const d = new Date(timestamp);
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return {
+    date: `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`,
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }),
+  };
+}
+
+interface UIClass {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: string;
+  location: string;
+  seats: number;
+  price: number;
+}
+
+function toUIClass(c: ClassWithId): UIClass {
+  const { date, time } = formatTimestamp(c.date);
+  return {
+    id: c.id,
+    title: c.name,
+    date,
+    time,
+    duration: c.duration >= 60
+      ? `${Math.floor(c.duration / 60)}${c.duration % 60 > 0 ? ` hr ${c.duration % 60} min` : " hour"}`
+      : `${c.duration} min`,
+    location: c.location,
+    seats: Math.max(0, c.seatLimit - c.seatsBooked),
+    price: c.price,
+  };
+}
 
 const STEPS = [
   "Confirm",
@@ -25,6 +55,8 @@ const STEPS = [
 
 export default function BookingFlow({ params }: { params: Promise<{ classId: string }> }) {
   const router = useRouter();
+  const { user: authUser } = useAuthContext();
+  const isSignedIn = authUser !== null;
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,15 +71,36 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
 
   // Step 4 State
   const [paymentMethod, setPaymentMethod] = useState<'pay_now' | 'reserve'>('pay_now');
+  const [bookingError, setBookingError] = useState('');
 
   // Step 5 State
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  
+
+  // Class data from Firebase
+  const [selectedClass, setSelectedClass] = useState<UIClass | null>(null);
+  const [classLoading, setClassLoading] = useState(true);
+  const [classError, setClassError] = useState<string | null>(null);
+
   const resolvedParams = use(params);
-  
-  // Find the selected class
-  const selectedClass = MOCK_CLASSES.find(c => c.id === resolvedParams.classId) || MOCK_CLASSES[0];
+
+  useEffect(() => {
+    if (authUser) {
+      setName(authUser.name ?? '');
+      setEmail(authUser.email ?? '');
+      setPhone(authUser.phone ?? '');
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    getClass(resolvedParams.classId)
+      .then((cls) => {
+        if (!cls) { setClassError("Class not found."); return; }
+        setSelectedClass(toUIClass(cls));
+      })
+      .catch(() => setClassError("Failed to load class details."))
+      .finally(() => setClassLoading(false));
+  }, [resolvedParams.classId]);
 
   const handleStep2Submit = () => {
     setStep2Error('');
@@ -102,25 +155,64 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     }
   };
 
-  const handleStep4Submit = () => {
+  const handleStep4Submit = async () => {
+    if (!isSignedIn) {
+      setBookingError('You must be signed in to complete your booking.');
+      return;
+    }
+    setBookingError('');
     if (paymentMethod === 'pay_now') {
       setCurrentStep(5);
     } else {
-      // If reserved, skip Square flow and go straight to Step 6 (Confirmation)
-      setCurrentStep(6);
+      setIsProcessing(true);
+      try {
+        await createBooking({
+          customerId: authUser!.uid,
+          classId: selectedClass!.id,
+          status: 'reserved',
+          amount: 0,
+          transferredFrom: null,
+          transferredTo: null,
+          transferType: null,
+          createdAt: Date.now(),
+          createdBy: authUser!.uid,
+        });
+        setCurrentStep(6);
+      } catch {
+        setBookingError('Something went wrong saving your booking. Please try again.');
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
 
-  const handleStep5Submit = () => {
+  const handleStep5Submit = async () => {
+    if (!isSignedIn) {
+      setPaymentError('You must be signed in to complete your booking.');
+      return;
+    }
     setPaymentError('');
     setIsProcessing(true);
-    
-    // Simulate API Call to Square
-    setTimeout(() => {
-      setIsProcessing(false);
-      // Proceed to Step 6
+    // Simulate payment delay (TODO: replace with real Square integration)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      await createBooking({
+        customerId: authUser!.uid,
+        classId: selectedClass!.id,
+        status: 'paid',
+        amount: (selectedClass?.price ?? 0) * 100,
+        transferredFrom: null,
+        transferredTo: null,
+        transferType: null,
+        createdAt: Date.now(),
+        createdBy: authUser!.uid,
+      });
       setCurrentStep(6);
-    }, 2000);
+    } catch {
+      setPaymentError('Something went wrong saving your booking. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetToStep2 = () => {
@@ -132,6 +224,23 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     setStep3Error('');
     setCurrentStep(2);
   };
+
+  if (classLoading) {
+    return (
+      <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex items-center justify-center">
+        <p className="font-sans text-[18px] text-[rgba(245,237,214,0.5)]">Loading class details…</p>
+      </main>
+    );
+  }
+
+  if (classError || !selectedClass) {
+    return (
+      <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex flex-col items-center justify-center gap-[20px] px-[24px]">
+        <p className="font-sans text-[18px] text-[rgba(245,237,214,0.7)] text-center">{classError ?? "Class not found."}</p>
+        <Link href="/classes" className="text-[var(--color-gold)] underline text-[16px]">Browse all classes</Link>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full min-h-screen bg-[var(--color-dark-bg)] flex flex-col">
@@ -209,10 +318,17 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
               </div>
             </div>
 
+            {/* Booking As Panel */}
+            {isSignedIn && (
+              <div className="bg-[rgba(122,174,173,0.08)] border-l-[3px] border-[#7AAEAD] text-[rgba(245,237,214,0.7)] font-sans text-[14px] leading-[1.6] rounded-r-[6px] px-[14px] py-[10px] mb-[24px]">
+                Booking as <strong className="text-[var(--color-cream)]">{authUser!.name}</strong> · {authUser!.email ?? authUser!.phone}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col gap-[16px]">
               <button 
-                onClick={() => setCurrentStep(2)}
+                onClick={() => isSignedIn ? setCurrentStep(4) : setCurrentStep(2)}
                 className="w-full h-[56px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[18px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
               >
                 Yes, this is the right class
@@ -561,16 +677,36 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-[16px]">
+              {bookingError && (
+                <div className="p-[16px] rounded-[8px] bg-[rgba(235,87,87,0.1)] border border-[rgba(235,87,87,0.3)] text-[#EB5757] font-sans text-[16px] flex items-center gap-[12px]">
+                  <span className="font-bold flex-shrink-0">!</span>
+                  {bookingError}
+                </div>
+              )}
               <button 
                 onClick={handleStep4Submit}
-                className="w-full h-[64px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[20px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
+                disabled={isProcessing}
+                className={`w-full h-[64px] rounded-[8px] font-sans text-[20px] font-medium transition-all flex items-center justify-center ${
+                  isProcessing
+                    ? 'bg-[rgba(201,168,76,0.5)] text-[rgba(20,27,31,0.5)] cursor-not-allowed'
+                    : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+                }`}
               >
-                Continue
+                {isProcessing ? (
+                  <span className="flex items-center gap-[8px]">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving your booking…
+                  </span>
+                ) : 'Continue'}
               </button>
               
               <button
-                onClick={() => setCurrentStep(3)}
-                className="w-full h-[64px] rounded-[8px] border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[rgba(201,168,76,0.1)] font-sans text-[18px] font-medium flex items-center justify-center transition-all"
+                onClick={() => setCurrentStep(isSignedIn ? 1 : 3)}
+                disabled={isProcessing}
+                className="w-full h-[64px] rounded-[8px] border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[rgba(201,168,76,0.1)] disabled:opacity-50 font-sans text-[18px] font-medium flex items-center justify-center transition-all"
               >
                 Go back
               </button>

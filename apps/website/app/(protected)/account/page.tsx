@@ -1,34 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "../../../context/AuthContext";
 import { changePassword } from "../../../lib/firebase/auth";
-import { updateUser } from "../../../lib/firebase/db";
+import { updateUser, getBookingsByCustomer, getClass } from "../../../lib/firebase/db";
 
-const MOCK_UPCOMING = [
-  {
-    id: "b1",
-    title: "Navigating Your Smartphone",
-    date: "Tuesday, April 8",
-    time: "10:00–11:00 AM",
-    location: "Main Community Hall",
-    payment: "paid" as const,
-    amount: "$35.00",
-  },
-];
+interface UIUpcomingBooking {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  payment: "paid" | "reserved";
+  amount: string | undefined;
+  rawDate: number;
+}
 
-const MOCK_PAST = [
-  {
-    id: "b2",
-    title: "Intro to Video Calling",
-    date: "Thursday, March 27",
-    time: "2:00–3:30 PM",
-    location: "Tech Lab",
-    payment: "completed" as const,
-  },
-];
+interface UIPastBooking {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  rawDate: number;
+}
+
+function fmtBookingDate(ts: number) {
+  const d = new Date(ts);
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+function fmtBookingTime(ts: number, durationMin: number) {
+  const start = new Date(ts);
+  const end = new Date(ts + durationMin * 60 * 1000);
+  const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${fmt(start)}–${fmt(end)}`;
+}
 
 const MOCK_CARD = { network: "VISA", last4: "4242", expiry: "08 / 2028" };
 
@@ -59,6 +69,48 @@ export default function AccountPage() {
   
   // Password field focus tracking
   const [focusedPasswordField, setFocusedPasswordField] = useState<number | null>(null);
+
+  // Live bookings from Firebase
+  const [upcomingBookings, setUpcomingBookings] = useState<UIUpcomingBooking[]>([]);
+  const [pastBookings, setPastBookings] = useState<UIPastBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    setBookingsLoading(true);
+    getBookingsByCustomer(firebaseUser.uid)
+      .then(async (bookings) => {
+        const classResults = await Promise.all(bookings.map((b) => getClass(b.classId)));
+        const now = Date.now();
+        const upcoming: UIUpcomingBooking[] = [];
+        const past: UIPastBooking[] = [];
+        bookings.forEach((b, i) => {
+          const cls = classResults[i];
+          if (!cls) return;
+          const dateStr = fmtBookingDate(cls.date);
+          const timeStr = fmtBookingTime(cls.date, cls.duration);
+          if (cls.date >= now) {
+            upcoming.push({
+              id: b.id,
+              title: cls.name,
+              date: dateStr,
+              time: timeStr,
+              location: cls.location,
+              payment: b.status === "paid" ? "paid" : "reserved",
+              amount: b.amount > 0 ? `$${(b.amount / 100).toFixed(2)}` : undefined,
+              rawDate: cls.date,
+            });
+          } else {
+            past.push({ id: b.id, title: cls.name, date: dateStr, time: timeStr, rawDate: cls.date });
+          }
+        });
+        upcoming.sort((a, b) => a.rawDate - b.rawDate);
+        past.sort((a, b) => b.rawDate - a.rawDate);
+        setUpcomingBookings(upcoming);
+        setPastBookings(past);
+      })
+      .finally(() => setBookingsLoading(false));
+  }, [firebaseUser]);
 
   if (!firebaseUser) {
     return null;
@@ -203,7 +255,11 @@ export default function AccountPage() {
               Upcoming
             </p>
 
-            {MOCK_UPCOMING.map((b) => (
+            {bookingsLoading ? (
+              <p className="font-sans text-[14px] text-[rgba(245,237,214,0.3)] py-[16px]">Loading your bookings…</p>
+            ) : upcomingBookings.length === 0 ? (
+              <p className="font-sans text-[14px] text-[rgba(245,237,214,0.3)] py-[16px]">No upcoming bookings.</p>
+            ) : upcomingBookings.map((b) => (
               <div
                 key={b.id}
                 className="bg-[var(--color-dark-surface)] border-l-[5px] border-[var(--color-gold)] rounded-[8px] px-[18px] py-[16px] flex items-start justify-between gap-[12px] mb-[10px]"
@@ -218,7 +274,7 @@ export default function AccountPage() {
                   <div className="mt-[8px]">
                     {b.payment === "paid" ? (
                       <span className="inline-flex px-[10px] py-[3px] rounded-full bg-[rgba(122,174,173,0.12)] text-[#7AAEAD] font-sans text-[12px]">
-                        Paid · {b.amount}
+                        Paid{b.amount ? ` · ${b.amount}` : ""}
                       </span>
                     ) : (
                       <span className="inline-flex px-[10px] py-[3px] rounded-full bg-[rgba(201,168,76,0.12)] text-[var(--color-gold)] font-sans text-[12px]">
@@ -240,7 +296,9 @@ export default function AccountPage() {
               Past classes
             </p>
 
-            {MOCK_PAST.map((b) => (
+            {bookingsLoading ? null : pastBookings.length === 0 ? (
+              <p className="font-sans text-[14px] text-[rgba(245,237,214,0.3)] py-[16px]">No past classes yet.</p>
+            ) : pastBookings.map((b) => (
               <div
                 key={b.id}
                 className="opacity-70 bg-[var(--color-dark-surface)] border-l-[5px] border-[rgba(136,135,128,0.4)] rounded-[8px] px-[18px] py-[16px] mb-[10px]"
