@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getClass } from "../../../../lib/firebase/db";
 import type { ClassWithId } from "../../../../types/class";
+import { useAuthContext } from "../../../../context/AuthContext";
 
 function formatTimestamp(timestamp: number): { date: string; time: string } {
   const d = new Date(timestamp);
@@ -54,6 +55,8 @@ const STEPS = [
 
 export default function BookingFlow({ params }: { params: Promise<{ classId: string }> }) {
   const router = useRouter();
+  const { user: authUser } = useAuthContext();
+  const isSignedIn = authUser !== null;
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -79,6 +82,14 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   const [classError, setClassError] = useState<string | null>(null);
 
   const resolvedParams = use(params);
+
+  useEffect(() => {
+    if (authUser) {
+      setName(authUser.name ?? '');
+      setEmail(authUser.email ?? '');
+      setPhone(authUser.phone ?? '');
+    }
+  }, [authUser]);
 
   useEffect(() => {
     getClass(resolvedParams.classId)
@@ -267,10 +278,17 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
               </div>
             </div>
 
+            {/* Booking As Panel */}
+            {isSignedIn && (
+              <div className="bg-[rgba(122,174,173,0.08)] border-l-[3px] border-[#7AAEAD] text-[rgba(245,237,214,0.7)] font-sans text-[14px] leading-[1.6] rounded-r-[6px] px-[14px] py-[10px] mb-[24px]">
+                Booking as <strong className="text-[var(--color-cream)]">{authUser!.name}</strong> · {authUser!.email ?? authUser!.phone}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col gap-[16px]">
               <button 
-                onClick={() => setCurrentStep(2)}
+                onClick={() => isSignedIn ? setCurrentStep(4) : setCurrentStep(2)}
                 className="w-full h-[56px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[18px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
               >
                 Yes, this is the right class
