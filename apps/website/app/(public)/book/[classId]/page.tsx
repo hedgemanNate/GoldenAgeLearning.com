@@ -3,7 +3,9 @@
 import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getClass, createBooking } from "../../../../lib/firebase/db";
+import { getClass, createBooking, createUser } from "../../../../lib/firebase/db";
+import { createAccount, signInWithEmail } from "../../../../lib/firebase/auth";
+import { auth } from "../../../../lib/firebase/client";
 import type { ClassWithId } from "../../../../types/class";
 import { useAuthContext } from "../../../../context/AuthContext";
 
@@ -68,6 +70,10 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step3Error, setStep3Error] = useState('');
+  const [step3Loading, setStep3Loading] = useState(false);
+  const [returningPasswordFocused, setReturningPasswordFocused] = useState(false);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
   // Step 4 State
   const [paymentMethod, setPaymentMethod] = useState<'pay_now' | 'reserve'>('pay_now');
@@ -78,9 +84,15 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   const [paymentError, setPaymentError] = useState('');
 
   // Class data from Firebase
+
   const [selectedClass, setSelectedClass] = useState<UIClass | null>(null);
   const [classLoading, setClassLoading] = useState(true);
   const [classError, setClassError] = useState<string | null>(null);
+
+  // Scroll to top after every step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
 
   const resolvedParams = use(params);
 
@@ -127,20 +139,32 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     setCurrentStep(3);
   };
 
-  const handleStep3Submit = () => {
+  const handleStep3Submit = async () => {
     setStep3Error('');
     if (isReturningUser) {
       if (!password) {
         setStep3Error('Please enter your password.');
         return;
       }
-      // Simulate password check
-      if (password !== 'password123') {
-        setStep3Error('That password is not correct. Please try again.');
-        return;
+      setStep3Loading(true);
+      try {
+        await signInWithEmail(email, password);
+        setCurrentStep(4);
+      } catch (err: any) {
+        const code: string = err?.code ?? '';
+        if (code === 'auth/user-not-found') {
+          setIsReturningUser(false);
+          setPassword('');
+          setConfirmPassword('');
+          setStep3Error("We couldn't find an account with those details. Please create a new password below.");
+        } else if (code === 'auth/too-many-requests') {
+          setStep3Error('Too many failed attempts. Please wait a moment and try again.');
+        } else {
+          setStep3Error('That password is not correct. Please try again.');
+        }
+      } finally {
+        setStep3Loading(false);
       }
-      // Proceed to Step 4
-      setCurrentStep(4);
     } else {
       if (!password || password.length < 8) {
         setStep3Error('Password must be at least 8 characters long.');
@@ -150,13 +174,60 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
         setStep3Error('Those passwords do not match.');
         return;
       }
-      // Proceed to Step 4
-      setCurrentStep(4);
+      if (!email) {
+        setStep3Error('An email address is required to create an account. Please go back and add your email.');
+        return;
+      }
+      setStep3Loading(true);
+      try {
+        // Build the full profile before creating the Auth account so it is
+        // written to RTDB immediately after sign-up, before onAuthStateChanged
+        // can fire and read a missing profile.
+        const newProfile = {
+          name,
+          email: email || null,
+          phone: phone || null,
+          address: null,
+          role: 'customer' as const,
+          notes: null,
+          contact: [],
+          discounts: [],
+          bookedClasses: {},
+          starRating: null,
+          profilePicture: null,
+          totalRedemptions: 0,
+          squareCustomerId: null,
+          squareCardId: null,
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+        };
+        const credential = await createAccount(email, password);
+        await createUser(credential.user.uid, newProfile);
+        setCurrentStep(4);
+      } catch (err: any) {
+        const code: string = err?.code ?? '';
+        if (code === 'auth/email-already-in-use') {
+          setIsReturningUser(true);
+          setPassword('');
+          setStep3Error('An account with this email already exists. Please sign in with your password.');
+        } else if (code === 'auth/invalid-email') {
+          setStep3Error('That email address is not valid.');
+        } else if (code === 'auth/weak-password') {
+          setStep3Error('Your password is too weak. Please choose a stronger one.');
+        } else {
+          setStep3Error('Could not create your account. Please try again.');
+        }
+      } finally {
+        setStep3Loading(false);
+      }
     }
   };
 
   const handleStep4Submit = async () => {
-    if (!isSignedIn) {
+    // Use auth.currentUser directly — React context state may lag a render
+    // cycle after sign-in in step 3.
+    const currentUser = auth.currentUser ?? authUser;
+    if (!currentUser) {
       setBookingError('You must be signed in to complete your booking.');
       return;
     }
@@ -167,7 +238,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
       setIsProcessing(true);
       try {
         await createBooking({
-          customerId: authUser!.uid,
+          customerId: currentUser.uid,
           classId: selectedClass!.id,
           status: 'reserved',
           amount: 0,
@@ -175,7 +246,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
           transferredTo: null,
           transferType: null,
           createdAt: Date.now(),
-          createdBy: authUser!.uid,
+          createdBy: currentUser.uid,
         });
         setCurrentStep(6);
       } catch {
@@ -187,7 +258,8 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   };
 
   const handleStep5Submit = async () => {
-    if (!isSignedIn) {
+    const currentUser = auth.currentUser ?? authUser;
+    if (!currentUser) {
       setPaymentError('You must be signed in to complete your booking.');
       return;
     }
@@ -197,7 +269,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     await new Promise((resolve) => setTimeout(resolve, 2000));
     try {
       await createBooking({
-        customerId: authUser!.uid,
+        customerId: currentUser.uid,
         classId: selectedClass!.id,
         status: 'paid',
         amount: (selectedClass?.price ?? 0) * 100,
@@ -205,7 +277,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
         transferredTo: null,
         transferType: null,
         createdAt: Date.now(),
-        createdBy: authUser!.uid,
+        createdBy: currentUser.uid,
       });
       setCurrentStep(6);
     } catch {
@@ -481,9 +553,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="returningPassword"
-                      type="password"
+                      type={returningPasswordFocused ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setReturningPasswordFocused(true)}
+                      onBlur={() => setReturningPasswordFocused(false)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStep3Submit()}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
@@ -510,14 +584,28 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                 <div className="flex flex-col gap-[16px]">
                   <button 
                     onClick={handleStep3Submit}
-                    className="w-full h-[64px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[20px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
+                    disabled={step3Loading}
+                    className={`w-full h-[64px] rounded-[8px] font-sans text-[20px] font-medium transition-all flex items-center justify-center ${
+                      step3Loading
+                        ? 'bg-[rgba(201,168,76,0.5)] text-[rgba(20,27,31,0.5)] cursor-not-allowed'
+                        : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+                    }`}
                   >
-                    Sign in and continue
+                    {step3Loading ? (
+                      <span className="flex items-center gap-[8px]">
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Signing in…
+                      </span>
+                    ) : 'Sign in and continue'}
                   </button>
                   
                   <button
                     onClick={resetToStep2}
-                    className="w-full h-[64px] rounded-[8px] border border-[rgba(245,237,214,0.2)] text-[rgba(245,237,214,0.7)] hover:bg-[rgba(245,237,214,0.05)] font-sans text-[18px] font-medium flex items-center justify-center transition-all"
+                    disabled={step3Loading}
+                    className="w-full h-[64px] rounded-[8px] border border-[rgba(245,237,214,0.2)] text-[rgba(245,237,214,0.7)] hover:bg-[rgba(245,237,214,0.05)] disabled:opacity-50 font-sans text-[18px] font-medium flex items-center justify-center transition-all"
                   >
                     This is not me — use different details
                   </button>
@@ -543,9 +631,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="newPassword"
-                      type="password"
+                      type={newPasswordFocused ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setNewPasswordFocused(true)}
+                      onBlur={() => setNewPasswordFocused(false)}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
                     <p className="font-sans text-[14px] text-[rgba(245,237,214,0.6)]">
@@ -560,9 +650,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="confirmPassword"
-                      type="password"
+                      type={confirmPasswordFocused ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      onFocus={() => setConfirmPasswordFocused(true)}
+                      onBlur={() => setConfirmPasswordFocused(false)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStep3Submit()}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
@@ -592,14 +684,28 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                 <div className="flex flex-col gap-[16px]">
                   <button 
                     onClick={handleStep3Submit}
-                    className="w-full h-[64px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[20px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
+                    disabled={step3Loading}
+                    className={`w-full h-[64px] rounded-[8px] font-sans text-[20px] font-medium transition-all flex items-center justify-center ${
+                      step3Loading
+                        ? 'bg-[rgba(201,168,76,0.5)] text-[rgba(20,27,31,0.5)] cursor-not-allowed'
+                        : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+                    }`}
                   >
-                    Continue
+                    {step3Loading ? (
+                      <span className="flex items-center gap-[8px]">
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating your account…
+                      </span>
+                    ) : 'Continue'}
                   </button>
                   
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="w-full h-[64px] rounded-[8px] border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[rgba(201,168,76,0.1)] font-sans text-[18px] font-medium flex items-center justify-center transition-all"
+                    disabled={step3Loading}
+                    className="w-full h-[64px] rounded-[8px] border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[rgba(201,168,76,0.1)] disabled:opacity-50 font-sans text-[18px] font-medium flex items-center justify-center transition-all"
                   >
                     Go back
                   </button>
