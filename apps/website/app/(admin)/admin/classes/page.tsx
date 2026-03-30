@@ -13,6 +13,7 @@ type ClassStatus = "Upcoming" | "Full" | "Archived";
 interface ClassItem {
   id: string;
   name: string;
+  dateValue: number;
   category: string;
   date: string;
   time: string;
@@ -45,11 +46,13 @@ function classUIStatus(cls: ClassWithId): ClassStatus {
   return "Upcoming";
 }
 
-const EMPTY_FORM: Omit<ClassItem, "id" | "status"> = {
+const EMPTY_FORM: Omit<ClassItem, "id" | "status" | "dateValue"> = {
   name: "", category: "", date: "", time: "", duration: "", price: 0, seats: 0, booked: 0, location: "", description: "", sponsor: "", instructor: "",
 };
 
 type Filter = "All" | "Upcoming" | "Full" | "Archived";
+type SortKey = "date" | "name";
+type SortDirection = "asc" | "desc";
 
 export default function AdminClasses() {
   const { classes: rawClasses, users, loading } = useAdminData();
@@ -58,16 +61,18 @@ export default function AdminClasses() {
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ClassItem | null>(null);
-  const [form, setForm] = useState<Omit<ClassItem, "id" | "status">>(EMPTY_FORM);
+  const [form, setForm] = useState<Omit<ClassItem, "id" | "status" | "dateValue">>(EMPTY_FORM);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const PAGE_SIZE = 25;
 
-  useEffect(() => { setPage(1); }, [filter, search]);
+  useEffect(() => { setPage(1); }, [filter, search, sortDirection, sortKey]);
 
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
   const liveClasses: ClassItem[] = rawClasses
@@ -75,6 +80,7 @@ export default function AdminClasses() {
     .map((c) => ({
       id: c.id,
       name: c.name,
+      dateValue: c.date,
       category: c.category,
       date: fmtDate(c.date),
       time: fmtTime(c.date),
@@ -102,6 +108,18 @@ export default function AdminClasses() {
       if (!c.name.toLowerCase().includes(s) && !c.date.toLowerCase().includes(s)) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const statusOrder = (item: ClassItem) => (item.status === "Archived" ? 1 : 0);
+    const statusCompare = statusOrder(a) - statusOrder(b);
+    if (statusCompare !== 0) return statusCompare;
+
+    if (sortKey === "name") {
+      const result = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      return sortDirection === "asc" ? result : -result;
+    }
+
+    const result = a.dateValue - b.dateValue;
+    return sortDirection === "asc" ? result : -result;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -133,11 +151,26 @@ export default function AdminClasses() {
 
   function openEdit(cls: ClassItem) {
     setEditTarget(cls);
-    const { id: _id, status: _status, ...rest } = cls;
+    const { id: _id, status: _status, dateValue: _dateValue, ...rest } = cls;
     setForm(rest);
     setDeleteConfirm(false);
     setError("");
     setModalOpen(true);
+  }
+
+  function toggleSort(nextSortKey: SortKey) {
+    if (sortKey === nextSortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextSortKey);
+    setSortDirection(nextSortKey === "name" ? "asc" : "asc");
+  }
+
+  function sortLabel(nextSortKey: SortKey) {
+    if (sortKey !== nextSortKey) return "";
+    return sortDirection === "asc" ? " ▲" : " ▼";
   }
 
   function closeModal() {
@@ -324,7 +357,26 @@ export default function AdminClasses() {
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-[rgba(245,237,214,0.07)]">
-              {["Class", "Category", "Date & Time", "Seats", "Price", "Status", ""].map((h) => (
+              <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">
+                <button
+                  type="button"
+                  onClick={() => toggleSort("name")}
+                  className="transition hover:text-[rgba(245,237,214,0.72)]"
+                >
+                  {`Class${sortLabel("name")}`}
+                </button>
+              </th>
+              <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Category</th>
+              <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">
+                <button
+                  type="button"
+                  onClick={() => toggleSort("date")}
+                  className="transition hover:text-[rgba(245,237,214,0.72)]"
+                >
+                  {`Date & Time${sortLabel("date")}`}
+                </button>
+              </th>
+              {(["Seats", "Price", "Status", ""] as const).map((h) => (
                 <th key={h} className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">{h}</th>
               ))}
             </tr>
