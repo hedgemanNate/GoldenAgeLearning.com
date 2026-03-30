@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { useClassTemplates } from "../../../../hooks/useClassTemplates";
 import { useAuthContext } from "../../../../context/AuthContext";
@@ -56,6 +57,7 @@ export default function AdminClasses() {
   const { user: currentUser } = useAuthContext();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ClassItem | null>(null);
   const [form, setForm] = useState<Omit<ClassItem, "id" | "status">>(EMPTY_FORM);
@@ -63,6 +65,9 @@ export default function AdminClasses() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const PAGE_SIZE = 25;
+
+  useEffect(() => { setPage(1); }, [filter, search]);
 
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
   const liveClasses: ClassItem[] = rawClasses
@@ -98,6 +103,10 @@ export default function AdminClasses() {
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function applyTemplate(templateId: string) {
     const tpl = templates.find((t) => t.id === templateId);
@@ -303,6 +312,13 @@ export default function AdminClasses() {
         />
       </div>
 
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       {/* Table */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
         <table className="w-full text-[13px]">
@@ -318,8 +334,8 @@ export default function AdminClasses() {
               <tr>
                 <td colSpan={7} className="px-[16px] py-[32px] text-center text-[rgba(245,237,214,0.3)] text-[13px]">No classes found.</td>
               </tr>
-            ) : filtered.map((cls, i) => (
-              <tr key={cls.id} className={`${i < filtered.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${cls.status === "Archived" ? "opacity-50" : ""}`}>
+            ) : paginated.map((cls, i) => (
+              <tr key={cls.id} className={`${i < paginated.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${cls.status === "Archived" ? "opacity-50" : ""}`}>
                 <td className="px-[16px] py-[13px]">
                   <p className="text-[var(--color-cream)] font-medium">{cls.name}</p>
                   <p className="text-[11px] text-[rgba(245,237,214,0.35)] mt-[2px]">{cls.location}{cls.sponsor ? ` · ${cls.sponsor}` : ""}</p>
@@ -341,6 +357,13 @@ export default function AdminClasses() {
           </tbody>
         </table>
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Add / Edit Modal */}
       {modalOpen && (

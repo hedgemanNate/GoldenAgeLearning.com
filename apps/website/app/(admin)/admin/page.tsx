@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import TablePagination from "../../../components/admin/TablePagination";
 import { useAdminData } from "../../../hooks/useAdminData";
 import { useAuthContext } from "../../../context/AuthContext";
 
@@ -16,6 +18,8 @@ function isActiveCustomer(lastLoginAt: number | null) {
 export default function AdminDashboard() {
   const { user: currentUser } = useAuthContext();
   const { classes, bookings, users, loading } = useAdminData();
+  const [recentBookingsPage, setRecentBookingsPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const role = currentUser?.role ?? "staff";
 
@@ -59,7 +63,6 @@ export default function AdminDashboard() {
   const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
   const recentBookingsDisplay = [...bookings]
     .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 5)
     .map((b) => {
       const cust = usersById[b.customerId];
       const cls = classesById[b.classId];
@@ -73,6 +76,9 @@ export default function AdminDashboard() {
         status: b.status === "paid" ? "Paid" : "Reserved",
       };
     });
+  const totalRecentBookingPages = Math.max(1, Math.ceil(recentBookingsDisplay.length / PAGE_SIZE));
+  const currentRecentBookingsPage = Math.min(recentBookingsPage, totalRecentBookingPages);
+  const paginatedRecentBookings = recentBookingsDisplay.slice((currentRecentBookingsPage - 1) * PAGE_SIZE, currentRecentBookingsPage * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -146,6 +152,12 @@ export default function AdminDashboard() {
         {/* Recent Bookings */}
         <div>
           <h2 className="font-sans text-[11px] uppercase tracking-widest text-[rgba(245,237,214,0.4)] mb-[14px]">Recent Bookings</h2>
+          <TablePagination
+            currentPage={currentRecentBookingsPage}
+            totalItems={recentBookingsDisplay.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setRecentBookingsPage}
+          />
           <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
             <table className="w-full text-[12px]">
               <thead>
@@ -157,8 +169,8 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentBookingsDisplay.map((b, i) => (
-                  <tr key={b.id} className={i < recentBookingsDisplay.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
+                {paginatedRecentBookings.map((b, i) => (
+                  <tr key={b.id} className={i < paginatedRecentBookings.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
                     <td className="px-[16px] py-[11px] text-[var(--color-gold)] font-mono text-[11px]">{b.id}</td>
                     <td className="px-[16px] py-[11px] text-[var(--color-cream)]">{b.customer}</td>
                     <td className="px-[16px] py-[11px] text-[rgba(245,237,214,0.6)]">{b.classname}</td>
@@ -174,6 +186,12 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            currentPage={currentRecentBookingsPage}
+            totalItems={recentBookingsDisplay.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setRecentBookingsPage}
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { updateUser } from "../../../../lib/firebase/db";
 
@@ -41,12 +42,16 @@ export default function AdminCustomers() {
   const { classes, bookings, users, loading } = useAdminData();
   const [showActive, setShowActive] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [editNotes, setEditNotes] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
+  const PAGE_SIZE = 25;
+
+  useEffect(() => { setPage(1); }, [showActive, search]);
 
   const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
 
@@ -90,6 +95,10 @@ export default function AdminCustomers() {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function openProfile(c: Customer) {
     setSelected(c);
@@ -149,6 +158,13 @@ export default function AdminCustomers() {
         />
       </div>
 
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       {/* Table */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
         <table className="w-full text-[13px]">
@@ -162,8 +178,8 @@ export default function AdminCustomers() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={7} className="px-[16px] py-[32px] text-center text-[rgba(245,237,214,0.3)] text-[13px]">No customers found.</td></tr>
-            ) : filtered.map((c, i) => (
-              <tr key={c.uid} className={`${i < filtered.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${!c.isActive ? "opacity-60" : ""}`}>
+            ) : paginated.map((c, i) => (
+              <tr key={c.uid} className={`${i < paginated.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""} ${!c.isActive ? "opacity-60" : ""}`}>
                 <td className="px-[16px] py-[13px]">
                   <div className="flex items-center gap-[10px]">
                     <div className="w-[32px] h-[32px] rounded-full bg-[rgba(201,168,76,0.15)] flex items-center justify-center flex-shrink-0">
@@ -191,6 +207,13 @@ export default function AdminCustomers() {
           </tbody>
         </table>
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Profile Modal */}
       {profileOpen && selected && (

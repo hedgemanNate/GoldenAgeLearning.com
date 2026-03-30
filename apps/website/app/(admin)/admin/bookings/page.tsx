@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 
 type BookingStatus = "Paid" | "Reserved";
@@ -79,7 +80,8 @@ export default function AdminBookings() {
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function openManage(b: Booking) {
     setSelected(b);
@@ -87,46 +89,6 @@ export default function AdminBookings() {
     setTransferCustomer(b.customer);
     setManageOpen(true);
   }
-
-  const PaginationControls = () => {
-    if (filtered.length <= PAGE_SIZE) return null;
-    return (
-      <div className="flex flex-col items-center gap-1 my-[10px]">
-        <div className="flex items-center gap-[8px]">
-          <button
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page === 1}
-            className="px-[10px] py-[6px] rounded-[5px] text-[12px] font-medium bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] disabled:opacity-30 disabled:cursor-not-allowed transition"
-          >
-            ← Prev
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
-            <button
-              key={pNum}
-              onClick={() => setPage(pNum)}
-              className={`w-[30px] py-[6px] rounded-[5px] text-[12px] font-medium transition ${
-                pNum === page
-                  ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]"
-                  : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)]"
-              }`}
-            >
-              {pNum}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page === totalPages}
-            className="px-[10px] py-[6px] rounded-[5px] text-[12px] font-medium bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] disabled:opacity-30 disabled:cursor-not-allowed transition"
-          >
-            Next →
-          </button>
-        </div>
-        <div className="text-[12px] text-[rgba(245,237,214,0.35)]">
-          Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-        </div>
-      </div>
-    );
-  };
 
   if (loading) {
     return (
@@ -184,7 +146,12 @@ export default function AdminBookings() {
       </div>
 
       {/* Pagination Top */}
-      <PaginationControls />
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Table */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
@@ -227,7 +194,12 @@ export default function AdminBookings() {
       </div>
 
       {/* Pagination Bottom */}
-      <PaginationControls />
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Manage Modal */}
       {manageOpen && selected && (

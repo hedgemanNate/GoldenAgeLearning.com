@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { useDiscounts } from "../../../../hooks/useDiscounts";
 
@@ -27,6 +28,7 @@ const EMPTY_FORM: Omit<Sponsor, "uid" | "redemptions" | "discounts"> = {
 export default function AdminSponsors() {
   const { users, loading } = useAdminData();
   const { discounts } = useDiscounts();
+  const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selected, setSelected] = useState<Sponsor | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
@@ -74,6 +76,10 @@ export default function AdminSponsors() {
   }
 
   const sorted = [...liveSponsors].sort((a, b) => b.redemptions - a.redemptions);
+  const PAGE_SIZE = 25;
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedSponsors = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -100,8 +106,15 @@ export default function AdminSponsors() {
       </div>
 
       {/* Sponsor cards */}
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={sorted.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       <div className="flex flex-col gap-[10px]">
-        {sorted.map((s) => (
+        {paginatedSponsors.map((s) => (
           <div key={s.uid} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px]">
             {/* Logo placeholder */}
             <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(201,168,76,0.08)] border border-[rgba(201,168,76,0.15)] flex items-center justify-center flex-shrink-0">
@@ -125,6 +138,13 @@ export default function AdminSponsors() {
           </div>
         ))}
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={sorted.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Profile Modal */}
       {profileOpen && selected && (

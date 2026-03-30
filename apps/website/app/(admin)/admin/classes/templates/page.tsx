@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import TablePagination from "../../../../../components/admin/TablePagination";
 import { useClassTemplates } from "../../../../../hooks/useClassTemplates";
 import { useAuthContext } from "../../../../../context/AuthContext";
 import {
@@ -44,6 +45,7 @@ export default function AdminClassTemplates() {
   const { templates, categories, locations, loading } = useClassTemplates();
   const { user: currentUser } = useAuthContext();
 
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ClassTemplateWithId | null>(null);
   const [form, setForm] = useState<TemplateForm>(EMPTY_FORM);
@@ -54,6 +56,10 @@ export default function AdminClassTemplates() {
   const [newCategoryInput, setNewCategoryInput] = useState("");
   const [newLocationInput, setNewLocationInput] = useState("");
   const [addingTag, setAddingTag] = useState<"category" | "location" | null>(null);
+  const PAGE_SIZE = 25;
+  const totalPages = Math.max(1, Math.ceil(templates.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = templates.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function openAdd() {
     setEditTarget(null);
@@ -170,6 +176,13 @@ export default function AdminClassTemplates() {
         </button>
       </div>
 
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={templates.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       {/* Templates table */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden mb-[32px]">
         <table className="w-full text-[13px]">
@@ -187,8 +200,8 @@ export default function AdminClassTemplates() {
                   No templates yet. Create one to speed up class creation.
                 </td>
               </tr>
-            ) : templates.map((t, i) => (
-              <tr key={t.id} className={i < templates.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
+            ) : paginated.map((t, i) => (
+              <tr key={t.id} className={i < paginated.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
                 <td className="px-[16px] py-[13px] text-[var(--color-cream)] font-medium">{t.name}</td>
                 <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.6)]">${t.price}</td>
                 <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.6)]">{t.seatLimit}</td>
@@ -207,6 +220,13 @@ export default function AdminClassTemplates() {
           </tbody>
         </table>
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={templates.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Tags section */}
       <div className="grid grid-cols-2 gap-[24px]">

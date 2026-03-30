@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { subscribeToMessages } from "../../../../lib/firebase/db";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import type { MessageWithId } from "../../../../types/message";
@@ -31,6 +32,7 @@ const SMS_LIMIT = 160;
 export default function AdminMessages() {
   const { classes } = useAdminData();
   const [rawMessages, setRawMessages] = useState<MessageWithId[]>([]);
+  const [page, setPage] = useState(1);
   const [composeOpen, setComposeOpen] = useState(false);
   const [sendTo, setSendTo] = useState("all");
   const [channel, setChannel] = useState<MsgChannel>("Email");
@@ -53,6 +55,10 @@ export default function AdminMessages() {
     date: new Date(m.sentAt ?? m.scheduledAt ?? m.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     status: m.status === "scheduled" ? "Scheduled" : "Sent",
   }));
+  const PAGE_SIZE = 25;
+  const totalPages = Math.max(1, Math.ceil(messages.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedMessages = messages.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const upcomingClassNames = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
 
@@ -73,8 +79,15 @@ export default function AdminMessages() {
       </div>
 
       {/* Sent history */}
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={messages.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       <div className="flex flex-col gap-[8px]">
-        {messages.map((m) => (
+        {paginatedMessages.map((m) => (
           <div key={m.id} className="bg-[var(--color-dark-surface)] rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px]">
             {/* Channel badge */}
             {m.channel === "Email" ? (
@@ -96,6 +109,13 @@ export default function AdminMessages() {
           </div>
         ))}
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={messages.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Compose Modal */}
       {composeOpen && (

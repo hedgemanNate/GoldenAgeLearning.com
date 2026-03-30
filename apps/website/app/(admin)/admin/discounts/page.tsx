@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import TablePagination from "../../../../components/admin/TablePagination";
 import { useDiscounts } from "../../../../hooks/useDiscounts";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import type { DiscountWithId } from "../../../../types/discount";
@@ -47,12 +48,16 @@ export default function AdminDiscounts() {
   const { discounts: rawDiscounts } = useDiscounts();
   const { classes, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("Active");
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Discount | null>(null);
   const [form, setForm] = useState<Omit<Discount, "id" | "status">>(EMPTY_FORM);
   const [classMode, setClassMode] = useState<"all" | "specific">("all");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<Discount | null>(null);
+  const PAGE_SIZE = 25;
+
+  useEffect(() => { setPage(1); }, [filter]);
 
   const sponsorUsers = users.filter((u) => u.role === "sponsor");
   const sponsorNames = sponsorUsers.map((u) => u.name);
@@ -67,6 +72,9 @@ export default function AdminDiscounts() {
   });
 
   const filtered = liveDiscounts.filter((d) => d.status === filter);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedDiscounts = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function openAdd() {
     setEditTarget(null);
@@ -134,10 +142,17 @@ export default function AdminDiscounts() {
       </div>
 
       {/* Discount list */}
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
+
       <div className="flex flex-col gap-[10px]">
         {filtered.length === 0 ? (
           <p className="text-[13px] text-[rgba(245,237,214,0.3)] py-[32px] text-center">No {filter.toLowerCase()} discounts.</p>
-        ) : filtered.map((d) => (
+        ) : paginatedDiscounts.map((d) => (
           <div
             key={d.id}
             className={`rounded-[8px] px-[20px] py-[16px] flex items-center gap-[16px] ${
@@ -157,6 +172,13 @@ export default function AdminDiscounts() {
           </div>
         ))}
       </div>
+
+      <TablePagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Add/Edit Modal */}
       {modalOpen && (
