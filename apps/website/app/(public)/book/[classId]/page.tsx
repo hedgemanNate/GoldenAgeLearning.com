@@ -179,13 +179,15 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
       }
       setStep3Loading(true);
       try {
-        const credential = await createAccount(email, password);
-        await createUser(credential.user.uid, {
+        // Build the full profile before creating the Auth account so it is
+        // written to RTDB immediately after sign-up, before onAuthStateChanged
+        // can fire and read a missing profile.
+        const newProfile = {
           name,
           email: email || null,
           phone: phone || null,
           address: null,
-          role: 'customer',
+          role: 'customer' as const,
           notes: null,
           contact: [],
           discounts: [],
@@ -197,7 +199,9 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
           squareCardId: null,
           createdAt: Date.now(),
           lastLoginAt: Date.now(),
-        });
+        };
+        const credential = await createAccount(email, password);
+        await createUser(credential.user.uid, newProfile);
         setCurrentStep(4);
       } catch (err: any) {
         const code: string = err?.code ?? '';
