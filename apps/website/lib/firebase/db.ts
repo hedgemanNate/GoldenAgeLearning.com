@@ -331,6 +331,20 @@ export async function getActivityLogs(limit?: number): Promise<ActivityLogWithId
     .slice(0, limit);
 }
 
+export async function adminSetRawValue(path: string, data: unknown): Promise<void> {
+  await set(ref(db, path), data);
+}
+
+export async function adminDeleteRawValue(path: string): Promise<void> {
+  await set(ref(db, path), null);
+}
+
+export async function adminCreateChildValue(path: string, data: unknown): Promise<string> {
+  const newRef = push(ref(db, path));
+  await set(newRef, data);
+  return newRef.key!;
+}
+
 // ─── Real-time subscriptions ───────────────────────────────────────────────────
 
 export function subscribeToClasses(callback: (classes: ClassWithId[]) => void) {

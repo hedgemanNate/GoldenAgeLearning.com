@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuthContext } from "../../context/AuthContext";
 import { useAdminData } from "../../hooks/useAdminData";
 
-type Role = "super_admin" | "staff";
-
-const MOCK_ROLE: Role = "super_admin"; // swap to "staff" to preview staff view
+type Role = "superAdmin" | "staff";
 
 interface NavItem {
   label: string;
@@ -39,6 +38,7 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
     group: "Admin",
     adminOnly: true,
     items: [
+      { label: "Database", href: "/admin/database" },
       { label: "Staff", href: "/admin/staff" },
     ],
   },
@@ -46,7 +46,8 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const role: Role = MOCK_ROLE;
+  const { user: currentUser } = useAuthContext();
+  const role: Role = currentUser?.role === "superAdmin" ? "superAdmin" : "staff";
   const { bookings } = useAdminData();
   const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const todayBookingsCount = bookings.filter((b) => b.createdAt >= todayStart).length;
@@ -59,7 +60,7 @@ export default function AdminSidebar() {
         <p className="font-display font-bold text-[14px] text-[var(--color-cream)] leading-tight mb-[36px]">
           Golden Age Learning
         </p>
-        {role === "super_admin" ? (
+        {role === "superAdmin" ? (
           <span className="inline-flex px-[8px] py-[2px] rounded-full bg-[rgba(201,168,76,0.12)] text-[var(--color-gold)] font-sans text-[10px] font-semibold">
             Super Admin
           </span>
@@ -73,7 +74,7 @@ export default function AdminSidebar() {
       {/* Nav groups */}
       <nav className="flex-1 px-[4px] py-[16px] flex flex-col gap-[24px]">
         {NAV_GROUPS.map(({ group, items, adminOnly }) => {
-          if (adminOnly && role !== "super_admin") return null;
+          if (adminOnly && role !== "superAdmin") return null;
           return (
             <div key={group}>
               <p className="font-sans text-[8px] uppercase tracking-wider text-[rgba(245,237,214,0.25)] px-[10px] mb-[4px]">
