@@ -48,6 +48,7 @@ export default function AdminDiscounts() {
   const { discounts: rawDiscounts } = useDiscounts();
   const { classes, users, loading } = useAdminData();
   const [filter, setFilter] = useState<Filter>("Active");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Discount | null>(null);
@@ -57,7 +58,7 @@ export default function AdminDiscounts() {
   const [deleteConfirm, setDeleteConfirm] = useState<Discount | null>(null);
   const PAGE_SIZE = 25;
 
-  useEffect(() => { setPage(1); }, [filter]);
+  useEffect(() => { setPage(1); }, [filter, search]);
 
   const sponsorUsers = users.filter((u) => u.role === "sponsor");
   const sponsorNames = sponsorUsers.map((u) => u.name);
@@ -71,7 +72,12 @@ export default function AdminDiscounts() {
     return mapDiscount(d, sponsor?.name ?? d.sponsorId, classNameMap);
   });
 
-  const filtered = liveDiscounts.filter((d) => d.status === filter);
+  const filtered = liveDiscounts.filter((d) => {
+    if (d.status !== filter) return false;
+    if (!search.trim()) return true;
+    const needle = search.toLowerCase();
+    return d.title.toLowerCase().includes(needle);
+  });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginatedDiscounts = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -128,17 +134,25 @@ export default function AdminDiscounts() {
         </button>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex items-center gap-[10px] mb-[20px]">
-        {(["Active", "Archived"] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${filter === f ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]" : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"}`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="flex items-center gap-[10px] mb-[20px] flex-wrap">
+        <input
+          type="text"
+          placeholder="Search discounts…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+        />
+        <div className="ml-auto flex items-center gap-[10px] flex-wrap">
+          {(["Active", "Archived"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${filter === f ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]" : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Discount list */}

@@ -28,6 +28,7 @@ const EMPTY_FORM: Omit<Sponsor, "uid" | "redemptions" | "discounts"> = {
 export default function AdminSponsors() {
   const { users, loading } = useAdminData();
   const { discounts } = useDiscounts();
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedSponsorId, setSelectedSponsorId] = useState<string | null>(null);
@@ -87,10 +88,19 @@ export default function AdminSponsors() {
   }
 
   const sorted = [...liveSponsors].sort((a, b) => b.redemptions - a.redemptions);
+  const filteredSponsors = sorted.filter((sponsor) => {
+    if (!search.trim()) return true;
+    const needle = search.toLowerCase();
+    return sponsor.name.toLowerCase().includes(needle);
+  });
   const PAGE_SIZE = 25;
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredSponsors.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const paginatedSponsors = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paginatedSponsors = filteredSponsors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   if (loading) {
     return (
@@ -116,10 +126,20 @@ export default function AdminSponsors() {
         </button>
       </div>
 
+      <div className="flex items-center gap-[10px] mb-[20px] flex-wrap">
+        <input
+          type="text"
+          placeholder="Search sponsors…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+        />
+      </div>
+
       {/* Sponsor cards */}
       <TablePagination
         currentPage={currentPage}
-        totalItems={sorted.length}
+        totalItems={filteredSponsors.length}
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
       />
@@ -152,7 +172,7 @@ export default function AdminSponsors() {
 
       <TablePagination
         currentPage={currentPage}
-        totalItems={sorted.length}
+        totalItems={filteredSponsors.length}
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
       />

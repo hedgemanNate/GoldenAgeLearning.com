@@ -40,7 +40,6 @@ type ProfileTab = "details" | "bookings" | "payments" | "notes";
 
 export default function AdminCustomers() {
   const { classes, bookings, users, loading } = useAdminData();
-  const [showActive, setShowActive] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -51,7 +50,7 @@ export default function AdminCustomers() {
   const [editingNotes, setEditingNotes] = useState(false);
   const PAGE_SIZE = 25;
 
-  useEffect(() => { setPage(1); }, [showActive, search]);
+  useEffect(() => { setPage(1); }, [search]);
 
   const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
 
@@ -95,7 +94,6 @@ export default function AdminCustomers() {
     : [];
 
   const filtered = liveCustomers.filter((c) => {
-    if (showActive && !c.isActive) return false;
     if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.email.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -151,26 +149,14 @@ export default function AdminCustomers() {
         </div>
       </div>
 
-      {/* Filters + Search */}
+      {/* Search */}
       <div className="flex items-center gap-[10px] mb-[20px] flex-wrap">
-        <button
-          onClick={() => setShowActive(false)}
-          className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${!showActive ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]" : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"}`}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setShowActive(true)}
-          className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${showActive ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]" : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"}`}
-        >
-          Active (last 45 days)
-        </button>
         <input
           type="text"
           placeholder="Search name or email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="ml-auto bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
         />
       </div>
 

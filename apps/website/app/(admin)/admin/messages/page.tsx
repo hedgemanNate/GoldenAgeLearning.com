@@ -15,6 +15,7 @@ interface DisplayMessage {
   channel: MsgChannel;
   subject: string;
   preview: string;
+  dateValue: number;
   date: string;
   status: MsgStatus;
 }
@@ -29,9 +30,14 @@ function recipientLabel(m: MessageWithId): string {
 
 const SMS_LIMIT = 160;
 
+function messageDateValue(message: MessageWithId) {
+  return message.sentAt ?? message.scheduledAt ?? message.createdAt;
+}
+
 export default function AdminMessages() {
   const { classes } = useAdminData();
   const [rawMessages, setRawMessages] = useState<MessageWithId[]>([]);
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [composeOpen, setComposeOpen] = useState(false);
   const [sendTo, setSendTo] = useState("all");
@@ -46,19 +52,32 @@ export default function AdminMessages() {
     return () => unsub();
   }, []);
 
-  const messages: DisplayMessage[] = rawMessages.map((m) => ({
-    id: m.id,
-    sentTo: recipientLabel(m),
-    channel: m.channel === "sms" ? "SMS" : "Email",
-    subject: m.subject ?? "",
-    preview: m.body.slice(0, 100),
-    date: new Date(m.sentAt ?? m.scheduledAt ?? m.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    status: m.status === "scheduled" ? "Scheduled" : "Sent",
-  }));
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const messages: DisplayMessage[] = [...rawMessages]
+    .sort((a, b) => messageDateValue(b) - messageDateValue(a))
+    .map((m) => ({
+      id: m.id,
+      sentTo: recipientLabel(m),
+      channel: m.channel === "sms" ? "SMS" : "Email",
+      subject: m.subject ?? "",
+      preview: m.body.slice(0, 100),
+      dateValue: messageDateValue(m),
+      date: new Date(messageDateValue(m)).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      status: m.status === "scheduled" ? "Scheduled" : "Sent",
+    }));
+
+  const filteredMessages = messages.filter((message) => {
+    if (!search.trim()) return true;
+    return message.subject.toLowerCase().includes(search.toLowerCase());
+  });
+
   const PAGE_SIZE = 25;
-  const totalPages = Math.max(1, Math.ceil(messages.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const paginatedMessages = messages.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paginatedMessages = filteredMessages.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const upcomingClassNames = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
 
@@ -78,10 +97,20 @@ export default function AdminMessages() {
         </button>
       </div>
 
+      <div className="flex items-center gap-[10px] mb-[20px] flex-wrap">
+        <input
+          type="text"
+          placeholder="Search message titles…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+        />
+      </div>
+
       {/* Sent history */}
       <TablePagination
         currentPage={currentPage}
-        totalItems={messages.length}
+        totalItems={filteredMessages.length}
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
       />
@@ -112,7 +141,7 @@ export default function AdminMessages() {
 
       <TablePagination
         currentPage={currentPage}
-        totalItems={messages.length}
+        totalItems={filteredMessages.length}
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
       />

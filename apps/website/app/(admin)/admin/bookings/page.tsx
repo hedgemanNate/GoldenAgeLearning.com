@@ -142,26 +142,28 @@ export default function AdminBookings() {
 
       {/* Filters + Search */}
       <div className="flex items-center gap-[10px] mb-[20px] flex-wrap">
-        {(["All", "Paid", "Reserved"] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${
-              filter === f
-                ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]"
-                : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
         <input
           type="text"
           placeholder="Search customer or class…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="ml-auto bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
+          className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[7px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[240px]"
         />
+        <div className="ml-auto flex items-center gap-[10px] flex-wrap">
+          {(["All", "Paid", "Reserved"] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-[14px] py-[6px] rounded-full font-sans text-[12px] font-medium transition ${
+                filter === f
+                  ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]"
+                  : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[rgba(245,237,214,0.8)]"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Pagination Top */}
