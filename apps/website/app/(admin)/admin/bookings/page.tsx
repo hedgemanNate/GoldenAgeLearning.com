@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdminData } from "../../../../hooks/useAdminData";
 
 type BookingStatus = "Paid" | "Reserved";
@@ -32,6 +32,9 @@ export default function AdminBookings() {
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
+  useEffect(() => { setPage(1); }, [filter, search, sortDir]);
 
   // Manage modal
   const [manageOpen, setManageOpen] = useState(false);
@@ -75,12 +78,55 @@ export default function AdminBookings() {
     return true;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   function openManage(b: Booking) {
     setSelected(b);
     setTransferClass(b.classname);
     setTransferCustomer(b.customer);
     setManageOpen(true);
   }
+
+  const PaginationControls = () => {
+    if (filtered.length <= PAGE_SIZE) return null;
+    return (
+      <div className="flex flex-col items-center gap-1 my-[10px]">
+        <div className="flex items-center gap-[8px]">
+          <button
+            onClick={() => setPage((p) => p - 1)}
+            disabled={page === 1}
+            className="px-[10px] py-[6px] rounded-[5px] text-[12px] font-medium bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+          >
+            ← Prev
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
+            <button
+              key={pNum}
+              onClick={() => setPage(pNum)}
+              className={`w-[30px] py-[6px] rounded-[5px] text-[12px] font-medium transition ${
+                pNum === page
+                  ? "bg-[var(--color-gold)] text-[var(--color-dark-bg)]"
+                  : "bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)]"
+              }`}
+            >
+              {pNum}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page === totalPages}
+            className="px-[10px] py-[6px] rounded-[5px] text-[12px] font-medium bg-[var(--color-dark-surface)] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] disabled:opacity-30 disabled:cursor-not-allowed transition"
+          >
+            Next →
+          </button>
+        </div>
+        <div className="text-[12px] text-[rgba(245,237,214,0.35)]">
+          Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -137,6 +183,9 @@ export default function AdminBookings() {
         />
       </div>
 
+      {/* Pagination Top */}
+      <PaginationControls />
+
       {/* Table */}
       <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
         <table className="w-full text-[13px]">
@@ -150,8 +199,8 @@ export default function AdminBookings() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={8} className="px-[16px] py-[32px] text-center text-[rgba(245,237,214,0.3)] text-[13px]">No bookings found.</td></tr>
-            ) : filtered.map((b, i) => (
-              <tr key={b.id} className={i < filtered.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
+            ) : paginated.map((b, i) => (
+              <tr key={b.id} className={i < paginated.length - 1 ? "border-b border-[rgba(245,237,214,0.05)]" : ""}>
                 <td className="px-[16px] py-[13px] text-[var(--color-gold)] font-mono text-[11px]">{b.id}</td>
                 <td className="px-[16px] py-[13px]">
                   <p className="text-[var(--color-cream)] font-medium">{b.customer}</p>
@@ -176,6 +225,9 @@ export default function AdminBookings() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Bottom */}
+      <PaginationControls />
 
       {/* Manage Modal */}
       {manageOpen && selected && (
