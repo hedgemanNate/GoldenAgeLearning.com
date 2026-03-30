@@ -68,6 +68,9 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step3Error, setStep3Error] = useState('');
+  const [returningPasswordFocused, setReturningPasswordFocused] = useState(false);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
   // Step 4 State
   const [paymentMethod, setPaymentMethod] = useState<'pay_now' | 'reserve'>('pay_now');
@@ -78,9 +81,15 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   const [paymentError, setPaymentError] = useState('');
 
   // Class data from Firebase
+
   const [selectedClass, setSelectedClass] = useState<UIClass | null>(null);
   const [classLoading, setClassLoading] = useState(true);
   const [classError, setClassError] = useState<string | null>(null);
+
+  // Scroll to top after every step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
 
   const resolvedParams = use(params);
 
@@ -481,9 +490,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="returningPassword"
-                      type="password"
+                      type={returningPasswordFocused ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setReturningPasswordFocused(true)}
+                      onBlur={() => setReturningPasswordFocused(false)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStep3Submit()}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
@@ -543,9 +554,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="newPassword"
-                      type="password"
+                      type={newPasswordFocused ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setNewPasswordFocused(true)}
+                      onBlur={() => setNewPasswordFocused(false)}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
                     <p className="font-sans text-[14px] text-[rgba(245,237,214,0.6)]">
@@ -560,9 +573,11 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     </label>
                     <input
                       id="confirmPassword"
-                      type="password"
+                      type={confirmPasswordFocused ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      onFocus={() => setConfirmPasswordFocused(true)}
+                      onBlur={() => setConfirmPasswordFocused(false)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStep3Submit()}
                       className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] transition-colors outline-none w-full"
                     />
