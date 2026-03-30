@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DatabaseTypedEditor, { type DatabaseTypedField } from "../../../../components/admin/DatabaseTypedEditor";
 import { useAuthContext } from "../../../../context/AuthContext";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { useDiscounts } from "../../../../hooks/useDiscounts";
@@ -45,6 +46,14 @@ type CollectionKey =
 type DetailTab = "details" | "json";
 
 type CreateMode = "push" | "custom" | "none";
+type EditorMode = "typed" | "json" | null;
+type TypedEditorValue = string | boolean;
+
+interface TypedEditorConfig {
+  fields: DatabaseTypedField[];
+  toFormValues: (raw: Record<string, unknown>) => Record<string, TypedEditorValue>;
+  toRecord: (values: Record<string, TypedEditorValue>, base: Record<string, unknown>) => Record<string, unknown>;
+}
 
 interface DatabaseRecord {
   id: string;
@@ -331,6 +340,51 @@ function parseJsonDraft(draft: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function formatDateTimeInput(value: unknown): string {
+  if (typeof value !== "number" || value <= 0) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(value - offset).toISOString().slice(0, 16);
+}
+
+function parseDateTimeInput(value: string, fallback: number | null = null): number | null {
+  if (!value.trim()) return fallback;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? fallback : timestamp;
+}
+
+function nullableString(value: TypedEditorValue): string | null {
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+}
+
+function numberOr(value: TypedEditorValue, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function nullableNumber(value: TypedEditorValue): number | null {
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function listToText(value: unknown): string {
+  return Array.isArray(value) ? value.join("\n") : "";
+}
+
+function textToList(value: TypedEditorValue): string[] {
+  return String(value)
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function booleanValue(value: unknown): boolean {
+  return Boolean(value);
+}
+
 export default function AdminDatabasePage() {
   const { user: currentUser } = useAuthContext();
   const { classes, bookings, users, loading: adminLoading } = useAdminData();
@@ -351,8 +405,10 @@ export default function AdminDatabasePage() {
   const [detailTab, setDetailTab] = useState<DetailTab>("details");
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>(null);
   const [customRecordId, setCustomRecordId] = useState("");
   const [draftJson, setDraftJson] = useState("");
+  const [typedFormValues, setTypedFormValues] = useState<Record<string, TypedEditorValue>>({});
   const [submitting, setSubmitting] = useState(false);
   const [mutationError, setMutationError] = useState("");
   const [mutationNotice, setMutationNotice] = useState("");
@@ -681,6 +737,7 @@ export default function AdminDatabasePage() {
     setSearch("");
     setIsCreating(false);
     setIsEditing(false);
+    setEditorMode(null);
     setMutationError("");
     setMutationNotice("");
     setCustomRecordId("");
@@ -703,6 +760,7 @@ export default function AdminDatabasePage() {
       setPendingSelection(null);
       setIsCreating(false);
       setIsEditing(false);
+      setEditorMode(null);
     }
   }, [pendingSelection, recordsByCollection, selectedCollection]);
 
@@ -719,6 +777,368 @@ export default function AdminDatabasePage() {
   }, [currentUser?.uid, isCreating, selectedCollection, selectedRecord]);
 
   const currentMeta = COLLECTION_META[selectedCollection];
+  const sponsorOptions = useMemo(
+    () => [{ label: "None", value: "" }, ...users.filter((user) => user.role === "sponsor").map((user) => ({ label: user.name, value: user.uid }))],
+    [users]
+  );
+  const instructorOptions = useMemo(
+    () => [{ label: "None", value: "" }, ...users.filter((user) => user.role === "staff" || user.role === "superAdmin").map((user) => ({ label: user.name, value: user.uid }))],
+    [users]
+  );
+  const userOptions = useMemo(
+    () => users.map((user) => ({ label: `${user.name} (${user.role})`, value: user.uid })),
+    [users]
+  );
+  const classOptions = useMemo(
+    () => classes.map((cls) => ({ label: cls.name, value: cls.id })),
+    [classes]
+  );
+  const categoryOptions = useMemo(
+    () => [{ label: "None", value: "" }, ...categories.map((tag) => ({ label: tag.value, value: tag.value }))],
+    [categories]
+  );
+  const locationOptions = useMemo(
+    () => [{ label: "None", value: "" }, ...locations.map((tag) => ({ label: tag.value, value: tag.value }))],
+    [locations]
+  );
+  const typedEditorConfigs = useMemo<Record<CollectionKey, TypedEditorConfig | null>>(() => ({
+    users: {
+      fields: [
+        { key: "name", label: "Name", type: "text" },
+        { key: "role", label: "Role", type: "select", options: [
+          { label: "Customer", value: "customer" },
+          { label: "Sponsor", value: "sponsor" },
+          { label: "Staff", value: "staff" },
+          { label: "Super Admin", value: "superAdmin" },
+        ] },
+        { key: "email", label: "Email", type: "text" },
+        { key: "phone", label: "Phone", type: "text" },
+        { key: "address", label: "Address", type: "textarea", fullWidth: true },
+        { key: "notes", label: "Notes", type: "textarea", fullWidth: true },
+        { key: "starRating", label: "Star Rating", type: "number", min: "0", step: "1" },
+        { key: "totalRedemptions", label: "Total Redemptions", type: "number", min: "0", step: "1" },
+        { key: "createdAt", label: "Created At", type: "datetime-local" },
+        { key: "lastLoginAt", label: "Last Login", type: "datetime-local" },
+      ],
+      toFormValues: (raw) => ({
+        name: String(raw.name ?? ""),
+        role: String(raw.role ?? "customer"),
+        email: String(raw.email ?? ""),
+        phone: String(raw.phone ?? ""),
+        address: String(raw.address ?? ""),
+        notes: String(raw.notes ?? ""),
+        starRating: raw.starRating == null ? "" : String(raw.starRating),
+        totalRedemptions: String(raw.totalRedemptions ?? 0),
+        createdAt: formatDateTimeInput(raw.createdAt),
+        lastLoginAt: formatDateTimeInput(raw.lastLoginAt),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        name: String(values.name ?? "").trim(),
+        role: String(values.role ?? "customer"),
+        email: nullableString(values.email ?? ""),
+        phone: nullableString(values.phone ?? ""),
+        address: nullableString(values.address ?? ""),
+        notes: nullableString(values.notes ?? ""),
+        starRating: nullableNumber(values.starRating ?? ""),
+        totalRedemptions: numberOr(values.totalRedemptions ?? "0", 0),
+        createdAt: parseDateTimeInput(String(values.createdAt ?? ""), Number(base.createdAt ?? Date.now())) ?? Date.now(),
+        lastLoginAt: parseDateTimeInput(String(values.lastLoginAt ?? ""), null),
+      }),
+    },
+    classesActive: {
+      fields: [
+        { key: "name", label: "Name", type: "text" },
+        { key: "category", label: "Category", type: "select", options: categoryOptions },
+        { key: "date", label: "Date & Time", type: "datetime-local" },
+        { key: "duration", label: "Duration (min)", type: "number", min: "0", step: "1" },
+        { key: "location", label: "Location", type: "select", options: locationOptions },
+        { key: "price", label: "Price", type: "number", min: "0", step: "1" },
+        { key: "seatLimit", label: "Seat Limit", type: "number", min: "0", step: "1" },
+        { key: "seatsBooked", label: "Seats Booked", type: "number", min: "0", step: "1" },
+        { key: "sponsorId", label: "Sponsor", type: "select", options: sponsorOptions },
+        { key: "instructorId", label: "Instructor", type: "select", options: instructorOptions },
+        { key: "status", label: "Status", type: "select", options: [
+          { label: "Upcoming", value: "upcoming" },
+          { label: "Deleted", value: "deleted" },
+        ] },
+        { key: "description", label: "Description", type: "textarea", fullWidth: true },
+      ],
+      toFormValues: (raw) => ({
+        name: String(raw.name ?? ""),
+        category: String(raw.category ?? ""),
+        date: formatDateTimeInput(raw.date),
+        duration: String(raw.duration ?? 60),
+        location: String(raw.location ?? ""),
+        price: String(raw.price ?? 0),
+        seatLimit: String(raw.seatLimit ?? 0),
+        seatsBooked: String(raw.seatsBooked ?? 0),
+        sponsorId: String(raw.sponsorId ?? ""),
+        instructorId: String(raw.instructorId ?? ""),
+        status: String(raw.status ?? "upcoming"),
+        description: String(raw.description ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        name: String(values.name ?? "").trim(),
+        category: String(values.category ?? ""),
+        date: parseDateTimeInput(String(values.date ?? ""), Number(base.date ?? Date.now())) ?? Date.now(),
+        duration: numberOr(values.duration ?? "60", 60),
+        location: String(values.location ?? ""),
+        price: numberOr(values.price ?? "0", 0),
+        seatLimit: numberOr(values.seatLimit ?? "0", 0),
+        seatsBooked: numberOr(values.seatsBooked ?? "0", 0),
+        sponsorId: nullableString(values.sponsorId ?? ""),
+        instructorId: nullableString(values.instructorId ?? ""),
+        status: String(values.status ?? "upcoming"),
+        description: String(values.description ?? ""),
+      }),
+    },
+    classesArchived: {
+      fields: [
+        { key: "name", label: "Name", type: "text" },
+        { key: "category", label: "Category", type: "select", options: categoryOptions },
+        { key: "date", label: "Date & Time", type: "datetime-local" },
+        { key: "duration", label: "Duration (min)", type: "number", min: "0", step: "1" },
+        { key: "location", label: "Location", type: "select", options: locationOptions },
+        { key: "price", label: "Price", type: "number", min: "0", step: "1" },
+        { key: "seatLimit", label: "Seat Limit", type: "number", min: "0", step: "1" },
+        { key: "seatsBooked", label: "Seats Booked", type: "number", min: "0", step: "1" },
+        { key: "sponsorId", label: "Sponsor", type: "select", options: sponsorOptions },
+        { key: "instructorId", label: "Instructor", type: "select", options: instructorOptions },
+        { key: "status", label: "Status", type: "select", options: [{ label: "Archived", value: "archived" }], disabled: true },
+        { key: "description", label: "Description", type: "textarea", fullWidth: true },
+      ],
+      toFormValues: (raw) => ({
+        name: String(raw.name ?? ""),
+        category: String(raw.category ?? ""),
+        date: formatDateTimeInput(raw.date),
+        duration: String(raw.duration ?? 60),
+        location: String(raw.location ?? ""),
+        price: String(raw.price ?? 0),
+        seatLimit: String(raw.seatLimit ?? 0),
+        seatsBooked: String(raw.seatsBooked ?? 0),
+        sponsorId: String(raw.sponsorId ?? ""),
+        instructorId: String(raw.instructorId ?? ""),
+        status: String(raw.status ?? "archived"),
+        description: String(raw.description ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        name: String(values.name ?? "").trim(),
+        category: String(values.category ?? ""),
+        date: parseDateTimeInput(String(values.date ?? ""), Number(base.date ?? Date.now())) ?? Date.now(),
+        duration: numberOr(values.duration ?? "60", 60),
+        location: String(values.location ?? ""),
+        price: numberOr(values.price ?? "0", 0),
+        seatLimit: numberOr(values.seatLimit ?? "0", 0),
+        seatsBooked: numberOr(values.seatsBooked ?? "0", 0),
+        sponsorId: nullableString(values.sponsorId ?? ""),
+        instructorId: nullableString(values.instructorId ?? ""),
+        description: String(values.description ?? ""),
+      }),
+    },
+    bookings: {
+      fields: [
+        { key: "customerId", label: "Customer", type: "select", options: userOptions },
+        { key: "classId", label: "Class", type: "select", options: classOptions },
+        { key: "status", label: "Status", type: "select", options: [
+          { label: "Reserved", value: "reserved" },
+          { label: "Paid", value: "paid" },
+          { label: "Transferred", value: "transferred" },
+        ] },
+        { key: "amount", label: "Amount (cents)", type: "number", min: "0", step: "1" },
+        { key: "createdAt", label: "Created At", type: "datetime-local" },
+        { key: "createdBy", label: "Created By", type: "text" },
+        { key: "transferType", label: "Transfer Type", type: "select", options: [
+          { label: "None", value: "" },
+          { label: "Date", value: "date" },
+          { label: "Customer", value: "customer" },
+        ] },
+        { key: "transferredFrom", label: "Transferred From", type: "text" },
+        { key: "transferredTo", label: "Transferred To", type: "text" },
+      ],
+      toFormValues: (raw) => ({
+        customerId: String(raw.customerId ?? ""),
+        classId: String(raw.classId ?? ""),
+        status: String(raw.status ?? "reserved"),
+        amount: String(raw.amount ?? 0),
+        createdAt: formatDateTimeInput(raw.createdAt),
+        createdBy: String(raw.createdBy ?? ""),
+        transferType: String(raw.transferType ?? ""),
+        transferredFrom: String(raw.transferredFrom ?? ""),
+        transferredTo: String(raw.transferredTo ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        customerId: String(values.customerId ?? ""),
+        classId: String(values.classId ?? ""),
+        status: String(values.status ?? "reserved"),
+        amount: numberOr(values.amount ?? "0", 0),
+        createdAt: parseDateTimeInput(String(values.createdAt ?? ""), Number(base.createdAt ?? Date.now())) ?? Date.now(),
+        createdBy: nullableString(values.createdBy ?? ""),
+        transferType: nullableString(values.transferType ?? ""),
+        transferredFrom: nullableString(values.transferredFrom ?? ""),
+        transferredTo: nullableString(values.transferredTo ?? ""),
+      }),
+    },
+    discounts: {
+      fields: [
+        { key: "title", label: "Title", type: "text" },
+        { key: "sponsorId", label: "Sponsor", type: "select", options: sponsorOptions },
+        { key: "estimatedValue", label: "Estimated Value (cents)", type: "number", min: "0", step: "1" },
+        { key: "expiresAt", label: "Expires At", type: "datetime-local" },
+        { key: "status", label: "Status", type: "select", options: [
+          { label: "Active", value: "active" },
+          { label: "Archived", value: "archived" },
+        ] },
+        { key: "appliesToAll", label: "Applies To All Classes", type: "checkbox", fullWidth: true },
+        { key: "appliesToClasses", label: "Class IDs", type: "textarea", fullWidth: true, helperText: "Enter one class ID per line or separate them with commas." },
+        { key: "description", label: "Description", type: "textarea", fullWidth: true },
+      ],
+      toFormValues: (raw) => ({
+        title: String(raw.title ?? ""),
+        sponsorId: String(raw.sponsorId ?? ""),
+        estimatedValue: String(raw.estimatedValue ?? 0),
+        expiresAt: formatDateTimeInput(raw.expiresAt),
+        status: String(raw.status ?? "active"),
+        appliesToAll: booleanValue(raw.appliesToAll),
+        appliesToClasses: listToText(raw.appliesToClasses),
+        description: String(raw.description ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        title: String(values.title ?? "").trim(),
+        sponsorId: String(values.sponsorId ?? ""),
+        estimatedValue: numberOr(values.estimatedValue ?? "0", 0),
+        expiresAt: parseDateTimeInput(String(values.expiresAt ?? ""), Number(base.expiresAt ?? Date.now())) ?? Date.now(),
+        status: String(values.status ?? "active"),
+        appliesToAll: booleanValue(values.appliesToAll),
+        appliesToClasses: booleanValue(values.appliesToAll) ? [] : textToList(values.appliesToClasses ?? ""),
+        description: String(values.description ?? ""),
+      }),
+    },
+    messages: {
+      fields: [
+        { key: "subject", label: "Subject", type: "text" },
+        { key: "channel", label: "Channel", type: "select", options: [
+          { label: "Email", value: "email" },
+          { label: "SMS", value: "sms" },
+          { label: "Push", value: "push" },
+        ] },
+        { key: "recipientType", label: "Recipient Type", type: "select", options: [
+          { label: "All", value: "all" },
+          { label: "Active", value: "active" },
+          { label: "Inactive", value: "inactive" },
+          { label: "Class", value: "class" },
+          { label: "Single", value: "single" },
+        ] },
+        { key: "recipientId", label: "Recipient ID", type: "text" },
+        { key: "recipientCount", label: "Recipient Count", type: "number", min: "0", step: "1" },
+        { key: "status", label: "Status", type: "select", options: [
+          { label: "Sent", value: "sent" },
+          { label: "Scheduled", value: "scheduled" },
+          { label: "Failed", value: "failed" },
+        ] },
+        { key: "scheduledAt", label: "Scheduled At", type: "datetime-local" },
+        { key: "sentAt", label: "Sent At", type: "datetime-local" },
+        { key: "body", label: "Body", type: "textarea", fullWidth: true },
+      ],
+      toFormValues: (raw) => ({
+        subject: String(raw.subject ?? ""),
+        channel: String(raw.channel ?? "email"),
+        recipientType: String(raw.recipientType ?? "all"),
+        recipientId: String(raw.recipientId ?? ""),
+        recipientCount: String(raw.recipientCount ?? 0),
+        status: String(raw.status ?? "sent"),
+        scheduledAt: formatDateTimeInput(raw.scheduledAt),
+        sentAt: formatDateTimeInput(raw.sentAt),
+        body: String(raw.body ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        subject: nullableString(values.subject ?? ""),
+        channel: String(values.channel ?? "email"),
+        recipientType: String(values.recipientType ?? "all"),
+        recipientId: nullableString(values.recipientId ?? ""),
+        recipientCount: numberOr(values.recipientCount ?? "0", 0),
+        status: String(values.status ?? "sent"),
+        scheduledAt: parseDateTimeInput(String(values.scheduledAt ?? ""), null),
+        sentAt: parseDateTimeInput(String(values.sentAt ?? ""), null),
+        body: String(values.body ?? ""),
+      }),
+    },
+    payments: null,
+    activityLog: null,
+    classTemplates: {
+      fields: [
+        { key: "name", label: "Name", type: "text" },
+        { key: "defaultCategory", label: "Default Category", type: "select", options: categoryOptions },
+        { key: "defaultLocation", label: "Default Location", type: "select", options: locationOptions },
+        { key: "price", label: "Price", type: "number", min: "0", step: "1" },
+        { key: "seatLimit", label: "Seat Limit", type: "number", min: "0", step: "1" },
+        { key: "duration", label: "Duration (min)", type: "number", min: "0", step: "1" },
+        { key: "description", label: "Description", type: "textarea", fullWidth: true },
+      ],
+      toFormValues: (raw) => ({
+        name: String(raw.name ?? ""),
+        defaultCategory: String(raw.defaultCategory ?? ""),
+        defaultLocation: String(raw.defaultLocation ?? ""),
+        price: String(raw.price ?? 0),
+        seatLimit: String(raw.seatLimit ?? 20),
+        duration: String(raw.duration ?? 60),
+        description: String(raw.description ?? ""),
+      }),
+      toRecord: (values, base) => ({
+        ...base,
+        name: String(values.name ?? "").trim(),
+        defaultCategory: String(values.defaultCategory ?? ""),
+        defaultLocation: String(values.defaultLocation ?? ""),
+        price: numberOr(values.price ?? "0", 0),
+        seatLimit: numberOr(values.seatLimit ?? "20", 20),
+        duration: numberOr(values.duration ?? "60", 60),
+        description: String(values.description ?? ""),
+      }),
+    },
+    taxonomyCategories: {
+      fields: [{ key: "value", label: "Category Value", type: "text" }],
+      toFormValues: (raw) => ({ value: String(raw.value ?? "") }),
+      toRecord: (values, base) => ({ ...base, value: String(values.value ?? "").trim() }),
+    },
+    taxonomyLocations: {
+      fields: [{ key: "value", label: "Location Value", type: "text" }],
+      toFormValues: (raw) => ({ value: String(raw.value ?? "") }),
+      toRecord: (values, base) => ({ ...base, value: String(values.value ?? "").trim() }),
+    },
+  }), [categories, categoryOptions, classOptions, classes, instructorOptions, locationOptions, locations, sponsorOptions, userOptions, users]);
+  const currentTypedConfig = typedEditorConfigs[selectedCollection];
+
+  useEffect(() => {
+    if (!currentTypedConfig) {
+      setTypedFormValues({});
+      return;
+    }
+
+    const source = isCreating
+      ? getDefaultRecord(selectedCollection, currentUser?.uid)
+      : selectedRecord?.raw;
+
+    if (!source) {
+      setTypedFormValues({});
+      return;
+    }
+
+    setTypedFormValues(currentTypedConfig.toFormValues(source));
+  }, [currentTypedConfig, currentUser?.uid, isCreating, selectedCollection, selectedRecord]);
+
+  useEffect(() => {
+    if (!currentTypedConfig || !(isCreating || editorMode === "typed")) return;
+    const base = isCreating
+      ? getDefaultRecord(selectedCollection, currentUser?.uid)
+      : selectedRecord?.raw;
+    if (!base) return;
+    setDraftJson(JSON.stringify(currentTypedConfig.toRecord(typedFormValues, base), null, 2));
+  }, [currentTypedConfig, currentUser?.uid, editorMode, isCreating, selectedCollection, selectedRecord, typedFormValues]);
 
   const relatedLinks = useMemo(() => {
     if (!selectedRecord) return [] as Array<{ label: string; collection: CollectionKey; id: string }>;
@@ -804,7 +1224,14 @@ export default function AdminDatabasePage() {
     setMutationNotice("");
 
     try {
-      const parsed = parseJsonDraft(draftJson);
+      const parsed = currentTypedConfig && (isCreating || editorMode === "typed")
+        ? currentTypedConfig.toRecord(
+            typedFormValues,
+            isCreating
+              ? getDefaultRecord(selectedCollection, currentUser?.uid)
+              : (selectedRecord?.raw ?? {})
+          )
+        : parseJsonDraft(draftJson);
       let createdId: string | null = null;
 
       switch (selectedCollection) {
@@ -898,6 +1325,7 @@ export default function AdminDatabasePage() {
 
       setMutationNotice(isCreating ? "Record created." : "Record saved.");
       setIsEditing(false);
+      setEditorMode(null);
       if (!isCreating) setDetailTab("details");
       if (isCreating) setIsCreating(false);
     } catch (error) {
@@ -982,7 +1410,8 @@ export default function AdminDatabasePage() {
   function handleStartCreate() {
     setIsCreating(true);
     setIsEditing(true);
-    setDetailTab("json");
+    setEditorMode(currentTypedConfig ? "typed" : "json");
+    setDetailTab(currentTypedConfig ? "details" : "json");
     setMutationError("");
     setMutationNotice("");
     setCustomRecordId("");
@@ -991,6 +1420,7 @@ export default function AdminDatabasePage() {
   function handleCancelEdit() {
     setIsCreating(false);
     setIsEditing(false);
+    setEditorMode(null);
     setMutationError("");
     setMutationNotice("");
     if (selectedRecord) {
@@ -1004,6 +1434,7 @@ export default function AdminDatabasePage() {
     setDetailTab("details");
     setIsCreating(false);
     setIsEditing(false);
+    setEditorMode(null);
   }
 
   if (loading) {
@@ -1104,6 +1535,7 @@ export default function AdminDatabasePage() {
                     setSelectedRecordId(record.id);
                     setIsCreating(false);
                     setIsEditing(false);
+                    setEditorMode(null);
                     setDetailTab("details");
                     setMutationError("");
                     setMutationNotice("");
@@ -1157,10 +1589,25 @@ export default function AdminDatabasePage() {
                     + New Record
                   </button>
                 ) : null}
+                {selectedRecord && !isCreating && currentMeta.canEdit && currentTypedConfig ? (
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditorMode("typed");
+                      setDetailTab("details");
+                      setMutationError("");
+                      setMutationNotice("");
+                    }}
+                    className="rounded-[7px] border border-[rgba(245,237,214,0.12)] px-[12px] py-[8px] text-[12px] text-[rgba(245,237,214,0.72)] hover:text-[var(--color-cream)] transition"
+                  >
+                    Edit Record
+                  </button>
+                ) : null}
                 {selectedRecord && !isCreating && currentMeta.canEdit ? (
                   <button
                     onClick={() => {
                       setIsEditing(true);
+                      setEditorMode("json");
                       setDetailTab("json");
                       setMutationError("");
                       setMutationNotice("");
@@ -1259,7 +1706,44 @@ export default function AdminDatabasePage() {
                   </div>
                 ) : null}
 
-                {selectedRecord ? (
+                {currentTypedConfig && (isCreating || isEditing || selectedRecord) ? (
+                  <div className="space-y-[18px]">
+                    <DatabaseTypedEditor
+                      fields={currentTypedConfig.fields}
+                      values={typedFormValues}
+                      onChange={(fieldKey, value) => {
+                        setTypedFormValues((current) => ({
+                          ...current,
+                          [fieldKey]: value,
+                        }));
+                      }}
+                      readOnly={!isCreating && !isEditing}
+                    />
+                    {!isCreating && !isEditing && selectedRecord ? (
+                      <div className="rounded-[10px] border border-[rgba(245,237,214,0.06)] bg-[rgba(245,237,214,0.02)] px-[14px] py-[14px] text-[13px] text-[rgba(245,237,214,0.5)]">
+                        Typed fields are shown here for faster editing. Switch to JSON if you need raw payload control.
+                      </div>
+                    ) : null}
+                    {(isCreating || isEditing) ? (
+                      <div className="flex flex-wrap justify-end gap-[8px]">
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={submitting}
+                          className="rounded-[7px] px-[12px] py-[8px] text-[12px] text-[rgba(245,237,214,0.55)] hover:text-[var(--color-cream)] transition disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSave}
+                          disabled={submitting}
+                          className="rounded-[7px] bg-[var(--color-gold)] px-[12px] py-[8px] text-[12px] font-semibold text-[var(--color-dark-bg)] hover:brightness-110 transition disabled:opacity-50"
+                        >
+                          {submitting ? "Saving…" : (isCreating ? "Create Record" : "Save Changes")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : selectedRecord ? (
                   <div className="grid gap-[10px] md:grid-cols-2">
                     {Object.entries(selectedRecord.raw).map(([key, value]) => (
                       <div key={key} className="rounded-[10px] border border-[rgba(245,237,214,0.06)] bg-[rgba(245,237,214,0.02)] px-[12px] py-[11px]">
@@ -1308,11 +1792,11 @@ export default function AdminDatabasePage() {
                 <textarea
                   value={draftJson}
                   onChange={(event) => setDraftJson(event.target.value)}
-                  readOnly={!isEditing && !isCreating}
+                  readOnly={editorMode !== "json"}
                   rows={24}
                   className="w-full rounded-[10px] border border-[rgba(245,237,214,0.08)] bg-[var(--color-dark-bg)] px-[14px] py-[14px] font-mono text-[12px] leading-relaxed text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 />
-                {(isEditing || isCreating) ? (
+                {editorMode === "json" && (isEditing || isCreating) ? (
                   <div className="mt-[12px] flex flex-wrap justify-end gap-[8px]">
                     <button
                       onClick={handleCancelEdit}

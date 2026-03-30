@@ -44,7 +44,7 @@ export default function AdminCustomers() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [selected, setSelected] = useState<Customer | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [editNotes, setEditNotes] = useState("");
@@ -74,9 +74,13 @@ export default function AdminCustomers() {
       };
     });
 
-  const selectedBookings: CustomerBooking[] = selected
+  const selectedCustomer = selectedCustomerId
+    ? liveCustomers.find((customer) => customer.uid === selectedCustomerId) ?? null
+    : null;
+
+  const selectedBookings: CustomerBooking[] = selectedCustomer
     ? bookings
-        .filter((b) => b.customerId === selected.uid)
+        .filter((b) => b.customerId === selectedCustomer.uid)
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((b) => {
           const cls = classesById[b.classId];
@@ -100,8 +104,20 @@ export default function AdminCustomers() {
   const currentPage = Math.min(page, totalPages);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  useEffect(() => {
+    if (!profileOpen || !selectedCustomerId) return;
+    if (liveCustomers.some((customer) => customer.uid === selectedCustomerId)) return;
+    setProfileOpen(false);
+    setSelectedCustomerId(null);
+  }, [liveCustomers, profileOpen, selectedCustomerId]);
+
+  useEffect(() => {
+    if (!selectedCustomer || editingNotes) return;
+    setEditNotes(selectedCustomer.notes);
+  }, [editingNotes, selectedCustomer]);
+
   function openProfile(c: Customer) {
-    setSelected(c);
+    setSelectedCustomerId(c.uid);
     setProfileTab("details");
     setDeleteConfirm(false);
     setEditingNotes(false);
@@ -109,11 +125,11 @@ export default function AdminCustomers() {
     setProfileOpen(true);
   }
 
-  const hasPaidBookings = selected ? selectedBookings.some((b) => b.status === "Paid") : false;
+  const hasPaidBookings = selectedCustomer ? selectedBookings.some((b) => b.status === "Paid") : false;
 
   async function saveNotes() {
-    if (!selected) return;
-    await updateUser(selected.uid, { notes: editNotes });
+    if (!selectedCustomer) return;
+    await updateUser(selectedCustomer.uid, { notes: editNotes });
     setEditingNotes(false);
   }
 
@@ -216,18 +232,18 @@ export default function AdminCustomers() {
       />
 
       {/* Profile Modal */}
-      {profileOpen && selected && (
+      {profileOpen && selectedCustomer && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-[16px]" onClick={(e) => { if (e.target === e.currentTarget) setProfileOpen(false); }}>
           <div className="bg-[var(--color-dark-surface)] rounded-[12px] w-full max-w-[520px] max-h-[calc(90vh-110px)] overflow-y-auto">
             {/* Header */}
             <div className="px-[24px] py-[20px] border-b border-[rgba(245,237,214,0.08)] flex items-center justify-between">
               <div className="flex items-center gap-[14px]">
                 <div className="w-[44px] h-[44px] rounded-full bg-[rgba(201,168,76,0.15)] flex items-center justify-center">
-                  <span className="text-[var(--color-gold)] font-bold text-[16px]">{selected.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
+                  <span className="text-[var(--color-gold)] font-bold text-[16px]">{selectedCustomer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
                 </div>
                 <div>
-                  <p className="text-[16px] font-bold text-[var(--color-cream)]">{selected.name}</p>
-                  <p className="text-[12px] text-[rgba(245,237,214,0.4)]">{selected.uid.slice(-8).toUpperCase()} · Joined {selected.joined}</p>
+                  <p className="text-[16px] font-bold text-[var(--color-cream)]">{selectedCustomer.name}</p>
+                  <p className="text-[12px] text-[rgba(245,237,214,0.4)]">{selectedCustomer.uid.slice(-8).toUpperCase()} · Joined {selectedCustomer.joined}</p>
                 </div>
               </div>
               <button onClick={() => setProfileOpen(false)} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] text-[20px] leading-none">&times;</button>
@@ -250,7 +266,7 @@ export default function AdminCustomers() {
             <div className="px-[24px] py-[20px]">
               {profileTab === "details" && (
                 <div className="space-y-[12px]">
-                  {[["Name", selected.name], ["Email", selected.email], ["Phone", selected.phone], ["Last Active", selected.lastActive]].map(([label, val]) => (
+                  {[["Name", selectedCustomer.name], ["Email", selectedCustomer.email], ["Phone", selectedCustomer.phone], ["Last Active", selectedCustomer.lastActive]].map(([label, val]) => (
                     <div key={label} className="flex justify-between items-center py-[10px] border-b border-[rgba(245,237,214,0.06)]">
                       <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">{label}</span>
                       <span className="text-[13px] text-[var(--color-cream)]">{val}</span>
@@ -278,11 +294,11 @@ export default function AdminCustomers() {
                 <div className="space-y-[8px]">
                   <div className="flex justify-between items-center py-[10px] border-b border-[rgba(245,237,214,0.06)]">
                     <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">Total Spent</span>
-                    <span className="text-[15px] font-bold text-[var(--color-cream)]">${selected.totalSpent}</span>
+                    <span className="text-[15px] font-bold text-[var(--color-cream)]">${selectedCustomer.totalSpent}</span>
                   </div>
                   <div className="flex justify-between items-center py-[10px] border-b border-[rgba(245,237,214,0.06)]">
                     <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">Total Bookings</span>
-                    <span className="text-[13px] text-[var(--color-cream)]">{selected.totalBookings}</span>
+                    <span className="text-[13px] text-[var(--color-cream)]">{selectedCustomer.totalBookings}</span>
                   </div>
                 </div>
               )}

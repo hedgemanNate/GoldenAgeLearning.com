@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { useDiscounts } from "../../../../hooks/useDiscounts";
@@ -30,7 +30,7 @@ export default function AdminSponsors() {
   const { discounts } = useDiscounts();
   const [page, setPage] = useState(1);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [selected, setSelected] = useState<Sponsor | null>(null);
+  const [selectedSponsorId, setSelectedSponsorId] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
 
   const [editOpen, setEditOpen] = useState(false);
@@ -56,8 +56,19 @@ export default function AdminSponsors() {
       };
     });
 
+  const selectedSponsor = selectedSponsorId
+    ? liveSponsors.find((sponsor) => sponsor.uid === selectedSponsorId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!profileOpen || !selectedSponsorId) return;
+    if (liveSponsors.some((sponsor) => sponsor.uid === selectedSponsorId)) return;
+    setProfileOpen(false);
+    setSelectedSponsorId(null);
+  }, [liveSponsors, profileOpen, selectedSponsorId]);
+
   function openProfile(s: Sponsor) {
-    setSelected(s);
+    setSelectedSponsorId(s.uid);
     setProfileTab("details");
     setProfileOpen(true);
   }
@@ -147,15 +158,15 @@ export default function AdminSponsors() {
       />
 
       {/* Profile Modal */}
-      {profileOpen && selected && (
+      {profileOpen && selectedSponsor && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-[16px]" onClick={(e) => { if (e.target === e.currentTarget) setProfileOpen(false); }}>
           <div className="bg-[var(--color-dark-surface)] rounded-[12px] w-full max-w-[480px] max-h-[calc(90vh-110px)] overflow-y-auto">
             <div className="px-[24px] py-[20px] border-b border-[rgba(245,237,214,0.08)] flex items-center justify-between">
               <div>
-                <p className="text-[18px] font-bold text-[var(--color-cream)]">{selected.name}</p>
+                <p className="text-[18px] font-bold text-[var(--color-cream)]">{selectedSponsor.name}</p>
                 <div className="flex gap-[2px] mt-[4px]">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} className={`text-[14px] ${i < selected.stars ? "text-[var(--color-gold)]" : "text-[rgba(245,237,214,0.15)]"}`}>★</span>
+                    <span key={i} className={`text-[14px] ${i < selectedSponsor.stars ? "text-[var(--color-gold)]" : "text-[rgba(245,237,214,0.15)]"}`}>★</span>
                   ))}
                 </div>
               </div>
@@ -176,7 +187,7 @@ export default function AdminSponsors() {
             <div className="px-[24px] py-[20px]">
               {profileTab === "details" && (
                 <div className="space-y-[10px]">
-                  {[["Contact", selected.contact], ["Phone", selected.phone], ["Email", selected.email], ["Address", selected.address], ["Date Joined", selected.dateJoined], ["Notes", selected.notes || "—"]].map(([label, val]) => (
+                  {[["Contact", selectedSponsor.contact], ["Phone", selectedSponsor.phone], ["Email", selectedSponsor.email], ["Address", selectedSponsor.address], ["Date Joined", selectedSponsor.dateJoined], ["Notes", selectedSponsor.notes || "—"]].map(([label, val]) => (
                     <div key={label} className="flex justify-between py-[9px] border-b border-[rgba(245,237,214,0.06)]">
                       <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">{label}</span>
                       <span className="text-[13px] text-[var(--color-cream)] text-right max-w-[60%]">{val}</span>
@@ -186,7 +197,7 @@ export default function AdminSponsors() {
               )}
               {profileTab === "metrics" && (
                 <div className="space-y-[10px]">
-                  {[["Total Redemptions", selected.redemptions.toString()], ["Discounts Active", selected.discounts.length.toString()]].map(([label, val]) => (
+                  {[["Total Redemptions", selectedSponsor.redemptions.toString()], ["Discounts Active", selectedSponsor.discounts.length.toString()]].map(([label, val]) => (
                     <div key={label} className="flex justify-between py-[9px] border-b border-[rgba(245,237,214,0.06)]">
                       <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">{label}</span>
                       <span className="text-[15px] font-bold text-[var(--color-cream)]">{val}</span>
@@ -196,9 +207,9 @@ export default function AdminSponsors() {
               )}
               {profileTab === "discounts" && (
                 <div className="space-y-[8px]">
-                  {selected.discounts.length === 0 ? (
+                  {selectedSponsor.discounts.length === 0 ? (
                     <p className="text-[13px] text-[rgba(245,237,214,0.3)]">No discounts yet.</p>
-                  ) : selected.discounts.map((d, i) => (
+                  ) : selectedSponsor.discounts.map((d, i) => (
                     <div key={i} className="bg-[var(--color-dark-bg)] rounded-[8px] px-[14px] py-[11px]">
                       <p className="text-[13px] text-[var(--color-cream)]">{d}</p>
                     </div>
