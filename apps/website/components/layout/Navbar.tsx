@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -39,10 +40,21 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-[100] h-[70px] w-full bg-[var(--color-dark-bg)] border-b-2 border-[var(--color-gold)] flex items-center px-[24px]">
-      <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
+      <div className="relative w-full max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="font-display font-bold text-[18px] text-[var(--color-cream)]">
           Golden Age Learning
+        </Link>
+
+        {/* Centered logo icon */}
+        <Link href="/" className="absolute left-1/2 -translate-x-1/2 hidden md:block">
+          <Image
+            src="/assests/GoldenAgeLearningLogo2-resized.png"
+            alt="Golden Age Learning"
+            width={52}
+            height={52}
+            className="rounded-full"
+          />
         </Link>
 
         {/* Desktop Nav */}

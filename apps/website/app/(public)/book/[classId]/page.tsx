@@ -775,7 +775,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
                     Reserve for free — pay when I arrive
                   </span>
                   <span className="font-sans text-[16px] text-[rgba(245,237,214,0.7)] leading-[1.5]">
-                    Request a seat at no cost today. Bring payment on the day of the class. Seats are not guaranteed until then.
+                    Request a seat at no cost today. Bring payment on the day of the class. Seats are not guaranteed until payment is received.
                   </span>
                 </div>
               </button>
