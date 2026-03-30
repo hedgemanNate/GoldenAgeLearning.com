@@ -6,23 +6,10 @@ export default function Footer() {
 
   return (
     <footer className="w-full bg-[#111820] border-t border-[rgba(245,237,214,0.07)] px-[24px] md:px-[40px] py-[48px]">
-      <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start md:justify-between gap-[40px]">
-
-        {/* Brand */}
-        <div className="flex flex-col gap-[16px] max-w-[280px]">
-          <Link href="/" className="inline-block opacity-75 hover:opacity-100 transition-opacity">
-            <Image
-              src="/assests/GALTextLogoTrans.png"
-              alt="Golden Age Learning"
-              width={200}
-              height={67}
-              className="h-auto w-[180px]"
-            />
-          </Link>
-        </div>
+      <div className="max-w-5xl mx-auto flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] md:items-start gap-[40px]">
 
         {/* Links */}
-        <div className="flex flex-col gap-[12px]">
+        <div className="flex flex-col gap-[12px] md:justify-self-start">
           <span className="font-sans text-[11px] uppercase tracking-[0.1em] text-[var(--color-gold)] font-semibold mb-[4px]">
             Quick links
           </span>
@@ -34,8 +21,21 @@ export default function Footer() {
           </Link>
         </div>
 
+        {/* Brand */}
+        <div className="flex flex-col gap-[16px] max-w-[280px] md:justify-self-center">
+          <Link href="/" className="inline-block opacity-75 hover:opacity-100 transition-opacity">
+            <Image
+              src="/assests/GALTextLogoTrans.png"
+              alt="Golden Age Learning"
+              width={200}
+              height={67}
+              className="h-auto w-[180px]"
+            />
+          </Link>
+        </div>
+
         {/* Contact */}
-        <div className="flex flex-col gap-[12px]">
+        <div className="flex flex-col gap-[12px] md:justify-self-end">
           <span className="font-sans text-[11px] uppercase tracking-[0.1em] text-[var(--color-gold)] font-semibold mb-[4px]">
             Contact
           </span>
