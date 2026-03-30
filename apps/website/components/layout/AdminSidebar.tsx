@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAdminData } from "../../hooks/useAdminData";
 
 type Role = "super_admin" | "staff";
 
@@ -27,7 +28,7 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
       { label: "Classes", href: "/admin/classes", children: [
         { label: "Templates", href: "/admin/classes/templates" },
       ] },
-      { label: "Bookings", href: "/admin/bookings", badge: 3 },
+      { label: "Bookings", href: "/admin/bookings" },
       { label: "Customers", href: "/admin/customers" },
       { label: "Messages", href: "/admin/messages" },
       { label: "Sponsors", href: "/admin/sponsors" },
@@ -46,6 +47,9 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const role: Role = MOCK_ROLE;
+  const { bookings } = useAdminData();
+  const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+  const todayBookingsCount = bookings.filter((b) => b.createdAt >= todayStart).length;
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-[170px] bg-[#111820] border-r border-[rgba(245,237,214,0.07)] flex flex-col z-40 overflow-y-auto">
@@ -95,11 +99,14 @@ export default function AdminSidebar() {
                         <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${isActive ? "bg-[var(--color-gold)]" : "bg-[rgba(245,237,214,0.2)]"}`} />
                         {item.label}
                       </span>
-                      {item.badge && !isActive ? (
-                        <span className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-bold text-[9px] px-[5px] py-[1px] rounded-full leading-none">
-                          {item.badge}
-                        </span>
-                      ) : null}
+                      {(() => {
+                          const badgeVal = item.label === "Bookings" ? todayBookingsCount : (item.badge ?? 0);
+                          return badgeVal > 0 && !isActive ? (
+                            <span className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-bold text-[9px] px-[5px] py-[1px] rounded-full leading-none">
+                              {badgeVal}
+                            </span>
+                          ) : null;
+                        })()}
                     </Link>
                     {item.children && (
                       <div className="ml-[24px] mt-[1px] mb-[2px]">
