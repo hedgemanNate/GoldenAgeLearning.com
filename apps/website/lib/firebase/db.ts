@@ -181,12 +181,10 @@ export async function createBooking(data: Booking): Promise<string> {
   await set(newRef, data);
   const bookingId = newRef.key!;
 
-  // Atomically increment seatsBooked on the class
-  await runTransaction(ref(db, `classes/active/${data.classId}`), (classData) => {
-    if (classData) {
-      classData.seatsBooked = (classData.seatsBooked || 0) + 1;
-    }
-    return classData;
+  // Atomically increment seatsBooked — transaction scoped to just this field
+  // so customers (who can only write seatsBooked, not the full class node) are allowed.
+  await runTransaction(ref(db, `classes/active/${data.classId}/seatsBooked`), (current) => {
+    return (current || 0) + 1;
   });
 
   // Store classId → bookingId in user's bookedClasses map

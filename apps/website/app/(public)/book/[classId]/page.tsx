@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getClass, createBooking, createUser } from "../../../../lib/firebase/db";
 import { createAccount, signInWithEmail } from "../../../../lib/firebase/auth";
+import { auth } from "../../../../lib/firebase/client";
 import type { ClassWithId } from "../../../../types/class";
 import { useAuthContext } from "../../../../context/AuthContext";
 
@@ -223,7 +224,10 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   };
 
   const handleStep4Submit = async () => {
-    if (!isSignedIn) {
+    // Use auth.currentUser directly — React context state may lag a render
+    // cycle after sign-in in step 3.
+    const currentUser = auth.currentUser ?? authUser;
+    if (!currentUser) {
       setBookingError('You must be signed in to complete your booking.');
       return;
     }
@@ -234,7 +238,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
       setIsProcessing(true);
       try {
         await createBooking({
-          customerId: authUser!.uid,
+          customerId: currentUser.uid,
           classId: selectedClass!.id,
           status: 'reserved',
           amount: 0,
@@ -242,7 +246,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
           transferredTo: null,
           transferType: null,
           createdAt: Date.now(),
-          createdBy: authUser!.uid,
+          createdBy: currentUser.uid,
         });
         setCurrentStep(6);
       } catch {
@@ -254,7 +258,8 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
   };
 
   const handleStep5Submit = async () => {
-    if (!isSignedIn) {
+    const currentUser = auth.currentUser ?? authUser;
+    if (!currentUser) {
       setPaymentError('You must be signed in to complete your booking.');
       return;
     }
@@ -264,7 +269,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
     await new Promise((resolve) => setTimeout(resolve, 2000));
     try {
       await createBooking({
-        customerId: authUser!.uid,
+        customerId: currentUser.uid,
         classId: selectedClass!.id,
         status: 'paid',
         amount: (selectedClass?.price ?? 0) * 100,
@@ -272,7 +277,7 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
         transferredTo: null,
         transferType: null,
         createdAt: Date.now(),
-        createdBy: authUser!.uid,
+        createdBy: currentUser.uid,
       });
       setCurrentStep(6);
     } catch {
