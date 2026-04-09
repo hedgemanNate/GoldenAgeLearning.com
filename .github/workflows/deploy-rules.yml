@@ -1,0 +1,33 @@
+name: Deploy Firebase Security Rules
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'database.rules.json'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy rules to staging
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          npm install -g firebase-tools
+          firebase use staging
+          firebase deploy --only database
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy rules to production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          npm install -g firebase-tools
+          firebase use prod
+          firebase deploy --only database
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
