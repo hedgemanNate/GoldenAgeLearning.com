@@ -481,3 +481,15 @@ export function subscribeToUsers(callback: (users: UserWithId[]) => void) {
     callback(Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) })));
   });
 }
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export async function setMaintenanceMode(enabled: boolean): Promise<void> {
+  await set(ref(db, "settings/maintenanceMode"), enabled);
+}
+
+export function subscribeMaintenanceMode(callback: (enabled: boolean) => void): () => void {
+  return onValue(ref(db, "settings/maintenanceMode"), (snap) => {
+    callback(snap.val() === true);
+  });
+}

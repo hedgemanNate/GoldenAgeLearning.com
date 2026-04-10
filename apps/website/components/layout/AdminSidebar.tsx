@@ -40,6 +40,7 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
     items: [
       { label: "Database", href: "/admin/database" },
       { label: "Staff", href: "/admin/staff" },
+      { label: "Settings", href: "/admin/settings" },
     ],
   },
 ];
