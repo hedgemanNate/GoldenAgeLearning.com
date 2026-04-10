@@ -70,7 +70,7 @@ export default function MaintenancePage() {
             We'll be right back.
           </h1>
           <p className="font-sans text-[18px] md:text-[20px] text-[rgba(245,237,214,0.65)] leading-relaxed">
-            We're working on this website to make it better than ever.
+            We're working on the website to make it better than ever.
             Please check back soon!
           </p>
         </div>
