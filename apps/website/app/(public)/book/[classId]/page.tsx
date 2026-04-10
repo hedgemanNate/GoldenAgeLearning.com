@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useEffect } from "react";
+import { useState, use, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getClass, createBooking, createUser } from "../../../../lib/firebase/db";
@@ -55,7 +55,7 @@ const STEPS = [
   "Done"
 ];
 
-export default function BookingFlow({ params }: { params: Promise<{ classId: string }> }) {
+function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }) {
   const searchParams = useSearchParams();
   const { user: authUser } = useAuthContext();
   const isSignedIn = authUser !== null;
@@ -1012,5 +1012,13 @@ export default function BookingFlow({ params }: { params: Promise<{ classId: str
         )}
       </div>
     </main>
+  );
+}
+
+export default function BookingFlow({ params }: { params: Promise<{ classId: string }> }) {
+  return (
+    <Suspense>
+      <BookingFlowContent params={params} />
+    </Suspense>
   );
 }
