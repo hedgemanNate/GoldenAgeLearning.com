@@ -12,6 +12,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
     const unsub = subscribeMaintenanceMode((enabled) => {
       setMaintenanceModeState(enabled);
       if (enabled) router.replace("/maintenance");
+      else router.replace("/");
     });
     return () => unsub();
   }, [router]);

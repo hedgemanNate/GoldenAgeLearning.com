@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { subscribeMaintenanceMode, setMaintenanceMode } from "../../../../lib/firebase/db";
 
 export default function AdminSettings() {
-  const [maintenanceMode, setMaintenanceModeState] = useState<boolean | null>(null);
+  const [maintenanceMode, setMaintenanceModeState] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -13,7 +13,6 @@ export default function AdminSettings() {
   }, []);
 
   async function handleToggle() {
-    if (maintenanceMode === null) return;
     setSaving(true);
     try {
       await setMaintenanceMode(!maintenanceMode);
@@ -41,7 +40,7 @@ export default function AdminSettings() {
             role="switch"
             aria-checked={maintenanceMode ?? false}
             onClick={handleToggle}
-            disabled={saving || maintenanceMode === null}
+            disabled={saving}
             className={`relative inline-flex h-[24px] w-[44px] flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
               maintenanceMode ? "bg-[var(--color-gold)]" : "bg-[rgba(245,237,214,0.12)]"
             }`}
