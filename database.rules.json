@@ -81,6 +81,10 @@
     "classTaxonomy": {
       ".read": true,
       ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+    },
+    "settings": {
+      ".read": true,
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'superAdmin'"
     }
   }
 }
