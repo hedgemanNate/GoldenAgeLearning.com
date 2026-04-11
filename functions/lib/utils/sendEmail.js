@@ -35,32 +35,25 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendEmail = sendEmail;
 const functions = __importStar(require("firebase-functions"));
-const client_ses_1 = require("@aws-sdk/client-ses");
+const resend_1 = require("resend");
 const FROM = "The Golden Age Learning Team <noreply@goldenagelearning.com>";
-// Lazy singleton — initialized on first call so functions.config() is available at runtime
 let _client = null;
 function getClient() {
     if (!_client) {
-        const cfg = (functions.config().aws ?? {});
-        _client = new client_ses_1.SESClient({
-            region: cfg.ses_region ?? "us-east-1",
-            credentials: {
-                accessKeyId: cfg.ses_access_key ?? "",
-                secretAccessKey: cfg.ses_secret_key ?? "",
-            },
-        });
+        const apiKey = functions.config().resend.api_key;
+        _client = new resend_1.Resend(apiKey);
     }
     return _client;
 }
 async function sendEmail(params) {
-    const command = new client_ses_1.SendEmailCommand({
-        Source: FROM,
-        Destination: { ToAddresses: [params.to] },
-        Message: {
-            Subject: { Data: params.subject, Charset: "UTF-8" },
-            Body: { Html: { Data: params.html, Charset: "UTF-8" } },
-        },
+    const { error } = await getClient().emails.send({
+        from: FROM,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
     });
-    await getClient().send(command);
+    if (error) {
+        throw new Error(`Resend error: ${error.message}`);
+    }
 }
 //# sourceMappingURL=sendEmail.js.map

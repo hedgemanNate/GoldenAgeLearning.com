@@ -348,7 +348,6 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   };
 
   const handleStep5Submit = async () => {
-    console.log('[Step5] submit — paymentMethod:', paymentMethod, '| squareReady:', squareReadyRef.current, '| sqCardRef:', !!sqCardRef.current);
     const currentUser = auth.currentUser ?? authUser;
     if (!currentUser) {
       setPaymentError('You must be signed in to complete your booking.');
@@ -361,9 +360,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     setPaymentError('');
     setIsProcessing(true);
     try {
-      console.log('[Step5] tokenizing…');
       const tokenResult = await sqCardRef.current.tokenize();
-      console.log('[Step5] tokenResult:', tokenResult);
       if (tokenResult.status !== 'OK') {
         const msg =
           tokenResult.errors?.map((e: any) => e.message).join(' ') ??
@@ -371,15 +368,12 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
         setPaymentError(msg);
         return;
       }
-      console.log('[Step5] calling processPayment with sourceId:', tokenResult.token, 'classId:', selectedClass!.id);
-      const result = await callProcessPayment({
+      await callProcessPayment({
         sourceId: tokenResult.token,
         classId: selectedClass!.id,
       });
-      console.log('[Step5] processPayment result:', result);
       setCurrentStep(6);
     } catch (err: any) {
-      console.error('[Step5] error:', err);
       setPaymentError(err?.message ?? 'Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
