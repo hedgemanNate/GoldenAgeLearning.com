@@ -85,11 +85,8 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
 
-  // Square field refs
-  const sqCardNumberRef = useRef<any>(null);
-  const sqExpirationDateRef = useRef<any>(null);
-  const sqCvvRef = useRef<any>(null);
-  const sqPostalCodeRef = useRef<any>(null);
+  // Square card ref
+  const sqCardRef = useRef<any>(null);
   const squareReadyRef = useRef(false);
 
   // Class data from Firebase
@@ -151,48 +148,47 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
         const p = await getSquarePayments();
         if (!p || !mounted) return;
 
-        const fieldStyle = {
-          input: {
-            color: "rgba(245,237,214,0.9)",
-            fontSize: "16px",
-            fontFamily: "Arial, Helvetica, sans-serif",
+        const card = await p.card({
+          style: {
+            ".input-container": {
+              borderColor: "rgba(245,237,214,0.15)",
+              borderRadius: "6px",
+            },
+            ".input-container.is-focus": {
+              borderColor: "rgba(201,168,76,0.6)",
+            },
+            ".input-container.is-error": {
+              borderColor: "rgba(235,87,87,0.6)",
+            },
+            input: {
+              backgroundColor: "#111820",
+              color: "rgba(245,237,214,0.9)",
+              fontSize: "16px",
+              fontFamily: "Arial, Helvetica, sans-serif",
+            },
+            "input::placeholder": {
+              color: "rgba(245,237,214,0.35)",
+            },
           },
-          "input::placeholder": {
-            color: "rgba(245,237,214,0.35)",
-          },
-        };
-
-        const cardNumber = await p.cardNumber({ style: fieldStyle });
-        const expirationDate = await p.expirationDate({ style: fieldStyle });
-        const cvv = await p.cvv({ style: fieldStyle });
-        const postalCode = await p.postalCode({ style: fieldStyle });
+        });
 
         if (!mounted) {
-          cardNumber.destroy();
-          expirationDate.destroy();
-          cvv.destroy();
-          postalCode.destroy();
+          card.destroy();
           return;
         }
 
-        await Promise.all([
-          cardNumber.attach("#sq-card-number"),
-          expirationDate.attach("#sq-expiration-date"),
-          cvv.attach("#sq-cvv"),
-          postalCode.attach("#sq-postal-code"),
-        ]);
+        await card.attach("#sq-card-container");
 
         if (mounted) {
-          sqCardNumberRef.current = cardNumber;
-          sqExpirationDateRef.current = expirationDate;
-          sqCvvRef.current = cvv;
-          sqPostalCodeRef.current = postalCode;
+          sqCardRef.current = card;
           squareReadyRef.current = true;
         }
-      } catch {
+      } catch (err: any) {
         if (mounted) {
+          const msg = err?.message ?? String(err);
+          console.error("[Square init error]", err);
           setPaymentError(
-            "Failed to load the payment form. Please refresh the page and try again."
+            `Payment form error: ${msg} — please refresh and try again.`
           );
         }
       }
@@ -203,14 +199,8 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     return () => {
       mounted = false;
       squareReadyRef.current = false;
-      sqCardNumberRef.current?.destroy();
-      sqExpirationDateRef.current?.destroy();
-      sqCvvRef.current?.destroy();
-      sqPostalCodeRef.current?.destroy();
-      sqCardNumberRef.current = null;
-      sqExpirationDateRef.current = null;
-      sqCvvRef.current = null;
-      sqPostalCodeRef.current = null;
+      sqCardRef.current?.destroy();
+      sqCardRef.current = null;
     };
   }, [currentStep]);
 
@@ -358,19 +348,22 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   };
 
   const handleStep5Submit = async () => {
+    console.log('[Step5] submit — paymentMethod:', paymentMethod, '| squareReady:', squareReadyRef.current, '| sqCardRef:', !!sqCardRef.current);
     const currentUser = auth.currentUser ?? authUser;
     if (!currentUser) {
       setPaymentError('You must be signed in to complete your booking.');
       return;
     }
-    if (!squareReadyRef.current || !sqCardNumberRef.current) {
+    if (!squareReadyRef.current || !sqCardRef.current) {
       setPaymentError('The payment form is not ready yet. Please wait a moment and try again.');
       return;
     }
     setPaymentError('');
     setIsProcessing(true);
     try {
-      const tokenResult = await sqCardNumberRef.current.tokenize();
+      console.log('[Step5] tokenizing…');
+      const tokenResult = await sqCardRef.current.tokenize();
+      console.log('[Step5] tokenResult:', tokenResult);
       if (tokenResult.status !== 'OK') {
         const msg =
           tokenResult.errors?.map((e: any) => e.message).join(' ') ??
@@ -378,12 +371,15 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
         setPaymentError(msg);
         return;
       }
-      await callProcessPayment({
+      console.log('[Step5] calling processPayment with sourceId:', tokenResult.token, 'classId:', selectedClass!.id);
+      const result = await callProcessPayment({
         sourceId: tokenResult.token,
         classId: selectedClass!.id,
       });
+      console.log('[Step5] processPayment result:', result);
       setCurrentStep(6);
     } catch (err: any) {
+      console.error('[Step5] error:', err);
       setPaymentError(err?.message ?? 'Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -950,28 +946,9 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
               We use Square to securely process your payment. Your card details are never stored on our servers, and you are only charged when you click the button below.
             </div>
 
-            {/* Square Card Fields */}
+            {/* Square Card Element */}
             <div className="bg-[#222E36] rounded-[8px] p-[18px] border border-[rgba(245,237,214,0.05)] mb-[24px]">
-              <div className="flex flex-col gap-[16px]">
-                <div
-                  id="sq-card-number"
-                  className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
-                />
-                <div className="grid grid-cols-2 gap-[16px]">
-                  <div
-                    id="sq-expiration-date"
-                    className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
-                  />
-                  <div
-                    id="sq-cvv"
-                    className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
-                  />
-                </div>
-                <div
-                  id="sq-postal-code"
-                  className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
-                />
-              </div>
+              <div id="sq-card-container" />
             </div>
 
             {/* Security Line */}
