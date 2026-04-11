@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useEffect, Suspense } from "react";
+import { useState, use, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getClass, createBooking, createUser } from "../../../../lib/firebase/db";
@@ -8,6 +8,8 @@ import { createAccount, signInWithEmail } from "../../../../lib/firebase/auth";
 import { auth } from "../../../../lib/firebase/client";
 import type { ClassWithId } from "../../../../types/class";
 import { useAuthContext } from "../../../../context/AuthContext";
+import { getSquarePayments } from "../../../../lib/square/client";
+import { callProcessPayment } from "../../../../lib/functions/client";
 
 function formatTimestamp(timestamp: number): { date: string; time: string } {
   const d = new Date(timestamp);
@@ -83,6 +85,13 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
 
+  // Square field refs
+  const sqCardNumberRef = useRef<any>(null);
+  const sqExpirationDateRef = useRef<any>(null);
+  const sqCvvRef = useRef<any>(null);
+  const sqPostalCodeRef = useRef<any>(null);
+  const squareReadyRef = useRef(false);
+
   // Class data from Firebase
 
   const [selectedClass, setSelectedClass] = useState<UIClass | null>(null);
@@ -131,6 +140,79 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
       .catch(() => setClassError("Failed to load class details."))
       .finally(() => setClassLoading(false));
   }, [resolvedParams.classId]);
+
+  // ── Square Web Payments SDK initialization ────────────────────────────────
+  useEffect(() => {
+    if (currentStep !== 5) return;
+    let mounted = true;
+
+    async function initSquare() {
+      try {
+        const p = await getSquarePayments();
+        if (!p || !mounted) return;
+
+        const fieldStyle = {
+          input: {
+            color: "rgba(245,237,214,0.9)",
+            fontSize: "16px",
+            fontFamily: "Arial, Helvetica, sans-serif",
+          },
+          "input::placeholder": {
+            color: "rgba(245,237,214,0.35)",
+          },
+        };
+
+        const cardNumber = await p.cardNumber({ style: fieldStyle });
+        const expirationDate = await p.expirationDate({ style: fieldStyle });
+        const cvv = await p.cvv({ style: fieldStyle });
+        const postalCode = await p.postalCode({ style: fieldStyle });
+
+        if (!mounted) {
+          cardNumber.destroy();
+          expirationDate.destroy();
+          cvv.destroy();
+          postalCode.destroy();
+          return;
+        }
+
+        await Promise.all([
+          cardNumber.attach("#sq-card-number"),
+          expirationDate.attach("#sq-expiration-date"),
+          cvv.attach("#sq-cvv"),
+          postalCode.attach("#sq-postal-code"),
+        ]);
+
+        if (mounted) {
+          sqCardNumberRef.current = cardNumber;
+          sqExpirationDateRef.current = expirationDate;
+          sqCvvRef.current = cvv;
+          sqPostalCodeRef.current = postalCode;
+          squareReadyRef.current = true;
+        }
+      } catch {
+        if (mounted) {
+          setPaymentError(
+            "Failed to load the payment form. Please refresh the page and try again."
+          );
+        }
+      }
+    }
+
+    initSquare();
+
+    return () => {
+      mounted = false;
+      squareReadyRef.current = false;
+      sqCardNumberRef.current?.destroy();
+      sqExpirationDateRef.current?.destroy();
+      sqCvvRef.current?.destroy();
+      sqPostalCodeRef.current?.destroy();
+      sqCardNumberRef.current = null;
+      sqExpirationDateRef.current = null;
+      sqCvvRef.current = null;
+      sqPostalCodeRef.current = null;
+    };
+  }, [currentStep]);
 
   const handleStep2Submit = () => {
     setStep2Error('');
@@ -281,25 +363,28 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
       setPaymentError('You must be signed in to complete your booking.');
       return;
     }
+    if (!squareReadyRef.current || !sqCardNumberRef.current) {
+      setPaymentError('The payment form is not ready yet. Please wait a moment and try again.');
+      return;
+    }
     setPaymentError('');
     setIsProcessing(true);
-    // Simulate payment delay (TODO: replace with real Square integration)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     try {
-      await createBooking({
-        customerId: currentUser.uid,
+      const tokenResult = await sqCardNumberRef.current.tokenize();
+      if (tokenResult.status !== 'OK') {
+        const msg =
+          tokenResult.errors?.map((e: any) => e.message).join(' ') ??
+          'Please check your card details and try again.';
+        setPaymentError(msg);
+        return;
+      }
+      await callProcessPayment({
+        sourceId: tokenResult.token,
         classId: selectedClass!.id,
-        status: 'paid',
-        amount: (selectedClass?.price ?? 0) * 100,
-        transferredFrom: null,
-        transferredTo: null,
-        transferType: null,
-        createdAt: Date.now(),
-        createdBy: currentUser.uid,
       });
       setCurrentStep(6);
-    } catch {
-      setPaymentError('Something went wrong saving your booking. Please try again.');
+    } catch (err: any) {
+      setPaymentError(err?.message ?? 'Something went wrong. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -865,29 +950,27 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
               We use Square to securely process your payment. Your card details are never stored on our servers, and you are only charged when you click the button below.
             </div>
 
-            {/* Mock Square Form Wrapper */}
+            {/* Square Card Fields */}
             <div className="bg-[#222E36] rounded-[8px] p-[18px] border border-[rgba(245,237,214,0.05)] mb-[24px]">
               <div className="flex flex-col gap-[16px]">
-                {/* Visual placeholder for Square Web Payments SDK */}
-                <div className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] px-[16px] flex items-center justify-between">
-                  <span className="text-[rgba(245,237,214,0.5)] font-sans text-[16px]">Card number</span>
-                  <div className="flex gap-[4px]">
-                    <div className="w-[32px] h-[20px] bg-[rgba(245,237,214,0.1)] rounded-[4px]"></div>
-                    <div className="w-[32px] h-[20px] bg-[rgba(245,237,214,0.1)] rounded-[4px]"></div>
-                    <div className="w-[32px] h-[20px] bg-[rgba(245,237,214,0.1)] rounded-[4px]"></div>
-                  </div>
-                </div>
+                <div
+                  id="sq-card-number"
+                  className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
+                />
                 <div className="grid grid-cols-2 gap-[16px]">
-                  <div className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] px-[16px] flex items-center">
-                    <span className="text-[rgba(245,237,214,0.5)] font-sans text-[16px]">MM/YY</span>
-                  </div>
-                  <div className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] px-[16px] flex items-center">
-                    <span className="text-[rgba(245,237,214,0.5)] font-sans text-[16px]">CVC</span>
-                  </div>
+                  <div
+                    id="sq-expiration-date"
+                    className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
+                  />
+                  <div
+                    id="sq-cvv"
+                    className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
+                  />
                 </div>
-                <div className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] px-[16px] flex items-center">
-                  <span className="text-[rgba(245,237,214,0.5)] font-sans text-[16px]">ZIP</span>
-                </div>
+                <div
+                  id="sq-postal-code"
+                  className="h-[48px] bg-[#111820] border border-[rgba(245,237,214,0.15)] rounded-[6px] overflow-hidden"
+                />
               </div>
             </div>
 
