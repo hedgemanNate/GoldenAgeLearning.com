@@ -39,6 +39,9 @@ export declare function transferConfirmationTemplate(v: TransferConfirmationVars
 export interface PaymentReceivedVars {
     customerName: string;
     className: string;
+    classDate: string;
+    classTime: string;
+    classLocation: string;
     amount: string;
     bookingId: string;
 }

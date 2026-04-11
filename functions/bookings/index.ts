@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { sendBookingConfirmation, sendBookingNotification } from "../emails";
+import { sendBookingConfirmation, sendBookingNotification, sendPaymentReceived } from "../emails";
 import { sendBookingConfirmationSms } from "../messages/sms";
 
 const NOTIFICATION_EMAIL = "bookingnotification@goldenagelearning.com";
@@ -71,21 +71,33 @@ export const onBookingCreated = functions.database
     ];
 
     if (customer?.email) {
-      deliveries.push({
-        label: `customer booking email (${customer.email})`,
-        task: sendBookingConfirmation(customer.email, {
-          customerName: customer.name ?? "Friend",
-          className: cls?.name ?? "Unknown Class",
-          classDate,
-          classTime,
-          classLocation: cls?.location ?? "Unknown",
-          classPrice:
-            booking.amount > 0
-              ? `$${(booking.amount / 100).toFixed(2)}`
-              : "Free (Reserved)",
-          bookingId,
-        }),
-      });
+      if (booking.status === "paid") {
+        deliveries.push({
+          label: `customer payment receipt (${customer.email})`,
+          task: sendPaymentReceived(customer.email, {
+            customerName: customer.name ?? "Friend",
+            className: cls?.name ?? "Unknown Class",
+            classDate,
+            classTime,
+            classLocation: cls?.location ?? "Unknown",
+            amount: `$${(booking.amount / 100).toFixed(2)}`,
+            bookingId,
+          }),
+        });
+      } else {
+        deliveries.push({
+          label: `customer booking email (${customer.email})`,
+          task: sendBookingConfirmation(customer.email, {
+            customerName: customer.name ?? "Friend",
+            className: cls?.name ?? "Unknown Class",
+            classDate,
+            classTime,
+            classLocation: cls?.location ?? "Unknown",
+            classPrice: "Free (Reserved)",
+            bookingId,
+          }),
+        });
+      }
     }
 
     if (customer?.phone) {

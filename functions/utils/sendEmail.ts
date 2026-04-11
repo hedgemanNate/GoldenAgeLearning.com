@@ -1,21 +1,14 @@
 import * as functions from "firebase-functions";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { Resend } from "resend";
 
 const FROM = "The Golden Age Learning Team <noreply@goldenagelearning.com>";
 
-// Lazy singleton — initialized on first call so functions.config() is available at runtime
-let _client: SESClient | null = null;
+let _client: Resend | null = null;
 
-function getClient(): SESClient {
+function getClient(): Resend {
   if (!_client) {
-    const cfg = (functions.config().aws ?? {}) as Record<string, string>;
-    _client = new SESClient({
-      region: cfg.ses_region ?? "us-east-1",
-      credentials: {
-        accessKeyId: cfg.ses_access_key ?? "",
-        secretAccessKey: cfg.ses_secret_key ?? "",
-      },
-    });
+    const apiKey = (functions.config().resend as { api_key: string }).api_key;
+    _client = new Resend(apiKey);
   }
   return _client;
 }
@@ -25,13 +18,13 @@ export async function sendEmail(params: {
   subject: string;
   html: string;
 }): Promise<void> {
-  const command = new SendEmailCommand({
-    Source: FROM,
-    Destination: { ToAddresses: [params.to] },
-    Message: {
-      Subject: { Data: params.subject, Charset: "UTF-8" },
-      Body: { Html: { Data: params.html, Charset: "UTF-8" } },
-    },
+  const { error } = await getClient().emails.send({
+    from: FROM,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
   });
-  await getClient().send(command);
+  if (error) {
+    throw new Error(`Resend error: ${error.message}`);
+  }
 }

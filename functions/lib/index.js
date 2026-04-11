@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.onCustomerCreated = exports.processScheduledMessages = void 0;
+exports.processPayment = exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.onCustomerCreated = exports.processScheduledMessages = void 0;
 const admin = __importStar(require("firebase-admin"));
 // Initialize admin SDK
 if (!admin.apps.length) {
@@ -50,4 +50,6 @@ var bookings_1 = require("./bookings");
 Object.defineProperty(exports, "onBookingCreated", { enumerable: true, get: function () { return bookings_1.onBookingCreated; } });
 var staff_1 = require("./staff");
 Object.defineProperty(exports, "changeUserRole", { enumerable: true, get: function () { return staff_1.changeUserRole; } });
+var payments_1 = require("./payments");
+Object.defineProperty(exports, "processPayment", { enumerable: true, get: function () { return payments_1.processPayment; } });
 //# sourceMappingURL=index.js.map

@@ -200,6 +200,9 @@ export function transferConfirmationTemplate(v: TransferConfirmationVars): strin
 export interface PaymentReceivedVars {
   customerName: string;
   className: string;
+  classDate: string;
+  classTime: string;
+  classLocation: string;
   amount: string;
   bookingId: string;
 }
@@ -211,10 +214,14 @@ export function paymentReceivedTemplate(v: PaymentReceivedVars): string {
     ${para("We have received your payment. Thank you! Your spot in class is fully confirmed.")}
     ${detailBox(
       detailRow("Class", v.className) +
+      detailRow("Date", v.classDate) +
+      detailRow("Time", v.classTime) +
+      detailRow("Location", v.classLocation) +
       detailRow("Amount paid", v.amount) +
-      detailRow("Booking Confirmation #", v.bookingId)
+      detailRow("Booking #", v.bookingId)
     )}
     ${para("If you have any questions about your payment, please do not hesitate to call us.")}
+    ${para("See you soon!")}
     ${para("<em>The Golden Age Learning Team</em>")}
   `;
   return base("Payment Confirmation — Golden Age Learning", body);

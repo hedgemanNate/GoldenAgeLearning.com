@@ -89,20 +89,34 @@ exports.onBookingCreated = functions.database
         },
     ];
     if (customer?.email) {
-        deliveries.push({
-            label: `customer booking email (${customer.email})`,
-            task: (0, emails_1.sendBookingConfirmation)(customer.email, {
-                customerName: customer.name ?? "Friend",
-                className: cls?.name ?? "Unknown Class",
-                classDate,
-                classTime,
-                classLocation: cls?.location ?? "Unknown",
-                classPrice: booking.amount > 0
-                    ? `$${(booking.amount / 100).toFixed(2)}`
-                    : "Free (Reserved)",
-                bookingId,
-            }),
-        });
+        if (booking.status === "paid") {
+            deliveries.push({
+                label: `customer payment receipt (${customer.email})`,
+                task: (0, emails_1.sendPaymentReceived)(customer.email, {
+                    customerName: customer.name ?? "Friend",
+                    className: cls?.name ?? "Unknown Class",
+                    classDate,
+                    classTime,
+                    classLocation: cls?.location ?? "Unknown",
+                    amount: `$${(booking.amount / 100).toFixed(2)}`,
+                    bookingId,
+                }),
+            });
+        }
+        else {
+            deliveries.push({
+                label: `customer booking email (${customer.email})`,
+                task: (0, emails_1.sendBookingConfirmation)(customer.email, {
+                    customerName: customer.name ?? "Friend",
+                    className: cls?.name ?? "Unknown Class",
+                    classDate,
+                    classTime,
+                    classLocation: cls?.location ?? "Unknown",
+                    classPrice: "Free (Reserved)",
+                    bookingId,
+                }),
+            });
+        }
     }
     if (customer?.phone) {
         deliveries.push({
