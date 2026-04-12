@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processPayment = void 0;
+exports.saveCustomerCard = exports.deleteCustomerCard = exports.getCustomerCard = exports.processPayment = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const square_1 = require("square");
@@ -185,5 +185,108 @@ exports.processPayment = functions.https.onCall(async (data, context) => {
         .ref(`classes/active/${classId}/seatsBooked`)
         .transaction((current) => (current ?? 0) + 1);
     return { bookingId };
+});
+// ─── getCustomerCard ──────────────────────────────────────────────────────────
+exports.getCustomerCard = functions.https.onCall(async (_data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const uid = context.auth.uid;
+    const db = admin.database();
+    const userSnap = await db.ref(`users/${uid}`).once("value");
+    const user = userSnap.exists() ? userSnap.val() : null;
+    if (!user?.squareCardId)
+        return { hasCard: false };
+    const square = getSquareClient();
+    try {
+        const response = await square.cards.get({ cardId: user.squareCardId });
+        const card = response.card;
+        return {
+            hasCard: true,
+            brand: card.cardBrand ?? "UNKNOWN",
+            last4: card.last4 ?? "????",
+            expMonth: Number(card.expMonth ?? 0),
+            expYear: Number(card.expYear ?? 0),
+        };
+    }
+    catch {
+        return { hasCard: false };
+    }
+});
+// ─── deleteCustomerCard ───────────────────────────────────────────────────────
+exports.deleteCustomerCard = functions.https.onCall(async (_data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const uid = context.auth.uid;
+    const db = admin.database();
+    const userSnap = await db.ref(`users/${uid}`).once("value");
+    const user = userSnap.exists() ? userSnap.val() : null;
+    if (!user?.squareCardId)
+        return { success: true };
+    const square = getSquareClient();
+    try {
+        await square.cards.disable({ cardId: user.squareCardId });
+    }
+    catch (err) {
+        functions.logger.warn("Could not disable Square card (may already be disabled)", err);
+    }
+    await db.ref(`users/${uid}/squareCardId`).set(null);
+    return { success: true };
+});
+// ─── saveCustomerCard ─────────────────────────────────────────────────────────
+exports.saveCustomerCard = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const sourceId = typeof data.sourceId === "string" ? data.sourceId : "";
+    if (!sourceId) {
+        throw new functions.https.HttpsError("invalid-argument", "sourceId is required.");
+    }
+    const uid = context.auth.uid;
+    const db = admin.database();
+    const userSnap = await db.ref(`users/${uid}`).once("value");
+    const user = userSnap.exists() ? userSnap.val() : null;
+    if (!user)
+        throw new functions.https.HttpsError("not-found", "User profile not found.");
+    const square = getSquareClient();
+    // Create or reuse Square Customer
+    let squareCustomerId = user.squareCustomerId ?? "";
+    if (!squareCustomerId) {
+        const res = await square.customers.create({
+            idempotencyKey: crypto.randomUUID(),
+            givenName: user.name ?? undefined,
+            emailAddress: user.email ?? undefined,
+            phoneNumber: user.phone ?? undefined,
+        });
+        squareCustomerId = res.customer.id;
+        await db.ref(`users/${uid}/squareCustomerId`).set(squareCustomerId);
+    }
+    // Disable old card if present
+    if (user.squareCardId) {
+        try {
+            await square.cards.disable({ cardId: user.squareCardId });
+        }
+        catch { }
+    }
+    // Save new card
+    let squareCardId;
+    try {
+        const cardRes = await square.cards.create({
+            idempotencyKey: crypto.randomUUID(),
+            sourceId,
+            card: { customerId: squareCustomerId },
+        });
+        squareCardId = cardRes.card.id;
+    }
+    catch (err) {
+        let message = "Your card could not be saved. Please check your details and try again.";
+        if (err instanceof square_1.SquareError && err.errors?.length) {
+            message = err.errors[0].detail ?? message;
+        }
+        throw new functions.https.HttpsError("invalid-argument", message);
+    }
+    await db.ref(`users/${uid}/squareCardId`).set(squareCardId);
+    return { success: true };
 });
 //# sourceMappingURL=index.js.map

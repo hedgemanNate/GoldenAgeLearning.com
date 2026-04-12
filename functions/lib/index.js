@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processPayment = exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.onCustomerCreated = exports.processScheduledMessages = void 0;
+exports.sendPasswordResetCallable = exports.saveCustomerCard = exports.deleteCustomerCard = exports.getCustomerCard = exports.processPayment = exports.sendStaffInvite = exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.deleteCustomer = exports.onCustomerCreated = exports.sendAdminMessage = exports.processScheduledMessages = void 0;
 const admin = __importStar(require("firebase-admin"));
 // Initialize admin SDK
 if (!admin.apps.length) {
@@ -42,14 +42,22 @@ if (!admin.apps.length) {
 // Cloud Function triggers
 var messages_1 = require("./messages");
 Object.defineProperty(exports, "processScheduledMessages", { enumerable: true, get: function () { return messages_1.processScheduledMessages; } });
+Object.defineProperty(exports, "sendAdminMessage", { enumerable: true, get: function () { return messages_1.sendAdminMessage; } });
 var customers_1 = require("./customers");
 Object.defineProperty(exports, "onCustomerCreated", { enumerable: true, get: function () { return customers_1.onCustomerCreated; } });
+Object.defineProperty(exports, "deleteCustomer", { enumerable: true, get: function () { return customers_1.deleteCustomer; } });
 var webhooks_1 = require("./webhooks");
 Object.defineProperty(exports, "twilioInbound", { enumerable: true, get: function () { return webhooks_1.twilioInbound; } });
 var bookings_1 = require("./bookings");
 Object.defineProperty(exports, "onBookingCreated", { enumerable: true, get: function () { return bookings_1.onBookingCreated; } });
 var staff_1 = require("./staff");
 Object.defineProperty(exports, "changeUserRole", { enumerable: true, get: function () { return staff_1.changeUserRole; } });
+Object.defineProperty(exports, "sendStaffInvite", { enumerable: true, get: function () { return staff_1.sendStaffInvite; } });
 var payments_1 = require("./payments");
 Object.defineProperty(exports, "processPayment", { enumerable: true, get: function () { return payments_1.processPayment; } });
+Object.defineProperty(exports, "getCustomerCard", { enumerable: true, get: function () { return payments_1.getCustomerCard; } });
+Object.defineProperty(exports, "deleteCustomerCard", { enumerable: true, get: function () { return payments_1.deleteCustomerCard; } });
+Object.defineProperty(exports, "saveCustomerCard", { enumerable: true, get: function () { return payments_1.saveCustomerCard; } });
+var emails_1 = require("./emails");
+Object.defineProperty(exports, "sendPasswordResetCallable", { enumerable: true, get: function () { return emails_1.sendPasswordResetCallable; } });
 //# sourceMappingURL=index.js.map

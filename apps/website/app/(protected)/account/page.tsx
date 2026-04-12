@@ -129,8 +129,8 @@ export default function AccountPage() {
     setCardLoading(true);
     callGetCustomerCard()
       .then((res) => {
-        if (res.hasCard) {
-          setCardInfo({ brand: res.brand!, last4: res.last4!, expMonth: res.expMonth!, expYear: res.expYear! });
+        if (res.data.hasCard) {
+          setCardInfo({ brand: res.data.brand!, last4: res.data.last4!, expMonth: res.data.expMonth!, expYear: res.data.expYear! });
         } else {
           setCardInfo(null);
         }
@@ -192,8 +192,8 @@ export default function AccountPage() {
       }
       await callSaveCustomerCard({ sourceId: result.token });
       const updated = await callGetCustomerCard();
-      if (updated.hasCard) {
-        setCardInfo({ brand: updated.brand!, last4: updated.last4!, expMonth: updated.expMonth!, expYear: updated.expYear! });
+      if (updated.data.hasCard) {
+        setCardInfo({ brand: updated.data.brand!, last4: updated.data.last4!, expMonth: updated.data.expMonth!, expYear: updated.data.expYear! });
       }
       setShowAddCardForm(false);
     } catch (err: any) {

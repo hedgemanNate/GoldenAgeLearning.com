@@ -127,16 +127,15 @@ export const sendPasswordResetCallable = functions.https.onCall(
     // Generate a Firebase password reset link (handles token, expiry, etc.)
     let resetLink: string;
     try {
-      resetLink = await admin.auth().generatePasswordResetLink(email, {
-        url: "https://goldenagelearning.com/book",
-      });
+      resetLink = await admin.auth().generatePasswordResetLink(email);
     } catch (err: any) {
       // If the email doesn't exist in Firebase Auth, return success silently
       // to avoid leaking account existence to the caller
       if (err?.errorInfo?.code === "auth/email-not-found") {
         return { success: true };
       }
-      throw new functions.https.HttpsError("internal", "Could not generate reset link.");
+      functions.logger.error("generatePasswordResetLink failed", err);
+      throw new functions.https.HttpsError("internal", err?.errorInfo?.message || err?.message || "Could not generate reset link.");
     }
 
     await sendEmail({
