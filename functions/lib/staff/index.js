@@ -107,9 +107,24 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
         const existing = await admin.auth().getUserByEmail(email);
         uid = existing.uid;
     }
-    catch {
-        const newUser = await admin.auth().createUser({ email, emailVerified: false });
-        uid = newUser.uid;
+    catch (authErr) {
+        if ((authErr === null || authErr === void 0 ? void 0 : authErr.code) !== "auth/user-not-found") {
+            throw new functions.https.HttpsError("internal", "Could not look up user account. Please try again.");
+        }
+        try {
+            const newUser = await admin.auth().createUser({ email, emailVerified: false });
+            uid = newUser.uid;
+        }
+        catch {
+            throw new functions.https.HttpsError("internal", "Could not create the staff account. Please try again.");
+        }
+    }
+    // Ensure the RTDB profile exists and has the staff role
+    const profileSnap = await db.ref(`users/${uid}`).once("value");
+    if (profileSnap.exists()) {
+        await db.ref(`users/${uid}`).update({ role: "staff" });
+    }
+    else {
         await db.ref(`users/${uid}`).set({
             name: email,
             email,
@@ -123,11 +138,19 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
     await db.ref(`pendingStaff/${uid}`).set({ email, invitedAt: Date.now(), status: "pending" });
     // Generate a password-setup link
     const actionCodeSettings = { url: "https://goldenagelearning.com/admin/login" };
-    const setupLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
-    await (0, sendEmail_1.sendEmail)({
-        to: email,
-        subject: "You've been invited to join Golden Age Learning as Staff",
-        html: `
+    let setupLink;
+    try {
+        setupLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+    }
+    catch (linkErr) {
+        functions.logger.error("generatePasswordResetLink failed", { email, error: linkErr === null || linkErr === void 0 ? void 0 : linkErr.message, code: linkErr === null || linkErr === void 0 ? void 0 : linkErr.code });
+        throw new functions.https.HttpsError("internal", `Could not generate the setup link: ${(linkErr === null || linkErr === void 0 ? void 0 : linkErr.message) ?? (linkErr === null || linkErr === void 0 ? void 0 : linkErr.code) ?? "unknown error"}. Ensure goldenagelearning.com is in Firebase Auth > Authorized Domains.`);
+    }
+    try {
+        await (0, sendEmail_1.sendEmail)({
+            to: email,
+            subject: "You've been invited to join Golden Age Learning as Staff",
+            html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
           <h2 style="color:#141b1f;">Welcome to the Golden Age Learning team!</h2>
           <p>You have been invited as a <strong>Staff Member</strong> on the Golden Age Learning platform.</p>
@@ -136,7 +159,11 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
           <p style="font-size:13px;color:#666;">This link expires in 1 hour. If you did not expect this invitation, you can ignore this email.</p>
         </div>
       `,
-    });
+        });
+    }
+    catch (emailErr) {
+        throw new functions.https.HttpsError("internal", `Failed to send the invite email: ${(emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) ?? "unknown error"}.`);
+    }
     functions.logger.info("Staff invite sent", { email, uid });
     return { success: true, uid };
 });
