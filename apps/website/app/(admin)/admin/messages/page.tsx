@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import TablePagination from "../../../../components/admin/TablePagination";
-import { subscribeToMessages } from "../../../../lib/firebase/db";
+import { subscribeToMessages, createMessage } from "../../../../lib/firebase/db";
 import { useAdminData } from "../../../../hooks/useAdminData";
-import type { MessageWithId } from "../../../../types/message";
+import { useAuthContext } from "../../../../context/AuthContext";
+import { callSendAdminMessage } from "../../../../lib/functions/client";
+import type { MessageWithId, MessageChannel } from "../../../../types/message";
 
 type MsgChannel = "Email" | "SMS";
 type MsgStatus = "Sent" | "Scheduled";
@@ -36,6 +38,7 @@ function messageDateValue(message: MessageWithId) {
 
 export default function AdminMessages() {
   const { classes } = useAdminData();
+  const { user: adminUser } = useAuthContext();
   const [rawMessages, setRawMessages] = useState<MessageWithId[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -46,6 +49,9 @@ export default function AdminMessages() {
   const [body, setBody] = useState("");
   const [scheduled, setScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToMessages(setRawMessages);
@@ -79,7 +85,57 @@ export default function AdminMessages() {
   const currentPage = Math.min(page, totalPages);
   const paginatedMessages = filteredMessages.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const upcomingClassNames = classes.filter((c) => c.status === "upcoming").map((c) => c.name);
+  const upcomingClasses = classes.filter((c) => c.status === "upcoming").map((c) => ({ id: c.id, name: c.name }));
+
+  function resetForm() {
+    setSendTo("all"); setChannel("Email"); setSubject(""); setBody("");
+    setScheduled(false); setScheduleDate(""); setSendError(""); setSendSuccess(false);
+  }
+
+  async function handleSendMessage() {
+    if (!adminUser || !body.trim()) {
+      setSendError("Message body is required.");
+      return;
+    }
+    if (scheduled && !scheduleDate) {
+      setSendError("Please select a schedule date.");
+      return;
+    }
+    setSending(true);
+    setSendError("");
+    try {
+      if (!scheduled) {
+        await callSendAdminMessage({
+          sendTo,
+          channel: channel.toLowerCase() as "email" | "sms",
+          subject: channel === "Email" ? subject || null : null,
+          body,
+        });
+      } else {
+        await createMessage({
+          subject: channel === "Email" ? subject || null : null,
+          body,
+          channel: channel.toLowerCase() as MessageChannel,
+          recipientType: sendTo === "all" ? "all" : sendTo === "active" ? "active" : "class",
+          recipientId: (sendTo !== "all" && sendTo !== "active") ? sendTo : null,
+          recipients: {} as Record<string, true>,
+          recipientCount: 0,
+          status: "scheduled",
+          scheduledAt: new Date(scheduleDate).getTime(),
+          sentAt: null,
+          createdAt: Date.now(),
+          createdBy: adminUser.uid,
+        });
+      }
+      setSendSuccess(true);
+      setTimeout(() => { setComposeOpen(false); resetForm(); }, 1500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to send message.";
+      setSendError(msg);
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div className="p-[32px] font-sans">
@@ -165,7 +221,7 @@ export default function AdminMessages() {
                 >
                   <option value="all">All customers</option>
                   <option value="active">Active customers (last 45 days)</option>
-                  {upcomingClassNames.map((c) => <option key={c} value={c}>{c} — class attendees</option>)}
+                  {upcomingClasses.map((c) => <option key={c.id} value={c.id}>{c.name} — class attendees</option>)}
                 </select>
               </div>
 
@@ -235,14 +291,21 @@ export default function AdminMessages() {
                 />
               )}
             </div>
-            <div className="px-[24px] pb-[24px] flex justify-end gap-[10px]">
-              <button onClick={() => setComposeOpen(false)} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition">Cancel</button>
-              <button
-                onClick={() => setComposeOpen(false)}
-                className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition"
-              >
-                {scheduled ? "Schedule" : "Send Now"}
-              </button>
+            <div className="px-[24px] pb-[24px] flex flex-col gap-[10px]">
+              {sendSuccess && (
+                <p className="text-[12px] text-[var(--color-teal)] text-right">{scheduled ? "Message scheduled!" : "Message sent!"}</p>
+              )}
+              {sendError && <p className="text-[12px] text-[#E57373] text-right">{sendError}</p>}
+              <div className="flex justify-end gap-[10px]">
+                <button onClick={() => { setComposeOpen(false); resetForm(); }} disabled={sending} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition disabled:opacity-50">Cancel</button>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={sending || !body.trim()}
+                  className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition disabled:opacity-50"
+                >
+                  {sending ? (scheduled ? "Scheduling…" : "Sending…") : (scheduled ? "Schedule" : "Send Now")}
+                </button>
+              </div>
             </div>
           </div>
         </div>

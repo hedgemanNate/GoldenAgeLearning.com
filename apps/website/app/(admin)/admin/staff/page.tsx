@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { useAuthContext } from "../../../../context/AuthContext";
 import { changeUserRole } from "../../../../lib/firebase/db";
+import { callSendStaffInvite } from "../../../../lib/functions/client";
 
 type StaffRole = "superAdmin" | "staff";
 
@@ -24,6 +25,9 @@ export default function AdminStaff() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [submittingUid, setSubmittingUid] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   const staff: StaffMember[] = users
     .filter((u) => u.role === "staff" || u.role === "superAdmin")
@@ -49,6 +53,23 @@ export default function AdminStaff() {
       setActionError(message);
     } finally {
       setSubmittingUid(null);
+    }
+  }
+
+  async function handleSendInvite() {
+    if (!addEmail.trim() || inviteLoading) return;
+    setInviteLoading(true);
+    setInviteError("");
+    setInviteSuccess(false);
+    try {
+      await callSendStaffInvite({ email: addEmail.trim() });
+      setAddEmail("");
+      setInviteSuccess(true);
+      setTimeout(() => setInviteSuccess(false), 5000);
+    } catch (err: unknown) {
+      setInviteError(err instanceof Error ? err.message : "Failed to send invite.");
+    } finally {
+      setInviteLoading(false);
     }
   }
 
@@ -149,17 +170,21 @@ export default function AdminStaff() {
           <input
             type="email"
             value={addEmail}
-            onChange={(e) => setAddEmail(e.target.value)}
+            onChange={(e) => { setAddEmail(e.target.value); setInviteError(""); setInviteSuccess(false); }}
+            onKeyDown={(e) => e.key === "Enter" && handleSendInvite()}
             placeholder="staff@goldenagelearning.com"
             className="bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[14px] py-[10px] text-[13px] text-[var(--color-cream)] placeholder-[rgba(245,237,214,0.3)] focus:outline-none focus:border-[var(--color-gold)] w-[320px]"
           />
           <button
-            onClick={() => setAddEmail("")}
-            className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[18px] py-[10px] rounded-[6px] hover:brightness-110 transition"
+            onClick={handleSendInvite}
+            disabled={inviteLoading || !addEmail.trim()}
+            className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[18px] py-[10px] rounded-[6px] hover:brightness-110 transition disabled:opacity-50"
           >
-            Send Invite
+            {inviteLoading ? "Sending…" : "Send Invite"}
           </button>
         </div>
+        {inviteSuccess && <p className="text-[12px] text-[var(--color-teal)] mt-[8px]">Invite sent successfully!</p>}
+        {inviteError && <p className="text-[12px] text-[#F87171] mt-[8px]">{inviteError}</p>}
         <p className="text-[11px] text-[rgba(245,237,214,0.3)] mt-[8px]">Staff members will receive an invitation email to set up their account.</p>
       </div>
 

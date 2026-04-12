@@ -7,6 +7,7 @@ import {
   query,
   orderByChild,
   equalTo,
+  limitToFirst,
   onValue,
   runTransaction,
 } from "firebase/database";
@@ -37,6 +38,10 @@ export async function updateUser(uid: string, data: Partial<User>): Promise<void
   await update(ref(db, `users/${uid}`), data);
 }
 
+export async function setUserBookedClass(uid: string, classId: string, bookingId: string | null): Promise<void> {
+  await set(ref(db, `users/${uid}/bookedClasses/${classId}`), bookingId);
+}
+
 export async function changeUserRole(uid: string, role: UserRole): Promise<void> {
   const callable = httpsCallable<{ uid: string; role: UserRole }, { uid: string; role: UserRole }>(
     functions,
@@ -50,6 +55,13 @@ export async function getAllUsers(): Promise<UserWithId[]> {
   const snap = await get(ref(db, "users"));
   if (!snap.exists()) return [];
   return Object.entries(snap.val()).map(([uid, val]) => ({ uid, ...(val as User) }));
+}
+
+export async function getUserByEmail(email: string): Promise<UserWithId | null> {
+  const snap = await get(query(ref(db, "users"), orderByChild("email"), equalTo(email), limitToFirst(1)));
+  if (!snap.exists()) return null;
+  const [uid, val] = Object.entries(snap.val())[0];
+  return { uid, ...(val as User) };
 }
 
 export async function getUserBookedClasses(uid: string): Promise<ClassWithId[]> {
