@@ -74,6 +74,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step3Error, setStep3Error] = useState('');
   const [step3Loading, setStep3Loading] = useState(false);
+  const [showNoAccountFound, setShowNoAccountFound] = useState(false);
   const [forgotPwStatus, setForgotPwStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [forgotPwError, setForgotPwError] = useState('');
   const [returningPasswordFocused, setReturningPasswordFocused] = useState(false);
@@ -237,6 +238,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     setStep3Error('');
     setPassword('');
     setConfirmPassword('');
+    setShowNoAccountFound(false);
     setCurrentStep(3);
   };
 
@@ -398,6 +400,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     setPassword('');
     setConfirmPassword('');
     setStep3Error('');
+    setShowNoAccountFound(false);
     setCurrentStep(2);
   };
 
@@ -816,12 +819,20 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
                 </div>
 
                 {/* Secondary Actions */}
-                <button 
-                  onClick={() => setIsReturningUser(true)}
-                  className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[32px]"
-                >
-                  Already have an account? Sign in
-                </button>
+                {showNoAccountFound ? (
+                  <div className="bg-[rgba(122,174,173,0.08)] border-l-[3px] border-[#7AAEAD] text-[rgba(245,237,214,0.7)] font-sans text-[14px] leading-[1.6] rounded-r-[6px] px-[16px] py-[12px] mb-[32px]">
+                    No account was found matching{email ? <> <strong className="text-[var(--color-cream)]">{email}</strong></> : ' those details'}. Continue below to create a new account, or{' '}
+                    <Link href={loginHref} className="text-[#7AAEAD] underline">go to the sign-in page</Link>{' '}
+                    if you used a different email.
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNoAccountFound(true)}
+                    className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[32px]"
+                  >
+                    Already have an account? Sign in
+                  </button>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-[16px]">
