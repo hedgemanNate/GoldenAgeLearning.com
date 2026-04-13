@@ -13,5 +13,5 @@ export { onBookingCreated } from "./bookings";
 export { changeUserRole, sendStaffInvite } from "./staff";
 export { processPayment, getCustomerCard, deleteCustomerCard, saveCustomerCard } from "./payments";
 export { sendPasswordResetCallable } from "./emails";
-export { deleteAllData } from "./database";
+export { deleteAllData, backupDatabase } from "./database";
 

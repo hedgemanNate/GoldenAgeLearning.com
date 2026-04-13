@@ -108,7 +108,7 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
         uid = existing.uid;
     }
     catch (authErr) {
-        if ((authErr === null || authErr === void 0 ? void 0 : authErr.code) !== "auth/user-not-found") {
+        if (authErr?.code !== "auth/user-not-found") {
             throw new functions.https.HttpsError("internal", "Could not look up user account. Please try again.");
         }
         try {
@@ -143,8 +143,8 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
         setupLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
     }
     catch (linkErr) {
-        functions.logger.error("generatePasswordResetLink failed", { email, error: linkErr === null || linkErr === void 0 ? void 0 : linkErr.message, code: linkErr === null || linkErr === void 0 ? void 0 : linkErr.code });
-        throw new functions.https.HttpsError("internal", `Could not generate the setup link: ${(linkErr === null || linkErr === void 0 ? void 0 : linkErr.message) ?? (linkErr === null || linkErr === void 0 ? void 0 : linkErr.code) ?? "unknown error"}. Ensure goldenagelearning.com is in Firebase Auth > Authorized Domains.`);
+        functions.logger.error("generatePasswordResetLink failed", { email, error: linkErr?.message, code: linkErr?.code });
+        throw new functions.https.HttpsError("internal", `Could not generate the setup link: ${linkErr?.message ?? linkErr?.code ?? "unknown error"}. Ensure goldenagelearning.com is in Firebase Auth > Authorized Domains.`);
     }
     try {
         await (0, sendEmail_1.sendEmail)({
@@ -162,7 +162,7 @@ exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
         });
     }
     catch (emailErr) {
-        throw new functions.https.HttpsError("internal", `Failed to send the invite email: ${(emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) ?? "unknown error"}.`);
+        throw new functions.https.HttpsError("internal", `Failed to send the invite email: ${emailErr?.message ?? "unknown error"}.`);
     }
     functions.logger.info("Staff invite sent", { email, uid });
     return { success: true, uid };

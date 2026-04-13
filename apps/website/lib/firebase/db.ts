@@ -508,6 +508,12 @@ export function subscribeMaintenanceMode(callback: (enabled: boolean) => void): 
 
 // ─── Database Management ──────────────────────────────────────────────────────
 
+export async function backupDatabase(): Promise<{ backupFile: string }> {
+  const callable = httpsCallable<object, { backupFile: string }>(functions, "backupDatabase");
+  const result = await callable({});
+  return result.data;
+}
+
 export async function deleteAllData(): Promise<void> {
   const callable = httpsCallable(functions, "deleteAllData");
   await callable({});

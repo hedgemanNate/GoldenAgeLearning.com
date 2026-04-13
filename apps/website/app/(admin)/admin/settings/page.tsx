@@ -2,25 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ref, get, set } from "firebase/database";
+import { ref, set } from "firebase/database";
+import { ref as storageRef, listAll, getDownloadURL, getMetadata } from "firebase/storage";
 import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
-import { db, auth } from "../../../../lib/firebase/client";
-import { subscribeMaintenanceMode, setMaintenanceMode, deleteAllData } from "../../../../lib/firebase/db";
+import { db, auth, storage } from "../../../../lib/firebase/client";
+import { subscribeMaintenanceMode, setMaintenanceMode, deleteAllData, backupDatabase } from "../../../../lib/firebase/db";
 import { useAuthContext } from "../../../../context/AuthContext";
 
-// Paths where a superAdmin can read the full collection (parent-level .read rule exists)
-const EXPORTABLE_PATHS = [
-  "users",
-  "classes",
-  "bookings",
-  "discounts",
-  "messages",
-  "classTemplates",
-  "classTaxonomy",
-  "settings",
-];
-
-// transferLog, activityLog, and payments have no parent-level read rule — cannot be bulk-exported
 const WRITABLE_PATHS = [
   "users",
   "classes",
@@ -46,13 +34,48 @@ export default function AdminSettings() {
   const [maintenanceMode, setMaintenanceModeState] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [exporting, setExporting] = useState(false);
+  const [backing, setBacking] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  type BackupEntry = { name: string; url: string; createdAt: Date };
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchBackups() {
+      setBackupsLoading(true);
+      try {
+        const listResult = await listAll(storageRef(storage, "backups"));
+        const entries = await Promise.all(
+          listResult.items.map(async (item) => {
+            const [url, meta] = await Promise.all([getDownloadURL(item), getMetadata(item)]);
+            return {
+              name: item.name,
+              url,
+              createdAt: new Date(meta.timeCreated),
+            };
+          })
+        );
+        entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        if (!cancelled) setBackups(entries);
+      } catch {
+        if (!cancelled) setBackups([]);
+      } finally {
+        if (!cancelled) setBackupsLoading(false);
+      }
+    }
+    fetchBackups();
+    return () => { cancelled = true; };
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const [cloudImportEntry, setCloudImportEntry] = useState<BackupEntry | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
@@ -74,31 +97,26 @@ export default function AdminSettings() {
     }
   }
 
-  async function exportDatabase() {
-    const entries = await Promise.all(
-      EXPORTABLE_PATHS.map(async (path) => {
-        const snap = await get(ref(db, path));
-        return [path, snap.val()] as const;
-      })
-    );
-    const data = Object.fromEntries(entries.filter(([, v]) => v !== null));
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const date = new Date().toISOString().split("T")[0];
-    a.download = `gal-database-${date}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function handleExport() {
-    setExporting(true);
+  async function handleBackup() {
+    setBacking(true);
+    setBackupMsg(null);
     try {
-      await exportDatabase();
+      const { backupFile } = await backupDatabase();
+      setBackupMsg({ type: "success", text: `Saved: ${backupFile}` });
+      // Refresh backup list
+      const listResult = await listAll(storageRef(storage, "backups"));
+      const entries = await Promise.all(
+        listResult.items.map(async (item) => {
+          const [url, meta] = await Promise.all([getDownloadURL(item), getMetadata(item)]);
+          return { name: item.name, url, createdAt: new Date(meta.timeCreated) };
+        })
+      );
+      entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setBackups(entries);
+    } catch (err) {
+      setBackupMsg({ type: "error", text: err instanceof Error ? err.message : "Backup failed." });
     } finally {
-      setExporting(false);
+      setBacking(false);
     }
   }
 
@@ -109,11 +127,17 @@ export default function AdminSettings() {
   }
 
   async function handleImport() {
-    if (!importFile) return;
+    if (!importFile && !cloudImportEntry) return;
     setImporting(true);
     setImportResult(null);
     try {
-      const text = await importFile.text();
+      let text: string;
+      if (cloudImportEntry) {
+        const res = await fetch(cloudImportEntry.url);
+        text = await res.text();
+      } else {
+        text = await importFile!.text();
+      }
       const data = JSON.parse(text);
       await Promise.all(
         WRITABLE_PATHS.map(async (path) => {
@@ -127,6 +151,7 @@ export default function AdminSettings() {
         message: "Database imported successfully. Read-only paths (activityLog, transferLog, payments) were skipped.",
       });
       setImportFile(null);
+      setCloudImportEntry(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       setImportResult({
@@ -208,44 +233,63 @@ export default function AdminSettings() {
         <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
           <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
             <div>
-              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Export Database</p>
+              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Backup Database</p>
               <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Download a full JSON backup of all database data. Read-only server paths (activityLog, transferLog, payments) are excluded.
+                Save a full backup of all database data to Firebase Storage, including read-only server paths.
               </p>
-            </div>
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(201,168,76,0.12)] text-[var(--color-gold)] border border-[rgba(201,168,76,0.25)] hover:bg-[rgba(201,168,76,0.2)] transition-colors disabled:opacity-50"
-            >
-              {exporting ? "Exporting…" : "Export JSON"}
-            </button>
-          </div>
-        </div>
-
-        {/* Delete All Data — owner only */}
-        {isOwner && <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden border border-[rgba(220,38,38,0.2)]">
-          <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
-            <div>
-              <p className="text-[14px] font-semibold text-[#F87171]">Delete All Data</p>
-              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Permanently deletes all data from the database including read-only server paths. This cannot be undone.
-              </p>
-              {deleteResult && (
-                <p className={`mt-[8px] text-[12px] ${deleteResult.type === "success" ? "text-[var(--color-teal)]" : "text-[#F87171]"}`}>
-                  {deleteResult.message}
+              {backupMsg && (
+                <p className={`mt-[6px] text-[11px] ${backupMsg.type === "success" ? "text-[var(--color-teal)]" : "text-[#F87171]"}`}>
+                  {backupMsg.text}
                 </p>
               )}
             </div>
             <button
-              onClick={() => { setShowDeleteConfirm(true); setDeleteResult(null); }}
-              disabled={deleting}
-              className="flex-shrink-0 px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.12)] text-[#F87171] border border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.22)] transition-colors disabled:opacity-50"
+              onClick={handleBackup}
+              disabled={backing}
+              className="flex-shrink-0 px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(122,174,173,0.1)] text-[var(--color-teal)] border border-[rgba(122,174,173,0.25)] hover:bg-[rgba(122,174,173,0.18)] transition-colors disabled:opacity-50"
             >
-              Delete All Data
+              {backing ? "Backing up…" : "Backup Database"}
             </button>
           </div>
-        </div>}
+
+          {/* Cloud Backups List */}
+          <div className="border-t border-[rgba(245,237,214,0.06)] px-[20px] py-[14px]">
+            <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] mb-[10px]">Cloud Backups (Firebase Storage)</p>
+            {backupsLoading ? (
+              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">Loading…</p>
+            ) : backups.length === 0 ? (
+              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">No backups found.</p>
+            ) : (
+              <div className="flex flex-col gap-[6px]">
+                {backups.map((b) => (
+                  <div key={b.name} className="flex items-center justify-between gap-[12px]">
+                    <div>
+                      <p className="text-[12px] text-[var(--color-cream)]">{b.name}</p>
+                      <p className="text-[10px] text-[rgba(245,237,214,0.35)]">
+                        {b.createdAt.toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const res = await fetch(b.url);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = b.name;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="flex-shrink-0 px-[12px] py-[5px] text-[11px] font-semibold rounded-[6px] bg-[rgba(201,168,76,0.08)] text-[var(--color-gold)] border border-[rgba(201,168,76,0.2)] hover:bg-[rgba(201,168,76,0.16)] transition-colors"
+                    >
+                      Export Local
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Import Database */}
         <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
@@ -287,7 +331,56 @@ export default function AdminSettings() {
               </p>
             )}
           </div>
+          <div className="border-t border-[rgba(245,237,214,0.06)] px-[20px] py-[14px]">
+            <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] mb-[10px]">Import from Cloud Backup</p>
+            {backupsLoading ? (
+              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">Loading…</p>
+            ) : backups.length === 0 ? (
+              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">No backups found.</p>
+            ) : (
+              <div className="flex flex-col gap-[6px]">
+                {backups.map((b) => (
+                  <div key={b.name} className="flex items-center justify-between gap-[12px]">
+                    <div>
+                      <p className="text-[12px] text-[var(--color-cream)]">{b.name}</p>
+                      <p className="text-[10px] text-[rgba(245,237,214,0.35)]">{b.createdAt.toLocaleString()}</p>
+                    </div>
+                    <button
+                      onClick={() => { setCloudImportEntry(b); setImportResult(null); setShowConfirm(true); }}
+                      className="flex-shrink-0 px-[12px] py-[5px] text-[11px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.08)] text-[#F87171] border border-[rgba(220,38,38,0.2)] hover:bg-[rgba(220,38,38,0.16)] transition-colors"
+                    >
+                      Import
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Delete All Data — owner only */}
+        {isOwner && <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden border border-[rgba(220,38,38,0.2)]">
+          <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
+            <div>
+              <p className="text-[14px] font-semibold text-[#F87171]">Delete All Data</p>
+              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
+                Permanently deletes all data from the database including read-only server paths. This cannot be undone.
+              </p>
+              {deleteResult && (
+                <p className={`mt-[8px] text-[12px] ${deleteResult.type === "success" ? "text-[var(--color-teal)]" : "text-[#F87171]"}`}>
+                  {deleteResult.message}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => { setShowDeleteConfirm(true); setDeleteResult(null); }}
+              disabled={deleting}
+              className="flex-shrink-0 px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.12)] text-[#F87171] border border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.22)] transition-colors disabled:opacity-50"
+            >
+              Delete All Data
+            </button>
+          </div>
+        </div>}
       </div>
 
       {/* Confirm Delete All Modal — owner only */}
@@ -339,11 +432,11 @@ export default function AdminSettings() {
             <h2 className="text-[16px] font-bold text-[var(--color-cream)] mb-[10px]">Overwrite Database?</h2>
             <p className="text-[13px] text-[rgba(245,237,214,0.55)] mb-[24px]">
               This will overwrite all writable database paths with the contents of{" "}
-              <span className="text-[var(--color-cream)] font-semibold">{importFile?.name}</span>. This action cannot be undone.
+              <span className="text-[var(--color-cream)] font-semibold">{cloudImportEntry?.name ?? importFile?.name}</span>. This action cannot be undone.
             </p>
             <div className="flex gap-[10px] justify-end">
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={() => { setShowConfirm(false); setCloudImportEntry(null); }}
                 className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(245,237,214,0.07)] text-[rgba(245,237,214,0.6)] hover:bg-[rgba(245,237,214,0.12)] transition-colors"
               >
                 Cancel
