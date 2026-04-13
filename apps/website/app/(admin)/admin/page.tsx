@@ -131,8 +131,17 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div className="flex justify-between items-center mb-[8px]">
-                    <span className="text-[12px] font-semibold text-[var(--color-gold)]">${cls.revenue.toLocaleString()}</span>
-                    <span className="text-[10px] text-[rgba(245,237,214,0.3)]">revenue</span>
+                    {role === "superAdmin" ? (
+                      <>
+                        <span className="text-[12px] font-semibold text-[var(--color-gold)]">${cls.revenue.toLocaleString()}</span>
+                        <span className="text-[10px] text-[rgba(245,237,214,0.3)]">revenue</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[12px] font-semibold text-[var(--color-gold)]">{cls.booked}</span>
+                        <span className="text-[10px] text-[rgba(245,237,214,0.3)]">students booked</span>
+                      </>
+                    )}
                   </div>
                   <div className="h-[4px] rounded-full bg-[rgba(245,237,214,0.08)] overflow-hidden">
                     <div
