@@ -5,6 +5,19 @@ import { ref, get, set } from "firebase/database";
 import { db } from "../../../../lib/firebase/client";
 import { subscribeMaintenanceMode, setMaintenanceMode } from "../../../../lib/firebase/db";
 
+// Paths where a superAdmin can read the full collection (parent-level .read rule exists)
+const EXPORTABLE_PATHS = [
+  "users",
+  "classes",
+  "bookings",
+  "discounts",
+  "messages",
+  "classTemplates",
+  "classTaxonomy",
+  "settings",
+];
+
+// transferLog, activityLog, and payments have no parent-level read rule — cannot be bulk-exported
 const WRITABLE_PATHS = [
   "users",
   "classes",
@@ -45,8 +58,13 @@ export default function AdminSettings() {
   async function handleExport() {
     setExporting(true);
     try {
-      const snap = await get(ref(db, "/"));
-      const data = snap.val();
+      const entries = await Promise.all(
+        EXPORTABLE_PATHS.map(async (path) => {
+          const snap = await get(ref(db, path));
+          return [path, snap.val()] as const;
+        })
+      );
+      const data = Object.fromEntries(entries.filter(([, v]) => v !== null));
       const json = JSON.stringify(data, null, 2);
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -139,7 +157,7 @@ export default function AdminSettings() {
             <div>
               <p className="text-[14px] font-semibold text-[var(--color-cream)]">Export Database</p>
               <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Download a full JSON backup of all database data.
+                Download a full JSON backup of all database data. Read-only server paths (activityLog, transferLog, payments) are excluded.
               </p>
             </div>
             <button
