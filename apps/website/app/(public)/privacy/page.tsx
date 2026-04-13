@@ -149,11 +149,6 @@ export default function PrivacyPolicyPage() {
                 disclose your phone number to third parties for their own marketing purposes. Your
                 phone number is used solely to deliver the SMS communications described above.
               </InfoRow>
-              <InfoRow label="Need Help?">
-                Reply{" "}
-                <Keyword>HELP</Keyword>{" "}
-                to any SMS message or contact us using the details in Section 12.
-              </InfoRow>
             </div>
           </Section>
 
