@@ -40,7 +40,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onCustomerCreated = void 0;
+exports.deleteCustomer = exports.onCustomerCreated = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const emails_1 = require("../emails");
@@ -61,5 +61,26 @@ exports.onCustomerCreated = functions.auth.user().onCreate(async (user) => {
         sends.push((0, sms_1.sendWelcomeSms)(phone));
     }
     await Promise.all(sends);
+});
+// ─── deleteCustomer ───────────────────────────────────────────────────────────
+exports.deleteCustomer = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const db = admin.database();
+    const callerSnap = await db.ref(`users/${context.auth.uid}`).once("value");
+    if (!callerSnap.exists() || callerSnap.child("role").val() !== "superAdmin") {
+        throw new functions.https.HttpsError("permission-denied", "Only a Super Admin can delete customers.");
+    }
+    const targetUid = typeof data.uid === "string" ? data.uid.trim() : "";
+    if (!targetUid) {
+        throw new functions.https.HttpsError("invalid-argument", "A target user ID is required.");
+    }
+    await Promise.all([
+        admin.auth().deleteUser(targetUid),
+        db.ref(`users/${targetUid}`).remove(),
+    ]);
+    functions.logger.info("Customer deleted", { targetUid, deletedBy: context.auth.uid });
+    return { success: true };
 });
 //# sourceMappingURL=index.js.map

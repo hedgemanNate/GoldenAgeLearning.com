@@ -6,10 +6,12 @@ if (!admin.apps.length) {
 }
 
 // Cloud Function triggers
-export { processScheduledMessages } from "./messages";
-export { onCustomerCreated } from "./customers";
+export { processScheduledMessages, sendAdminMessage } from "./messages";
+export { onCustomerCreated, deleteCustomer } from "./customers";
 export { twilioInbound } from "./webhooks";
 export { onBookingCreated } from "./bookings";
-export { changeUserRole } from "./staff";
-export { processPayment } from "./payments";
+export { changeUserRole, sendStaffInvite } from "./staff";
+export { processPayment, getCustomerCard, deleteCustomerCard, saveCustomerCard } from "./payments";
+export { sendPasswordResetCallable } from "./emails";
+export { deleteAllData, backupDatabase } from "./database";
 

@@ -3,8 +3,8 @@
 import { useState, use, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getClass, createBooking, createUser } from "../../../../lib/firebase/db";
-import { createAccount, signInWithEmail } from "../../../../lib/firebase/auth";
+import { getClass, createBooking, createUser, getUserByEmail } from "../../../../lib/firebase/db";
+import { createAccount, signInWithEmail, resetPassword } from "../../../../lib/firebase/auth";
 import { auth } from "../../../../lib/firebase/client";
 import type { ClassWithId } from "../../../../types/class";
 import { useAuthContext } from "../../../../context/AuthContext";
@@ -66,6 +66,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [step2Error, setStep2Error] = useState('');
+  const [step2Loading, setStep2Loading] = useState(false);
 
   // Step 3 State
   const [isReturningUser, setIsReturningUser] = useState(false);
@@ -73,6 +74,9 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step3Error, setStep3Error] = useState('');
   const [step3Loading, setStep3Loading] = useState(false);
+  const [showNoAccountFound, setShowNoAccountFound] = useState(false);
+  const [forgotPwStatus, setForgotPwStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
+  const [forgotPwError, setForgotPwError] = useState('');
   const [returningPasswordFocused, setReturningPasswordFocused] = useState(false);
   const [newPasswordFocused, setNewPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
@@ -204,7 +208,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     };
   }, [currentStep]);
 
-  const handleStep2Submit = () => {
+  const handleStep2Submit = async () => {
     setStep2Error('');
     if (!name.trim()) {
       setStep2Error('Please provide your full name.');
@@ -214,18 +218,27 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
       setStep2Error('Please provide either an email or phone number so we can reach you.');
       return;
     }
-    
-    // Simulate DB check for returning user (mock logic: if email starts with 'user' or phone has '555')
-    if (email.toLowerCase().startsWith('user') || phone.includes('555')) {
-      setIsReturningUser(true);
+
+    setStep2Loading(true);
+    // Query RTDB to determine if this email belongs to an existing account
+    if (email.trim()) {
+      try {
+        const existing = await getUserByEmail(email.trim().toLowerCase());
+        setIsReturningUser(existing !== null);
+      } catch {
+        setIsReturningUser(false);
+      }
     } else {
+      // Phone-only entry — treat as new user
       setIsReturningUser(false);
     }
+    setStep2Loading(false);
     
     // Proceed to Step 3
     setStep3Error('');
     setPassword('');
     setConfirmPassword('');
+    setShowNoAccountFound(false);
     setCurrentStep(3);
   };
 
@@ -387,6 +400,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
     setPassword('');
     setConfirmPassword('');
     setStep3Error('');
+    setShowNoAccountFound(false);
     setCurrentStep(2);
   };
 
@@ -593,9 +607,13 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
                   onChange={(e) => setPhone(e.target.value)}
                   className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] placeholder:text-[rgba(245,237,214,0.3)] transition-colors outline-none w-full"
                 />
-                <p className="font-sans text-[14px] text-[rgba(245,237,214,0.6)]">
-                  We will text you a reminder before your class.
-                </p>
+                <div className="mt-[4px] flex gap-[10px] rounded-[8px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.06)] px-[14px] py-[12px]">
+                  <span className="mt-[1px] text-[var(--color-gold)] text-[15px] flex-shrink-0">ⓘ</span>
+                  <p className="font-sans text-[13px] leading-[1.6] text-[rgba(245,237,214,0.55)]">
+                    By providing your phone number, you agree to receive text messages from Golden Age Learning for booking confirmations and reminders. We will <span className="font-semibold text-[rgba(245,237,214,0.75)]">never</span> share your number with anyone. Message and data rates may apply. Message frequency varies. Reply <span className="font-semibold text-[rgba(245,237,214,0.75)]">STOP</span> to unsubscribe.{" "}
+                    <Link href="/privacy" className="text-[var(--color-gold)] hover:underline">Privacy Policy</Link>
+                  </p>
+                </div>
               </div>
 
               {/* Validation Error */}
@@ -611,9 +629,14 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
             <div className="flex flex-col gap-[16px]">
               <button 
                 onClick={handleStep2Submit}
-                className="w-full h-[64px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans text-[20px] font-medium hover:bg-[#F2D680] active:scale-[0.98] transition-all"
+                disabled={step2Loading}
+                className={`w-full h-[64px] rounded-[8px] font-sans text-[20px] font-medium transition-all flex items-center justify-center ${
+                  step2Loading
+                    ? 'bg-[rgba(201,168,76,0.5)] text-[rgba(20,27,31,0.5)] cursor-not-allowed'
+                    : 'bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:bg-[#F2D680] active:scale-[0.98]'
+                }`}
               >
-                Continue
+                {step2Loading ? 'Checking…' : 'Continue'}
               </button>
               
               <button
@@ -682,11 +705,30 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
 
                 {/* Secondary Actions */}
                 <button 
-                  onClick={() => alert('Forgot password flow to be implemented')}
-                  className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[32px]"
+                  onClick={async () => {
+                    if (!email.trim() || forgotPwStatus === 'loading') return;
+                    setForgotPwStatus('loading');
+                    setForgotPwError('');
+                    try {
+                      await resetPassword(email.trim());
+                      setForgotPwStatus('sent');
+                    } catch {
+                      setForgotPwStatus('error');
+                      setForgotPwError('We could not send a reset email. Please check the address and try again.');
+                    }
+                  }}
+                  disabled={forgotPwStatus === 'loading' || forgotPwStatus === 'sent'}
+                  className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[8px] disabled:opacity-50 disabled:cursor-default"
                 >
-                  Forgotten your password? We'll help you reset it
+                  {forgotPwStatus === 'loading' ? 'Sending reset email…' : forgotPwStatus === 'sent' ? 'Reset email sent!' : 'Forgotten your password? We\'ll help you reset it'}
                 </button>
+                {forgotPwStatus === 'sent' && (
+                  <p className="font-sans text-[14px] text-[#7AAEAD] mb-[24px]">Check your inbox at {email} for a password reset link.</p>
+                )}
+                {forgotPwStatus === 'error' && (
+                  <p className="font-sans text-[14px] text-[#E57373] mb-[24px]">{forgotPwError}</p>
+                )}
+                {forgotPwStatus === 'idle' && <div className="mb-[24px]" />}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-[16px]">
@@ -781,12 +823,20 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
                 </div>
 
                 {/* Secondary Actions */}
-                <button 
-                  onClick={() => setIsReturningUser(true)}
-                  className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[32px]"
-                >
-                  Already have an account? Sign in
-                </button>
+                {showNoAccountFound ? (
+                  <div className="bg-[rgba(122,174,173,0.08)] border-l-[3px] border-[#7AAEAD] text-[rgba(245,237,214,0.7)] font-sans text-[14px] leading-[1.6] rounded-r-[6px] px-[16px] py-[12px] mb-[32px]">
+                    No account was found matching{email ? <> <strong className="text-[var(--color-cream)]">{email}</strong></> : ' those details'}. Continue below to create a new account, or{' '}
+                    <Link href={loginHref} className="text-[#7AAEAD] underline">go to the sign-in page</Link>{' '}
+                    if you used a different email.
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNoAccountFound(true)}
+                    className="w-full text-left font-sans text-[16px] text-[#7AAEAD] hover:underline mb-[32px]"
+                  >
+                    Already have an account? Sign in
+                  </button>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-[16px]">

@@ -3,11 +3,15 @@
 import { useState, useEffect } from "react";
 import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
+import { createBooking, updateBooking, createTransferLog, setUserBookedClass } from "../../../../lib/firebase/db";
+import { useAuthContext } from "../../../../context/AuthContext";
 
 type BookingStatus = "Paid" | "Reserved";
 
 interface Booking {
   id: string;
+  classId: string;
+  customerId: string;
   customer: string;
   bookedOnValue: number;
   email: string;
@@ -33,6 +37,7 @@ type SortDirection = "asc" | "desc";
 
 export default function AdminBookings() {
   const { classes, bookings: rawBookings, users, loading } = useAdminData();
+  const { user: adminUser } = useAuthContext();
   const [filter, setFilter] = useState<Filter>("All");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -53,6 +58,12 @@ export default function AdminBookings() {
   const [newClass, setNewClass] = useState("");
   const [newStatus, setNewStatus] = useState<BookingStatus>("Reserved");
 
+  // Action state
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
+
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
   const classesById = Object.fromEntries(classes.map((c) => [c.id, c]));
 
@@ -61,6 +72,8 @@ export default function AdminBookings() {
       const cls = classesById[b.classId];
       return {
         id: b.id,
+        classId: b.classId,
+        customerId: b.customerId,
         customer: cust?.name ?? "Unknown",
         bookedOnValue: b.createdAt,
         email: cust?.email ?? "",
@@ -73,8 +86,8 @@ export default function AdminBookings() {
       };
     });
 
-  const classOptions = classes.filter((c) => c.status === "upcoming").map((c) => ({ value: c.name, label: `${c.name} · ${fmtDate(c.date)}` }));
-  const customerOptions = users.filter((u) => u.role === "customer").map((u) => u.name);
+  const classOptions = classes.filter((c) => c.status === "upcoming").map((c) => ({ value: c.id, label: `${c.name} · ${fmtDate(c.date)}` }));
+  const customerOptions = users.filter((u) => u.role === "customer").map((u) => ({ value: u.uid, label: u.name }));
 
   const filtered = liveBookings.filter((b) => {
     if (filter !== "All" && b.status !== filter) return false;
@@ -96,9 +109,109 @@ export default function AdminBookings() {
 
   function openManage(b: Booking) {
     setSelected(b);
-    setTransferClass(b.classname);
-    setTransferCustomer(b.customer);
+    setTransferClass(b.classId);
+    setTransferCustomer(b.customerId);
+    setSaveError("");
     setManageOpen(true);
+  }
+
+  async function handleMarkAsPaid() {
+    if (!selected) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await updateBooking(selected.id, { status: "paid" });
+      setManageOpen(false);
+    } catch {
+      setSaveError("Failed to mark as paid. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveChanges() {
+    if (!selected || !adminUser) return;
+    const classChanged = transferClass !== selected.classId;
+    const customerChanged = transferCustomer !== selected.customerId;
+    if (!classChanged && !customerChanged) { setManageOpen(false); return; }
+    setSaving(true);
+    setSaveError("");
+    try {
+      if (classChanged) {
+        const newBookingId = await createBooking({
+          customerId: selected.customerId,
+          classId: transferClass,
+          status: selected.status === "Paid" ? "paid" : "reserved",
+          amount: selected.amount * 100,
+          transferredFrom: selected.id,
+          transferredTo: null,
+          transferType: "date",
+          createdAt: Date.now(),
+          createdBy: adminUser.uid,
+        });
+        await updateBooking(selected.id, { status: "transferred", transferredTo: newBookingId });
+        await setUserBookedClass(selected.customerId, selected.classId, null);
+        await setUserBookedClass(selected.customerId, transferClass, newBookingId);
+        await createTransferLog({
+          originalBookingId: selected.id,
+          newBookingId,
+          transferType: "date",
+          fromClassId: selected.classId,
+          toClassId: transferClass,
+          fromCustomerId: null,
+          toCustomerId: null,
+          performedBy: adminUser.uid,
+          createdAt: Date.now(),
+        });
+      } else {
+        await updateBooking(selected.id, { customerId: transferCustomer });
+        await setUserBookedClass(selected.customerId, selected.classId, null);
+        await setUserBookedClass(transferCustomer, selected.classId, selected.id);
+        await createTransferLog({
+          originalBookingId: selected.id,
+          newBookingId: selected.id,
+          transferType: "customer",
+          fromClassId: null,
+          toClassId: null,
+          fromCustomerId: selected.customerId,
+          toCustomerId: transferCustomer,
+          performedBy: adminUser.uid,
+          createdAt: Date.now(),
+        });
+      }
+      setManageOpen(false);
+    } catch {
+      setSaveError("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreateBooking() {
+    if (!newCustomer || !newClass || !adminUser) return;
+    setAddLoading(true);
+    setAddError("");
+    try {
+      await createBooking({
+        customerId: newCustomer,
+        classId: newClass,
+        status: newStatus === "Paid" ? "paid" : "reserved",
+        amount: 0,
+        transferredFrom: null,
+        transferredTo: null,
+        transferType: null,
+        createdAt: Date.now(),
+        createdBy: adminUser.uid,
+      });
+      setAddOpen(false);
+      setNewCustomer("");
+      setNewClass("");
+      setNewStatus("Reserved");
+    } catch {
+      setAddError("Failed to create booking. Please try again.");
+    } finally {
+      setAddLoading(false);
+    }
   }
 
   function toggleSort(nextSortKey: SortKey) {
@@ -293,22 +406,24 @@ export default function AdminBookings() {
                   onChange={(e) => setTransferCustomer(e.target.value)}
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
-                  {customerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {customerOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               {/* Mark as paid */}
               {selected.status === "Reserved" && (
                 <button
-                  onClick={() => setManageOpen(false)}
-                  className="w-full text-[13px] font-semibold text-[var(--color-teal)] border border-[rgba(122,174,173,0.3)] rounded-[6px] py-[9px] hover:bg-[rgba(122,174,173,0.08)] transition"
+                  onClick={handleMarkAsPaid}
+                  disabled={saving}
+                  className="w-full text-[13px] font-semibold text-[var(--color-teal)] border border-[rgba(122,174,173,0.3)] rounded-[6px] py-[9px] hover:bg-[rgba(122,174,173,0.08)] transition disabled:opacity-50"
                 >
-                  Mark as Paid
+                  {saving ? "Saving…" : "Mark as Paid"}
                 </button>
               )}
+              {saveError && <p className="text-[12px] text-[#E57373]">{saveError}</p>}
             </div>
             <div className="px-[24px] pb-[24px] flex justify-end gap-[10px]">
-              <button onClick={() => setManageOpen(false)} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition">Cancel</button>
-              <button onClick={() => setManageOpen(false)} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition">Save Changes</button>
+              <button onClick={() => setManageOpen(false)} disabled={saving} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition disabled:opacity-50">Cancel</button>
+              <button onClick={handleSaveChanges} disabled={saving} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition disabled:opacity-50">{saving ? "Saving…" : "Save Changes"}</button>
             </div>
           </div>
         </div>
@@ -331,7 +446,7 @@ export default function AdminBookings() {
                   className="w-full bg-[var(--color-dark-bg)] border border-[rgba(245,237,214,0.1)] rounded-[6px] px-[12px] py-[9px] text-[13px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
                 >
                   <option value="">Select customer…</option>
-                  {customerOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {customerOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               <div>
@@ -361,8 +476,9 @@ export default function AdminBookings() {
               </div>
             </div>
             <div className="px-[24px] pb-[24px] flex justify-end gap-[10px]">
-              <button onClick={() => setAddOpen(false)} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition">Cancel</button>
-              <button onClick={() => setAddOpen(false)} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition">Create Booking</button>
+              {addError && <p className="text-[12px] text-[#E57373] text-right">{addError}</p>}
+              <button onClick={() => setAddOpen(false)} disabled={addLoading} className="text-[13px] text-[rgba(245,237,214,0.5)] hover:text-[var(--color-cream)] px-[16px] py-[9px] transition disabled:opacity-50">Cancel</button>
+              <button onClick={handleCreateBooking} disabled={addLoading || !newCustomer || !newClass} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition disabled:opacity-50">{addLoading ? "Creating…" : "Create Booking"}</button>
             </div>
           </div>
         </div>

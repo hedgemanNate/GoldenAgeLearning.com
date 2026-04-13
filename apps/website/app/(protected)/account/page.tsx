@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "../../../context/AuthContext";
 import { changePassword } from "../../../lib/firebase/auth";
 import { updateUser, getBookingsByCustomer, getClass } from "../../../lib/firebase/db";
+import { callGetCustomerCard, callDeleteCustomerCard, callSaveCustomerCard } from "../../../lib/functions/client";
+import { getSquarePayments } from "../../../lib/square/client";
 
 interface UIUpcomingBooking {
   id: string;
@@ -40,8 +42,6 @@ function fmtBookingTime(ts: number, durationMin: number) {
   return `${fmt(start)}–${fmt(end)}`;
 }
 
-const MOCK_CARD = { network: "VISA", last4: "4242", expiry: "08 / 2028" };
-
 type Tab = "bookings" | "details" | "card";
 
 export default function AccountPage() {
@@ -52,7 +52,18 @@ export default function AccountPage() {
   // Modals
   const [cancelModalId, setCancelModalId] = useState<string | null>(null);
   const [showRemoveCardModal, setShowRemoveCardModal] = useState(false);
-  const [cardSaved, setCardSaved] = useState(true);
+
+  // Card state (Square card-on-file)
+  const [cardInfo, setCardInfo] = useState<{ brand: string; last4: string; expMonth: number; expYear: number } | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [showAddCardForm, setShowAddCardForm] = useState(false);
+  const sqCard = useRef<any>(null);
+  const squareReady = useRef(false);
+  const [addCardLoading, setAddCardLoading] = useState(false);
+  const [addCardError, setAddCardError] = useState("");
+  const [removeCardLoading, setRemoveCardLoading] = useState(false);
+  const [removeCardError, setRemoveCardError] = useState("");
+  const cardSaved = cardInfo !== null;
 
   // Inline edit
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -111,6 +122,86 @@ export default function AccountPage() {
       })
       .finally(() => setBookingsLoading(false));
   }, [firebaseUser]);
+
+  // Load card info from Square on mount
+  useEffect(() => {
+    if (!firebaseUser) return;
+    setCardLoading(true);
+    callGetCustomerCard()
+      .then((res) => {
+        if (res.data.hasCard) {
+          setCardInfo({ brand: res.data.brand!, last4: res.data.last4!, expMonth: res.data.expMonth!, expYear: res.data.expYear! });
+        } else {
+          setCardInfo(null);
+        }
+      })
+      .catch(() => setCardInfo(null))
+      .finally(() => setCardLoading(false));
+  }, [firebaseUser]);
+
+  // Mount Square card form when showAddCardForm is true
+  useEffect(() => {
+    if (!showAddCardForm) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const payments = await getSquarePayments();
+        if (cancelled || !payments) return;
+        const card = await payments.card();
+        if (cancelled) return;
+        await card.attach("#sq-card-add-container");
+        squareReady.current = true;
+        sqCard.current = card;
+      } catch {
+        // Square form failed to mount
+      }
+    })();
+    return () => {
+      cancelled = true;
+      squareReady.current = false;
+      if (sqCard.current) {
+        sqCard.current.destroy?.();
+        sqCard.current = null;
+      }
+    };
+  }, [showAddCardForm]);
+
+  const handleRemoveCard = async () => {
+    setRemoveCardError("");
+    setRemoveCardLoading(true);
+    try {
+      await callDeleteCustomerCard();
+      setCardInfo(null);
+      setShowRemoveCardModal(false);
+    } catch (err: any) {
+      setRemoveCardError(err.message || "Failed to remove card.");
+    } finally {
+      setRemoveCardLoading(false);
+    }
+  };
+
+  const handleSaveCard = async () => {
+    if (!sqCard.current) return;
+    setAddCardError("");
+    setAddCardLoading(true);
+    try {
+      const result = await sqCard.current.tokenize();
+      if (result.status !== "OK") {
+        setAddCardError(result.errors?.[0]?.message ?? "Card tokenization failed.");
+        return;
+      }
+      await callSaveCustomerCard({ sourceId: result.token });
+      const updated = await callGetCustomerCard();
+      if (updated.data.hasCard) {
+        setCardInfo({ brand: updated.data.brand!, last4: updated.data.last4!, expMonth: updated.data.expMonth!, expYear: updated.data.expYear! });
+      }
+      setShowAddCardForm(false);
+    } catch (err: any) {
+      setAddCardError(err.message || "Failed to save card.");
+    } finally {
+      setAddCardLoading(false);
+    }
+  };
 
   if (!firebaseUser) {
     return null;
@@ -171,6 +262,10 @@ export default function AccountPage() {
 
   const savePassword = async () => {
     setPasswordError("");
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
     if (!newPassword || newPassword.length < 8) {
       setPasswordError("Your password needs to be at least 8 characters.");
       return;
@@ -181,7 +276,7 @@ export default function AccountPage() {
     }
     
     try {
-      await changePassword(newPassword);
+      await changePassword(currentPassword, newPassword);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
@@ -191,7 +286,11 @@ export default function AccountPage() {
         cancelEdit();
       }, 10000);
     } catch (err: any) {
-      setPasswordError(err.message || "Failed to change password");
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setPasswordError("Your current password is incorrect.");
+      } else {
+        setPasswordError(err.message || "Failed to change password");
+      }
     }
   };
 
@@ -446,23 +545,28 @@ export default function AccountPage() {
               Saved card
             </p>
 
-            {cardSaved ? (
+            {cardLoading ? (
+              <p className="font-sans text-[13px] text-[rgba(245,237,214,0.4)]">Loading card info…</p>
+            ) : cardSaved && cardInfo ? (
               <div className="bg-[var(--color-dark-surface)] rounded-[8px] px-[18px] py-[14px] flex items-center justify-between gap-[16px]">
                 <div className="flex items-center gap-[14px]">
                   <div className="w-[36px] h-[24px] rounded-[4px] bg-[rgba(245,237,214,0.1)] flex items-center justify-center font-sans text-[8px] font-bold text-[var(--color-cream)] tracking-wide flex-shrink-0">
-                    {MOCK_CARD.network}
+                    {cardInfo.brand}
                   </div>
                   <div className="flex flex-col gap-[2px]">
                     <span className="font-sans font-medium text-[15px] text-[var(--color-cream)]">
-                      Visa ending in {MOCK_CARD.last4}
+                      {cardInfo.brand} ending in {cardInfo.last4}
                     </span>
                     <span className="font-sans text-[12px] text-[rgba(245,237,214,0.4)]">
-                      Expires {MOCK_CARD.expiry}
+                      Expires {cardInfo.expMonth}/{cardInfo.expYear}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-[16px] flex-shrink-0">
-                  <button className="font-sans text-[13px] text-[var(--color-gold)] underline hover:opacity-80 transition-opacity">
+                  <button
+                    onClick={() => setShowAddCardForm(true)}
+                    className="font-sans text-[13px] text-[var(--color-gold)] underline hover:opacity-80 transition-opacity"
+                  >
                     Update
                   </button>
                   <button
@@ -478,10 +582,38 @@ export default function AccountPage() {
                 <p className="font-sans text-[12px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[10px]">
                   No card saved yet
                 </p>
-                <button className="w-full h-[52px] rounded-[8px] border-[1.5px] border-dashed border-[rgba(201,168,76,0.5)] text-[var(--color-gold)] font-sans text-[14px] hover:bg-[rgba(201,168,76,0.05)] transition-all">
+                <button
+                  onClick={() => setShowAddCardForm((v) => !v)}
+                  className="w-full h-[52px] rounded-[8px] border-[1.5px] border-dashed border-[rgba(201,168,76,0.5)] text-[var(--color-gold)] font-sans text-[14px] hover:bg-[rgba(201,168,76,0.05)] transition-all"
+                >
                   + Add a payment card
                 </button>
               </>
+            )}
+
+            {showAddCardForm && (
+              <div className="flex flex-col gap-[14px] mt-[10px]">
+                <div id="sq-card-add-container" className="min-h-[80px]" />
+                {addCardError && (
+                  <p className="font-sans text-[13px] text-[rgba(226,75,74,0.9)]">{addCardError}</p>
+                )}
+                <div className="flex gap-[10px]">
+                  <button
+                    onClick={handleSaveCard}
+                    disabled={addCardLoading}
+                    className="flex-1 h-[48px] rounded-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-sans font-medium text-[15px] hover:opacity-90 disabled:opacity-50 transition-all"
+                  >
+                    {addCardLoading ? "Saving…" : "Save card"}
+                  </button>
+                  <button
+                    onClick={() => setShowAddCardForm(false)}
+                    disabled={addCardLoading}
+                    className="flex-1 h-[48px] rounded-[8px] border border-[rgba(245,237,214,0.2)] text-[var(--color-cream)] font-sans text-[15px] hover:bg-[rgba(245,237,214,0.05)] disabled:opacity-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -537,11 +669,15 @@ export default function AccountPage() {
             <p className="font-sans text-[14px] text-[rgba(245,237,214,0.55)] leading-[1.6]">
               Your card details will be deleted. You can always add a new card later.
             </p>
+            {removeCardError && (
+              <p className="font-sans text-[13px] text-[rgba(226,75,74,0.9)]">{removeCardError}</p>
+            )}
             <button
-              onClick={() => { setCardSaved(false); setShowRemoveCardModal(false); }}
-              className="w-full h-[52px] rounded-[8px] bg-[rgba(226,75,74,0.85)] text-[var(--color-cream)] font-sans text-[16px] font-medium hover:bg-[rgba(226,75,74,1)] transition-all"
+              onClick={handleRemoveCard}
+              disabled={removeCardLoading}
+              className="w-full h-[52px] rounded-[8px] bg-[rgba(226,75,74,0.85)] text-[var(--color-cream)] font-sans text-[16px] font-medium hover:bg-[rgba(226,75,74,1)] disabled:opacity-50 transition-all"
             >
-              Yes, remove my card
+              {removeCardLoading ? "Removing…" : "Yes, remove my card"}
             </button>
             <button
               onClick={() => setShowRemoveCardModal(false)}

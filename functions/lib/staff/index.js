@@ -33,9 +33,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changeUserRole = void 0;
+exports.sendStaffInvite = exports.changeUserRole = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions"));
+const sendEmail_1 = require("../utils/sendEmail");
 const ALLOWED_ROLES = new Set(["customer", "staff", "superAdmin", "sponsor"]);
 exports.changeUserRole = functions.https.onCall(async (data, context) => {
     const callerUid = context.auth?.uid;
@@ -85,5 +86,85 @@ exports.changeUserRole = functions.https.onCall(async (data, context) => {
         nextRole: requestedRole,
     });
     return { uid: targetUid, role: requestedRole };
+});
+// ─── sendStaffInvite ──────────────────────────────────────────────────────────
+exports.sendStaffInvite = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const db = admin.database();
+    const callerSnap = await db.ref(`users/${context.auth.uid}`).once("value");
+    if (!callerSnap.exists() || callerSnap.child("role").val() !== "superAdmin") {
+        throw new functions.https.HttpsError("permission-denied", "Only a Super Admin can invite staff.");
+    }
+    const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+    if (!email || !email.includes("@")) {
+        throw new functions.https.HttpsError("invalid-argument", "A valid email address is required.");
+    }
+    // Create Firebase Auth account if it does not already exist
+    let uid;
+    try {
+        const existing = await admin.auth().getUserByEmail(email);
+        uid = existing.uid;
+    }
+    catch (authErr) {
+        if (authErr?.code !== "auth/user-not-found") {
+            throw new functions.https.HttpsError("internal", "Could not look up user account. Please try again.");
+        }
+        try {
+            const newUser = await admin.auth().createUser({ email, emailVerified: false });
+            uid = newUser.uid;
+        }
+        catch {
+            throw new functions.https.HttpsError("internal", "Could not create the staff account. Please try again.");
+        }
+    }
+    // Ensure the RTDB profile exists and has the staff role
+    const profileSnap = await db.ref(`users/${uid}`).once("value");
+    if (profileSnap.exists()) {
+        await db.ref(`users/${uid}`).update({ role: "staff" });
+    }
+    else {
+        await db.ref(`users/${uid}`).set({
+            name: email,
+            email,
+            phone: null,
+            role: "staff",
+            createdAt: Date.now(),
+            bookedClasses: null,
+        });
+    }
+    // Write or update pending staff record
+    await db.ref(`pendingStaff/${uid}`).set({ email, invitedAt: Date.now(), status: "pending" });
+    // Generate a password-setup link
+    const actionCodeSettings = { url: "https://goldenagelearning.com/admin/login" };
+    let setupLink;
+    try {
+        setupLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+    }
+    catch (linkErr) {
+        functions.logger.error("generatePasswordResetLink failed", { email, error: linkErr?.message, code: linkErr?.code });
+        throw new functions.https.HttpsError("internal", `Could not generate the setup link: ${linkErr?.message ?? linkErr?.code ?? "unknown error"}. Ensure goldenagelearning.com is in Firebase Auth > Authorized Domains.`);
+    }
+    try {
+        await (0, sendEmail_1.sendEmail)({
+            to: email,
+            subject: "You've been invited to join Golden Age Learning as Staff",
+            html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
+          <h2 style="color:#141b1f;">Welcome to the Golden Age Learning team!</h2>
+          <p>You have been invited as a <strong>Staff Member</strong> on the Golden Age Learning platform.</p>
+          <p>Click the button below to set up your password and access the admin dashboard:</p>
+          <a href="${setupLink}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#c9a84c;color:#141b1f;font-weight:bold;text-decoration:none;border-radius:6px;">Set Up My Account</a>
+          <p style="font-size:13px;color:#666;">This link expires in 1 hour. If you did not expect this invitation, you can ignore this email.</p>
+        </div>
+      `,
+        });
+    }
+    catch (emailErr) {
+        throw new functions.https.HttpsError("internal", `Failed to send the invite email: ${emailErr?.message ?? "unknown error"}.`);
+    }
+    functions.logger.info("Staff invite sent", { email, uid });
+    return { success: true, uid };
 });
 //# sourceMappingURL=index.js.map

@@ -6,5 +6,6 @@
  * customer with a booking in those classes.
  */
 import * as functions from "firebase-functions";
+export declare const sendAdminMessage: functions.HttpsFunction & functions.Runnable<any>;
 export declare const processScheduledMessages: functions.CloudFunction<unknown>;
 //# sourceMappingURL=index.d.ts.map

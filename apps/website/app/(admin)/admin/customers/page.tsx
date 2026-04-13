@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import TablePagination from "../../../../components/admin/TablePagination";
 import { useAdminData } from "../../../../hooks/useAdminData";
 import { updateUser } from "../../../../lib/firebase/db";
+import { callDeleteCustomer } from "../../../../lib/functions/client";
 
 interface Customer {
   uid: string;
@@ -46,6 +47,8 @@ export default function AdminCustomers() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>("details");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editingNotes, setEditingNotes] = useState(false);
   const PAGE_SIZE = 25;
@@ -333,10 +336,33 @@ export default function AdminCustomers() {
                   Delete Account
                 </button>
               ) : (
-                <div className="flex gap-[10px] items-center">
-                  <span className="text-[12px] text-[rgba(245,237,214,0.6)]">Are you sure?</span>
-                  <button onClick={() => setDeleteConfirm(false)} className="text-[12px] text-[rgba(245,237,214,0.4)]">Cancel</button>
-                  <button onClick={() => setProfileOpen(false)} className="text-[12px] text-[#F87171] font-semibold hover:underline">Yes, Delete</button>
+                <div className="flex flex-col gap-[6px]">
+                  <div className="flex gap-[10px] items-center">
+                    <span className="text-[12px] text-[rgba(245,237,214,0.6)]">Are you sure?</span>
+                    <button onClick={() => setDeleteConfirm(false)} disabled={deleteLoading} className="text-[12px] text-[rgba(245,237,214,0.4)] disabled:opacity-50">Cancel</button>
+                    <button
+                      onClick={async () => {
+                        if (!selectedCustomerId || deleteLoading) return;
+                        setDeleteLoading(true);
+                        setDeleteError("");
+                        try {
+                          await callDeleteCustomer({ uid: selectedCustomerId });
+                          setProfileOpen(false);
+                          setDeleteConfirm(false);
+                          setSelectedCustomerId(null);
+                        } catch (err: unknown) {
+                          setDeleteError(err instanceof Error ? err.message : "Failed to delete customer.");
+                        } finally {
+                          setDeleteLoading(false);
+                        }
+                      }}
+                      disabled={deleteLoading}
+                      className="text-[12px] text-[#F87171] font-semibold hover:underline disabled:opacity-50"
+                    >
+                      {deleteLoading ? "Deleting…" : "Yes, Delete"}
+                    </button>
+                  </div>
+                  {deleteError && <p className="text-[11px] text-[#F87171]">{deleteError}</p>}
                 </div>
               )}
               <button onClick={() => setProfileOpen(false)} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px] hover:brightness-110 transition">Close</button>

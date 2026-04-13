@@ -3,13 +3,13 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
   User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "./client";
+import { callSendPasswordReset } from "../functions/client";
 
 export async function signInWithEmail(email: string, password: string) {
   return signInWithEmailAndPassword(auth, email, password);
@@ -24,16 +24,19 @@ export async function createAccount(email: string, password: string) {
 }
 
 export async function resetPassword(email: string) {
-  return sendPasswordResetEmail(auth, email);
+  await callSendPasswordReset({ email });
 }
 
-export async function changePassword(newPassword: string) {
+export async function changePassword(currentPassword: string, newPassword: string) {
   const user = auth.currentUser;
-  if (!user) {
+  if (!user || !user.email) {
     throw new Error("No user logged in");
   }
-  
-  // Update password
+
+  // Re-authenticate before performing a sensitive operation
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+
   await updatePassword(user, newPassword);
 }
 

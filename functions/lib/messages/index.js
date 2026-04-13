@@ -40,19 +40,138 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processScheduledMessages = void 0;
+exports.processScheduledMessages = exports.sendAdminMessage = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const emails_1 = require("../emails");
 const sms_1 = require("./sms");
+const sendEmail_1 = require("../utils/sendEmail");
+const sendSms_1 = require("../utils/sendSms");
+// ─── Helper: resolve recipients for an admin message ─────────────────────────
+async function resolveRecipients(db, sendTo) {
+    const usersSnap = await db.ref("users").once("value");
+    const allCustomers = [];
+    if (usersSnap.exists()) {
+        usersSnap.forEach((snap) => {
+            const u = snap.val();
+            if (u.role === "customer") {
+                allCustomers.push({ uid: snap.key, name: u.name, email: u.email ?? null, phone: u.phone ?? null });
+            }
+        });
+    }
+    if (sendTo === "all")
+        return allCustomers;
+    if (sendTo === "active") {
+        const cutoff = Date.now() - 45 * 24 * 60 * 60 * 1000;
+        const bookingsSnap = await db.ref("bookings").once("value");
+        const activeIds = new Set();
+        if (bookingsSnap.exists()) {
+            bookingsSnap.forEach((snap) => {
+                const b = snap.val();
+                if (b.createdAt >= cutoff && b.status !== "transferred")
+                    activeIds.add(b.customerId);
+            });
+        }
+        return allCustomers.filter((u) => activeIds.has(u.uid));
+    }
+    // sendTo is a classId
+    const booksSnap = await db.ref("bookings").orderByChild("classId").equalTo(sendTo).once("value");
+    const classCustomerIds = new Set();
+    if (booksSnap.exists()) {
+        booksSnap.forEach((snap) => {
+            const b = snap.val();
+            if (b.status !== "transferred")
+                classCustomerIds.add(b.customerId);
+        });
+    }
+    return allCustomers.filter((u) => classCustomerIds.has(u.uid));
+}
+async function dispatchToRecipients(recipients, channel, subject, body) {
+    const sent = {};
+    await Promise.allSettled(recipients.map(async (user) => {
+        try {
+            if (channel === "email" && user.email) {
+                await (0, sendEmail_1.sendEmail)({ to: user.email, subject: subject || "A message from Golden Age Learning", html: body });
+                sent[user.uid] = true;
+            }
+            else if (channel === "sms" && user.phone) {
+                await (0, sendSms_1.sendSms)({ to: user.phone, message: body });
+                sent[user.uid] = true;
+            }
+        }
+        catch (err) {
+            console.error(`Failed to send message to ${user.uid}:`, err);
+        }
+    }));
+    return sent;
+}
+// ─── Callable: send an admin-composed message immediately ─────────────────────
+exports.sendAdminMessage = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const { sendTo, channel, subject, body } = data;
+    if (!body?.trim()) {
+        throw new functions.https.HttpsError("invalid-argument", "Message body is required.");
+    }
+    const db = admin.database();
+    const recipients = await resolveRecipients(db, sendTo);
+    const sent = await dispatchToRecipients(recipients, channel, subject, body);
+    const recipientType = sendTo === "all" ? "all" : sendTo === "active" ? "active" : "class";
+    const msgRef = db.ref("messages").push();
+    const recipientsMap = Object.keys(sent).length > 0 ? sent : null;
+    await msgRef.set({
+        subject: subject || null,
+        body,
+        channel,
+        recipientType,
+        recipientId: recipientType === "class" ? sendTo : null,
+        recipients: recipientsMap,
+        recipientCount: Object.keys(sent).length,
+        status: "sent",
+        scheduledAt: null,
+        sentAt: Date.now(),
+        createdAt: Date.now(),
+        createdBy: context.auth.uid,
+    });
+    return { success: true, recipientCount: Object.keys(sent).length };
+});
 exports.processScheduledMessages = functions.pubsub
     .schedule("every 5 minutes")
     .onRun(async () => {
     const now = new Date();
-    // Only send reminders during the 8:00–8:04 AM window
+    const db = admin.database();
+    // ── Process pending scheduled admin messages (runs every 5 minutes) ───────
+    const messagesSnap = await db.ref("messages").once("value");
+    if (messagesSnap.exists()) {
+        const pending = [];
+        messagesSnap.forEach((snap) => {
+            const msg = snap.val();
+            if (msg.status === "scheduled" && typeof msg.scheduledAt === "number" && msg.scheduledAt <= now.getTime()) {
+                pending.push({ id: snap.key, data: msg });
+            }
+        });
+        for (const { id, data } of pending) {
+            try {
+                const sendTo = (data.recipientType === "class" ? data.recipientId : data.recipientType);
+                const recipients = await resolveRecipients(db, sendTo);
+                const sent = await dispatchToRecipients(recipients, data.channel, data.subject ?? null, data.body);
+                const recipientsMap = Object.keys(sent).length > 0 ? sent : null;
+                await db.ref(`messages/${id}`).update({
+                    status: "sent",
+                    sentAt: now.getTime(),
+                    recipients: recipientsMap,
+                    recipientCount: Object.keys(sent).length,
+                });
+            }
+            catch (err) {
+                console.error(`Failed to process scheduled message ${id}:`, err);
+            }
+        }
+    }
+    // Only send class reminders during the 8:00–8:04 AM window
     if (now.getHours() !== 8 || now.getMinutes() >= 5)
         return null;
-    const db = admin.database();
     // Build tomorrow's date range (midnight-to-midnight)
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);

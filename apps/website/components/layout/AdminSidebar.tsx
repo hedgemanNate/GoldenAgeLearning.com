@@ -47,8 +47,9 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const { user: currentUser } = useAuthContext();
+  const { user: currentUser, firebaseUser } = useAuthContext();
   const role: Role = currentUser?.role === "superAdmin" ? "superAdmin" : "staff";
+  const isOwner = firebaseUser?.email === "nathanhedgeman@gmail.com";
   const { bookings } = useAdminData();
   const todayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   const todayBookingsCount = bookings.filter((b) => b.createdAt >= todayStart).length;
@@ -76,12 +77,16 @@ export default function AdminSidebar() {
       <nav className="flex-1 px-[4px] py-[16px] flex flex-col gap-[24px]">
         {NAV_GROUPS.map(({ group, items, adminOnly }) => {
           if (adminOnly && role !== "superAdmin") return null;
+          const visibleItems = items.filter(
+            (item) => item.href !== "/admin/settings" || isOwner
+          );
+          if (visibleItems.length === 0) return null;
           return (
             <div key={group}>
               <p className="font-sans text-[8px] uppercase tracking-wider text-[rgba(245,237,214,0.25)] px-[10px] mb-[4px]">
                 {group}
               </p>
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const isExact = pathname === item.href;
                 const isSection = !isExact && item.href !== "/admin" && pathname.startsWith(item.href);
                 const isActive = isExact || isSection;
