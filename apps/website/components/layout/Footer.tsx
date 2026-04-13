@@ -66,6 +66,13 @@ export default function Footer() {
           </Link>
           <span className="text-[rgba(245,237,214,0.15)] text-[10px]">|</span>
           <Link
+            href="/terms"
+            className="font-sans text-[12px] text-[rgba(245,237,214,0.25)] hover:text-[rgba(245,237,214,0.5)] transition-colors"
+          >
+            Terms &amp; Conditions
+          </Link>
+          <span className="text-[rgba(245,237,214,0.15)] text-[10px]">|</span>
+          <Link
             href="/admin"
             className="font-sans text-[12px] text-[rgba(245,237,214,0.2)] hover:text-[rgba(245,237,214,0.45)] transition-colors"
           >
