@@ -607,9 +607,12 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
                   onChange={(e) => setPhone(e.target.value)}
                   className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] placeholder:text-[rgba(245,237,214,0.3)] transition-colors outline-none w-full"
                 />
-                <p className="font-sans text-[14px] text-[rgba(245,237,214,0.6)]">
-                  We&apos;ll send you a text to confirm your booking and payment. We will NEVER share your number. Reply STOP at any time to opt out.
-                </p>
+                <div className="mt-[4px] flex gap-[10px] rounded-[8px] border border-[rgba(201,168,76,0.2)] bg-[rgba(201,168,76,0.06)] px-[14px] py-[12px]">
+                  <span className="mt-[1px] text-[var(--color-gold)] text-[15px] flex-shrink-0">ⓘ</span>
+                  <p className="font-sans text-[13px] leading-[1.6] text-[rgba(245,237,214,0.55)]">
+                    By providing your phone number, you agree to receive text messages from Golden Age Learning for booking confirmations and reminders. We will <span className="font-semibold text-[rgba(245,237,214,0.75)]">never</span> share your number with anyone. Message and data rates may apply. Message frequency varies. Reply <span className="font-semibold text-[rgba(245,237,214,0.75)]">STOP</span> to unsubscribe.
+                  </p>
+                </div>
               </div>
 
               {/* Validation Error */}
