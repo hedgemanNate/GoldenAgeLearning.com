@@ -42,7 +42,6 @@ export default function AdminSettings() {
   type BackupEntry = { name: string; url: string; createdAt: Date };
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupsLoading, setBackupsLoading] = useState(true);
-  const [selectedBackup, setSelectedBackup] = useState<BackupEntry | null>(null);
   const [backupPage, setBackupPage] = useState(0);
 
   useEffect(() => {
@@ -74,6 +73,7 @@ export default function AdminSettings() {
   }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -118,7 +118,6 @@ export default function AdminSettings() {
       entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setBackups(entries);
       setBackupPage(0);
-      setSelectedBackup(null);
     } catch (err) {
       setBackupMsg({ type: "error", text: err instanceof Error ? err.message : "Backup failed." });
     } finally {
@@ -238,14 +237,14 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* Backup Database */}
+        {/* Database */}
         <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
+
+          {/* Section 1: Header */}
           <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
             <div>
-              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Backup Database</p>
-              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Save a full backup of all database data to Firebase Storage, including read-only server paths.
-              </p>
+              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Database</p>
+              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">Back up, restore, or download your database.</p>
               {backupMsg && (
                 <p className={`mt-[6px] text-[11px] ${backupMsg.type === "success" ? "text-[var(--color-teal)]" : "text-[#F87171]"}`}>
                   {backupMsg.text}
@@ -257,77 +256,58 @@ export default function AdminSettings() {
               disabled={backing}
               className="flex-shrink-0 px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(122,174,173,0.1)] text-[var(--color-teal)] border border-[rgba(122,174,173,0.25)] hover:bg-[rgba(122,174,173,0.18)] transition-colors disabled:opacity-50"
             >
-              {backing ? "Backing up…" : "Backup Database"}
+              {backing ? "Backing up…" : "Backup Now"}
             </button>
           </div>
-        </div>
 
-        {/* Cloud Backups — unified selectable list */}
-        <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
-          <div className="px-[20px] py-[16px] flex items-center justify-between gap-[16px] border-b border-[rgba(245,237,214,0.06)]">
-            <div>
-              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Cloud Backups</p>
-              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Select a backup to export locally or restore the database.
-              </p>
-            </div>
-            <div className="flex gap-[8px] flex-shrink-0">
-              <button
-                disabled={!selectedBackup}
-                onClick={async () => {
-                  if (!selectedBackup) return;
-                  const res = await fetch(selectedBackup.url);
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = selectedBackup.name;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-                className="px-[14px] py-[7px] text-[12px] font-semibold rounded-[6px] bg-[rgba(201,168,76,0.08)] text-[var(--color-gold)] border border-[rgba(201,168,76,0.2)] hover:bg-[rgba(201,168,76,0.16)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Export Local
-              </button>
-              <button
-                disabled={!selectedBackup}
-                onClick={() => {
-                  if (!selectedBackup) return;
-                  setCloudImportEntry(selectedBackup);
-                  setImportResult(null);
-                  setShowConfirm(true);
-                }}
-                className="px-[14px] py-[7px] text-[12px] font-semibold rounded-[6px] bg-[rgba(122,174,173,0.1)] text-[var(--color-teal)] border border-[rgba(122,174,173,0.25)] hover:bg-[rgba(122,174,173,0.18)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Import
-              </button>
-            </div>
-          </div>
-          <div className="px-[20px] py-[14px]">
+          {/* Section 2: Cloud Backups list */}
+          <div className="border-t border-[rgba(245,237,214,0.06)] px-[20px] py-[16px]">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[rgba(245,237,214,0.25)] mb-[12px]">Cloud Backups</p>
             {backupsLoading ? (
               <p className="text-[12px] text-[rgba(245,237,214,0.3)]">Loading…</p>
             ) : backups.length === 0 ? (
-              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">No backups found.</p>
+              <p className="text-[12px] text-[rgba(245,237,214,0.3)]">No backups yet. Click &quot;Backup Now&quot; to create one.</p>
             ) : (
               <>
                 <div className="flex flex-col gap-[2px]">
-                  {pagedBackups.map((b) => {
-                    const isSelected = selectedBackup?.name === b.name;
-                    return (
-                      <button
-                        key={b.name}
-                        onClick={() => setSelectedBackup(isSelected ? null : b)}
-                        className={`w-full text-left px-[12px] py-[10px] rounded-[6px] border-l-[3px] transition-colors ${
-                          isSelected
-                            ? "bg-[rgba(245,237,214,0.07)] border-l-[var(--color-cream)]"
-                            : "bg-transparent border-l-transparent hover:bg-[rgba(245,237,214,0.04)]"
-                        }`}
-                      >
-                        <p className="text-[12px] text-[var(--color-cream)]">{b.name}</p>
+                  {pagedBackups.map((b) => (
+                    <div
+                      key={b.name}
+                      className="flex items-center gap-[12px] px-[10px] py-[9px] rounded-[6px] hover:bg-[rgba(245,237,214,0.03)] transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-[var(--color-cream)] truncate">{b.name}</p>
                         <p className="text-[10px] text-[rgba(245,237,214,0.35)] mt-[2px]">{b.createdAt.toLocaleString()}</p>
-                      </button>
-                    );
-                  })}
+                      </div>
+                      <div className="flex gap-[6px] flex-shrink-0">
+                        <button
+                          onClick={async () => {
+                            const res = await fetch(b.url);
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = b.name;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="px-[10px] py-[5px] text-[11px] font-semibold rounded-[5px] bg-[rgba(201,168,76,0.08)] text-[var(--color-gold)] border border-[rgba(201,168,76,0.2)] hover:bg-[rgba(201,168,76,0.16)] transition-colors"
+                        >
+                          Download
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCloudImportEntry(b);
+                            setImportResult(null);
+                            setShowConfirm(true);
+                          }}
+                          className="px-[10px] py-[5px] text-[11px] font-semibold rounded-[5px] bg-[rgba(122,174,173,0.08)] text-[var(--color-teal)] border border-[rgba(122,174,173,0.2)] hover:bg-[rgba(122,174,173,0.16)] transition-colors"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-[10px] pt-[10px] border-t border-[rgba(245,237,214,0.06)]">
@@ -351,18 +331,14 @@ export default function AdminSettings() {
               </>
             )}
           </div>
-        </div>
 
-        {/* Import Database — local file */}
-        <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
-          <div className="px-[20px] py-[18px]">
-            <div className="mb-[14px]">
-              <p className="text-[14px] font-semibold text-[var(--color-cream)]">Import Database</p>
-              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
-                Restore from a local JSON file. Overwrites existing data.{" "}
-                <span className="text-[rgba(248,113,113,0.7)]">Read-only paths are skipped.</span>
-              </p>
-            </div>
+          {/* Section 3: Restore from File */}
+          <div className="border-t border-[rgba(245,237,214,0.06)] px-[20px] py-[16px]">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[rgba(245,237,214,0.25)] mb-[12px]">Restore from File</p>
+            <p className="text-[12px] text-[rgba(245,237,214,0.4)] mb-[10px]">
+              Upload a local JSON backup.{" "}
+              <span className="text-[rgba(248,113,113,0.7)]">Read-only paths are skipped.</span>
+            </p>
             <div className="flex items-center gap-[10px]">
               <label className="px-[14px] py-[7px] text-[12px] font-semibold rounded-[6px] bg-[rgba(245,237,214,0.07)] text-[rgba(245,237,214,0.6)] border border-[rgba(245,237,214,0.1)] hover:bg-[rgba(245,237,214,0.1)] transition-colors cursor-pointer">
                 Choose File
@@ -379,11 +355,11 @@ export default function AdminSettings() {
               </span>
               {importFile && (
                 <button
-                  onClick={() => setShowConfirm(true)}
+                  onClick={() => { setCloudImportEntry(null); setImportResult(null); setShowConfirm(true); }}
                   disabled={importing}
-                  className="ml-auto px-[16px] py-[7px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.12)] text-[#F87171] border border-[rgba(220,38,38,0.25)] hover:bg-[rgba(220,38,38,0.2)] transition-colors disabled:opacity-50"
+                  className="ml-auto px-[14px] py-[7px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.12)] text-[#F87171] border border-[rgba(220,38,38,0.25)] hover:bg-[rgba(220,38,38,0.2)] transition-colors disabled:opacity-50"
                 >
-                  Import
+                  Restore
                 </button>
               )}
             </div>
@@ -393,6 +369,7 @@ export default function AdminSettings() {
               </p>
             )}
           </div>
+
         </div>
 
         {/* Delete All Data — owner only */}
