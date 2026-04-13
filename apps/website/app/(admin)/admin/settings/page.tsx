@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ref, get, set } from "firebase/database";
 import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { db, auth } from "../../../../lib/firebase/client";
@@ -32,8 +33,15 @@ const WRITABLE_PATHS = [
 ];
 
 export default function AdminSettings() {
+  const router = useRouter();
   const { firebaseUser } = useAuthContext();
   const isOwner = firebaseUser?.email === "nathanhedgeman@gmail.com";
+
+  useEffect(() => {
+    if (firebaseUser !== null && !isOwner) {
+      router.replace("/admin");
+    }
+  }, [firebaseUser, isOwner, router]);
 
   const [maintenanceMode, setMaintenanceModeState] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,25 +74,29 @@ export default function AdminSettings() {
     }
   }
 
+  async function exportDatabase() {
+    const entries = await Promise.all(
+      EXPORTABLE_PATHS.map(async (path) => {
+        const snap = await get(ref(db, path));
+        return [path, snap.val()] as const;
+      })
+    );
+    const data = Object.fromEntries(entries.filter(([, v]) => v !== null));
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const date = new Date().toISOString().split("T")[0];
+    a.download = `gal-database-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleExport() {
     setExporting(true);
     try {
-      const entries = await Promise.all(
-        EXPORTABLE_PATHS.map(async (path) => {
-          const snap = await get(ref(db, path));
-          return [path, snap.val()] as const;
-        })
-      );
-      const data = Object.fromEntries(entries.filter(([, v]) => v !== null));
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const date = new Date().toISOString().split("T")[0];
-      a.download = `gal-database-${date}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await exportDatabase();
     } finally {
       setExporting(false);
     }
@@ -142,7 +154,7 @@ export default function AdminSettings() {
     }
     try {
       await deleteAllData();
-      setDeleteResult({ type: "success", message: "All data has been deleted." });
+      setDeleteResult({ type: "success", message: "All data has been deleted. A backup was saved to Firebase Storage." });
       setShowDeleteConfirm(false);
       setDeletePassword("");
     } catch (err) {
