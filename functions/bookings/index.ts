@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { sendBookingConfirmation, sendBookingNotification, sendPaymentReceived } from "../emails";
-import { sendBookingConfirmationSms } from "../messages/sms";
+import { sendBookingConfirmationSms, sendPaymentReceivedSms } from "../messages/sms";
 
 const NOTIFICATION_EMAIL = "bookingnotification@goldenagelearning.com";
 
@@ -101,14 +101,25 @@ export const onBookingCreated = functions.database
     }
 
     if (customer?.phone) {
-      deliveries.push({
-        label: `customer booking SMS (${customer.phone})`,
-        task: sendBookingConfirmationSms(customer.phone, {
-          className: cls?.name ?? "Unknown Class",
-          classDate,
-          classTime,
-        }),
-      });
+      if (booking.status === "paid") {
+        deliveries.push({
+          label: `customer payment received SMS (${customer.phone})`,
+          task: sendPaymentReceivedSms(customer.phone, {
+            amount: `$${(booking.amount / 100).toFixed(2)}`,
+            className: cls?.name ?? "Unknown Class",
+            classDate,
+          }),
+        });
+      } else {
+        deliveries.push({
+          label: `customer booking SMS (${customer.phone})`,
+          task: sendBookingConfirmationSms(customer.phone, {
+            className: cls?.name ?? "Unknown Class",
+            classDate,
+            classTime,
+          }),
+        });
+      }
     }
 
     const results = await Promise.allSettled(deliveries.map((delivery) => delivery.task));

@@ -608,7 +608,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
                   className="bg-[#111820] border border-[rgba(245,237,214,0.15)] focus:border-[var(--color-gold)] rounded-[8px] h-[64px] px-[20px] text-[var(--color-cream)] font-sans text-[18px] placeholder:text-[rgba(245,237,214,0.3)] transition-colors outline-none w-full"
                 />
                 <p className="font-sans text-[14px] text-[rgba(245,237,214,0.6)]">
-                  We will text you a reminder before your class.
+                  We&apos;ll send you a text to confirm your booking and payment. We will NEVER share your number. Reply STOP at any time to opt out.
                 </p>
               </div>
 
