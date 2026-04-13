@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ref, get, set } from "firebase/database";
-import { db } from "../../../../lib/firebase/client";
+import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { db, auth } from "../../../../lib/firebase/client";
 import { subscribeMaintenanceMode, setMaintenanceMode, deleteAllData } from "../../../../lib/firebase/db";
+import { useAuthContext } from "../../../../context/AuthContext";
 
 // Paths where a superAdmin can read the full collection (parent-level .read rule exists)
 const EXPORTABLE_PATHS = [
@@ -30,6 +32,9 @@ const WRITABLE_PATHS = [
 ];
 
 export default function AdminSettings() {
+  const { firebaseUser } = useAuthContext();
+  const isOwner = firebaseUser?.email === "nathanhedgeman@gmail.com";
+
   const [maintenanceMode, setMaintenanceModeState] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +47,8 @@ export default function AdminSettings() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletePasswordError, setDeletePasswordError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteResult, setDeleteResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -122,20 +128,32 @@ export default function AdminSettings() {
   }
 
   async function handleDeleteAll() {
+    setDeletePasswordError("");
     setDeleting(true);
-    setDeleteResult(null);
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) throw new Error("No user logged in.");
+      const credential = EmailAuthProvider.credential(user.email, deletePassword);
+      await reauthenticateWithCredential(user, credential);
+    } catch {
+      setDeletePasswordError("Incorrect password. Please try again.");
+      setDeleting(false);
+      return;
+    }
     try {
       await deleteAllData();
       setDeleteResult({ type: "success", message: "All data has been deleted." });
+      setShowDeleteConfirm(false);
+      setDeletePassword("");
     } catch (err) {
       setDeleteResult({
         type: "error",
         message: err instanceof Error ? err.message : "Delete failed.",
       });
+      setShowDeleteConfirm(false);
+      setDeletePassword("");
     } finally {
       setDeleting(false);
-      setShowDeleteConfirm(false);
-      setDeleteConfirmText("");
     }
   }
 
@@ -193,8 +211,8 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* Delete All Data */}
-        <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden border border-[rgba(220,38,38,0.2)]">
+        {/* Delete All Data — owner only */}
+        {isOwner && <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden border border-[rgba(220,38,38,0.2)]">
           <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
             <div>
               <p className="text-[14px] font-semibold text-[#F87171]">Delete All Data</p>
@@ -215,7 +233,7 @@ export default function AdminSettings() {
               Delete All Data
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* Import Database */}
         <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
@@ -260,8 +278,8 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      {/* Confirm Delete All Modal */}
-      {showDeleteConfirm && (
+      {/* Confirm Delete All Modal — owner only */}
+      {isOwner && showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-[var(--color-dark-surface)] rounded-[12px] w-full max-w-[420px] p-[28px] mx-[16px]">
             <h2 className="text-[16px] font-bold text-[#F87171] mb-[10px]">Delete All Data?</h2>
@@ -269,25 +287,30 @@ export default function AdminSettings() {
               This will permanently erase everything in the database — users, bookings, classes, payments, and all other data. This cannot be undone.
             </p>
             <p className="text-[12px] text-[rgba(245,237,214,0.5)] mb-[8px]">
-              Type <span className="font-mono font-bold text-[var(--color-cream)]">DELETE</span> to confirm.
+              Enter your password to confirm.
             </p>
             <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE"
-              className="w-full px-[12px] py-[8px] mb-[20px] text-[13px] rounded-[6px] bg-[rgba(245,237,214,0.06)] border border-[rgba(245,237,214,0.1)] text-[var(--color-cream)] placeholder:text-[rgba(245,237,214,0.2)] outline-none focus:border-[rgba(220,38,38,0.5)]"
+              type="password"
+              value={deletePassword}
+              onChange={(e) => { setDeletePassword(e.target.value); setDeletePasswordError(""); }}
+              placeholder="Password"
+              autoComplete="current-password"
+              className="w-full px-[12px] py-[8px] mb-[4px] text-[13px] rounded-[6px] bg-[rgba(245,237,214,0.06)] border border-[rgba(245,237,214,0.1)] text-[var(--color-cream)] placeholder:text-[rgba(245,237,214,0.2)] outline-none focus:border-[rgba(220,38,38,0.5)]"
             />
+            {deletePasswordError && (
+              <p className="text-[11px] text-[#F87171] mb-[14px]">{deletePasswordError}</p>
+            )}
+            {!deletePasswordError && <div className="mb-[20px]" />}
             <div className="flex gap-[10px] justify-end">
               <button
-                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setDeletePasswordError(""); }}
                 className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(245,237,214,0.07)] text-[rgba(245,237,214,0.6)] hover:bg-[rgba(245,237,214,0.12)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteAll}
-                disabled={deleting || deleteConfirmText !== "DELETE"}
+                disabled={deleting || !deletePassword}
                 className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.15)] text-[#F87171] border border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.25)] transition-colors disabled:opacity-40"
               >
                 {deleting ? "Deleting…" : "Yes, Delete Everything"}
