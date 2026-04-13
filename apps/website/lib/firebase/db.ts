@@ -505,3 +505,10 @@ export function subscribeMaintenanceMode(callback: (enabled: boolean) => void): 
     callback(snap.val() === true);
   });
 }
+
+// ─── Database Management ──────────────────────────────────────────────────────
+
+export async function deleteAllData(): Promise<void> {
+  const callable = httpsCallable(functions, "deleteAllData");
+  await callable({});
+}

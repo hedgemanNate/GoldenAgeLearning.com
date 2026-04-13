@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ref, get, set } from "firebase/database";
 import { db } from "../../../../lib/firebase/client";
-import { subscribeMaintenanceMode, setMaintenanceMode } from "../../../../lib/firebase/db";
+import { subscribeMaintenanceMode, setMaintenanceMode, deleteAllData } from "../../../../lib/firebase/db";
 
 // Paths where a superAdmin can read the full collection (parent-level .read rule exists)
 const EXPORTABLE_PATHS = [
@@ -40,6 +40,11 @@ export default function AdminSettings() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     const unsub = subscribeMaintenanceMode((enabled) => setMaintenanceModeState(enabled));
@@ -116,6 +121,24 @@ export default function AdminSettings() {
     }
   }
 
+  async function handleDeleteAll() {
+    setDeleting(true);
+    setDeleteResult(null);
+    try {
+      await deleteAllData();
+      setDeleteResult({ type: "success", message: "All data has been deleted." });
+    } catch (err) {
+      setDeleteResult({
+        type: "error",
+        message: err instanceof Error ? err.message : "Delete failed.",
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
+    }
+  }
+
   return (
     <div className="p-[32px] font-sans">
       <div className="mb-[32px]">
@@ -170,6 +193,30 @@ export default function AdminSettings() {
           </div>
         </div>
 
+        {/* Delete All Data */}
+        <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden border border-[rgba(220,38,38,0.2)]">
+          <div className="px-[20px] py-[18px] flex items-center justify-between gap-[16px]">
+            <div>
+              <p className="text-[14px] font-semibold text-[#F87171]">Delete All Data</p>
+              <p className="text-[12px] text-[rgba(245,237,214,0.4)] mt-[2px]">
+                Permanently deletes all data from the database including read-only server paths. This cannot be undone.
+              </p>
+              {deleteResult && (
+                <p className={`mt-[8px] text-[12px] ${deleteResult.type === "success" ? "text-[var(--color-teal)]" : "text-[#F87171]"}`}>
+                  {deleteResult.message}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => { setShowDeleteConfirm(true); setDeleteResult(null); }}
+              disabled={deleting}
+              className="flex-shrink-0 px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.12)] text-[#F87171] border border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.22)] transition-colors disabled:opacity-50"
+            >
+              Delete All Data
+            </button>
+          </div>
+        </div>
+
         {/* Import Database */}
         <div className="bg-[var(--color-dark-surface)] rounded-[8px] overflow-hidden">
           <div className="px-[20px] py-[18px]">
@@ -212,6 +259,43 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
+
+      {/* Confirm Delete All Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[var(--color-dark-surface)] rounded-[12px] w-full max-w-[420px] p-[28px] mx-[16px]">
+            <h2 className="text-[16px] font-bold text-[#F87171] mb-[10px]">Delete All Data?</h2>
+            <p className="text-[13px] text-[rgba(245,237,214,0.55)] mb-[18px]">
+              This will permanently erase everything in the database — users, bookings, classes, payments, and all other data. This cannot be undone.
+            </p>
+            <p className="text-[12px] text-[rgba(245,237,214,0.5)] mb-[8px]">
+              Type <span className="font-mono font-bold text-[var(--color-cream)]">DELETE</span> to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="w-full px-[12px] py-[8px] mb-[20px] text-[13px] rounded-[6px] bg-[rgba(245,237,214,0.06)] border border-[rgba(245,237,214,0.1)] text-[var(--color-cream)] placeholder:text-[rgba(245,237,214,0.2)] outline-none focus:border-[rgba(220,38,38,0.5)]"
+            />
+            <div className="flex gap-[10px] justify-end">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(""); }}
+                className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(245,237,214,0.07)] text-[rgba(245,237,214,0.6)] hover:bg-[rgba(245,237,214,0.12)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                disabled={deleting || deleteConfirmText !== "DELETE"}
+                className="px-[16px] py-[8px] text-[12px] font-semibold rounded-[6px] bg-[rgba(220,38,38,0.15)] text-[#F87171] border border-[rgba(220,38,38,0.3)] hover:bg-[rgba(220,38,38,0.25)] transition-colors disabled:opacity-40"
+              >
+                {deleting ? "Deleting…" : "Yes, Delete Everything"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Import Modal */}
       {showConfirm && (
