@@ -20,9 +20,10 @@ export default function PrivacyPolicyPage() {
           {/* 1. Introduction */}
           <Section number="1" title="Introduction">
             <p>
-              Welcome. This Privacy Policy explains how we collect, use, disclose, and safeguard
-              your information when you visit our website and use our booking services. Please read
-              this policy carefully. By using our site, you agree to the terms described below.
+              Welcome to Golden Age Learning. This Privacy Policy explains how Golden Age Learning
+              collects, uses, discloses, and safeguards your information when you visit
+              goldenagelearning.com and use our class booking services. Please read this policy
+              carefully. By using our site, you agree to the terms described below.
             </p>
           </Section>
 
@@ -54,19 +55,19 @@ export default function PrivacyPolicyPage() {
 
           {/* 3. How We Use Your Information */}
           <Section number="3" title="How We Use Your Information">
-            <p>We use the information we collect to:</p>
+            <p>Golden Age Learning uses the information we collect to:</p>
             <ul className="list-disc list-outside ml-[20px] flex flex-col gap-[6px]">
-              <li>Process and confirm bookings</li>
-              <li>Send booking confirmations, reminders, and updates</li>
+              <li>Process and confirm your class bookings</li>
+              <li>Send booking confirmations, reminders, and class updates</li>
               <li>Respond to inquiries and provide customer support</li>
               <li>Process payments securely</li>
-              <li>Improve the functionality and user experience of our website</li>
+              <li>Improve goldenagelearning.com and the booking experience</li>
               <li>Comply with legal obligations</li>
               <li>Send occasional service-related communications</li>
             </ul>
             <p>
-              We do <strong className="text-[var(--color-cream)]">not</strong> sell your personal
-              information to third parties.
+              Golden Age Learning does <strong className="text-[var(--color-cream)]">not</strong> sell
+              your personal information to third parties.
             </p>
           </Section>
 
@@ -75,8 +76,8 @@ export default function PrivacyPolicyPage() {
           {/* 4. Sharing Your Information */}
           <Section number="4" title="Sharing Your Information">
             <p>
-              We may share your information with trusted third parties only as necessary to operate
-              our services, including:
+              Golden Age Learning may share your information with trusted third parties only as
+              necessary to operate our class booking services, including:
             </p>
             <ul className="list-disc list-outside ml-[20px] flex flex-col gap-[6px]">
               <li>
@@ -109,8 +110,8 @@ export default function PrivacyPolicyPage() {
           {/* 5. SMS Communications */}
           <Section number="5" title="SMS Communications">
             <p>
-              We may send SMS (text message) communications to the phone number you provide, for
-              the following purposes:
+              Golden Age Learning may send SMS (text message) communications to the phone number
+              you provide when booking a class, for the following purposes:
             </p>
             <ul className="list-disc list-outside ml-[20px] flex flex-col gap-[6px]">
               <li>
@@ -143,7 +144,7 @@ export default function PrivacyPolicyPage() {
                 Standard message and data rates may apply depending on your mobile carrier and plan.
               </InfoRow>
               <InfoRow label="Your Phone Number">
-                We will{" "}
+                Golden Age Learning will{" "}
                 <strong className="text-[var(--color-cream)]">never</strong> share, sell, or
                 disclose your phone number to third parties for their own marketing purposes. Your
                 phone number is used solely to deliver the SMS communications described above.
@@ -161,9 +162,10 @@ export default function PrivacyPolicyPage() {
           {/* 6. Cookies */}
           <Section number="6" title="Cookies">
             <p>
-              We use cookies to enhance your browsing experience. Cookies are small data files
-              stored on your device. You may disable cookies through your browser settings, though
-              some features of the site may not function properly as a result.
+              Golden Age Learning uses cookies to enhance your browsing experience on
+              goldenagelearning.com. Cookies are small data files stored on your device. You may
+              disable cookies through your browser settings, though some features of the site may
+              not function properly as a result.
             </p>
             <p>Types of cookies we use:</p>
             <ul className="list-disc list-outside ml-[20px] flex flex-col gap-[6px]">
@@ -187,9 +189,10 @@ export default function PrivacyPolicyPage() {
           {/* 7. Data Retention */}
           <Section number="7" title="Data Retention">
             <p>
-              We retain your personal information for as long as necessary to fulfill the purposes
-              outlined in this policy, complete your bookings, and comply with our legal obligations.
-              When your data is no longer needed, we securely delete or anonymize it.
+              Golden Age Learning retains your personal information for as long as necessary to
+              fulfill the purposes outlined in this policy, complete your class bookings, and comply
+              with our legal obligations. When your data is no longer needed, we securely delete or
+              anonymize it.
             </p>
           </Section>
 
@@ -198,10 +201,10 @@ export default function PrivacyPolicyPage() {
           {/* 8. Data Security */}
           <Section number="8" title="Data Security">
             <p>
-              We implement reasonable technical and organizational security measures to protect your
-              personal information from unauthorized access, disclosure, alteration, or destruction.
-              However, no method of transmission over the internet is 100% secure, and we cannot
-              guarantee absolute security.
+              Golden Age Learning implements reasonable technical and organizational security
+              measures to protect your personal information from unauthorized access, disclosure,
+              alteration, or destruction. However, no method of transmission over the internet is
+              100% secure, and we cannot guarantee absolute security.
             </p>
           </Section>
 
@@ -245,9 +248,10 @@ export default function PrivacyPolicyPage() {
           {/* 10. Children's Privacy */}
           <Section number="10" title="Children's Privacy">
             <p>
-              Our website is not directed to children under the age of 13. We do not knowingly
-              collect personal information from children. If you believe a child has provided us
-              with their information, please contact us and we will promptly delete it.
+              Golden Age Learning is a platform designed for adult learners. Our website is not
+              directed to children under the age of 13. We do not knowingly collect personal
+              information from children. If you believe a child has provided us with their
+              information, please contact us and we will promptly delete it.
             </p>
           </Section>
 
@@ -256,9 +260,9 @@ export default function PrivacyPolicyPage() {
           {/* 11. Third-Party Links */}
           <Section number="11" title="Third-Party Links">
             <p>
-              Our website may contain links to third-party websites. We are not responsible for the
-              privacy practices of those sites and encourage you to review their privacy policies
-              independently.
+              Goldenagelearning.com may contain links to third-party websites. Golden Age Learning
+              is not responsible for the privacy practices of those sites and encourages you to
+              review their privacy policies independently.
             </p>
           </Section>
 
@@ -267,8 +271,8 @@ export default function PrivacyPolicyPage() {
           {/* 12. Contact Us */}
           <Section number="12" title="Contact Us">
             <p>
-              If you have any questions or concerns about this Privacy Policy or how we handle your
-              data, please contact us at:
+              If you have any questions or concerns about this Privacy Policy or how Golden Age
+              Learning handles your data, please contact us at:
             </p>
             <div className="rounded-[10px] border border-[rgba(245,237,214,0.1)] bg-[var(--color-dark-surface)] px-[20px] py-[16px] flex flex-col gap-[6px]">
               <p>
@@ -288,9 +292,10 @@ export default function PrivacyPolicyPage() {
           {/* 13. Changes to This Policy */}
           <Section number="13" title="Changes to This Policy">
             <p>
-              We may update this Privacy Policy from time to time. When we do, we will revise the
-              Effective Date at the top of this page. We encourage you to review this policy
-              periodically to stay informed about how we protect your information.
+              Golden Age Learning may update this Privacy Policy from time to time. When we do, we
+              will revise the Effective Date at the top of this page. We encourage you to review
+              this policy periodically to stay informed about how Golden Age Learning protects your
+              information.
             </p>
           </Section>
 
