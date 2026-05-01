@@ -1,5 +1,5 @@
 # Golden Age Learning — Copilot Document Generation Instructions
-**Version 2.5 — Next.js / TypeScript / Tailwind**
+**Version 2.6 — Next.js / TypeScript / Tailwind**
 
 ---
 
@@ -370,6 +370,97 @@ Pages beyond Page 1 contain only:
 - Tall enough for handwriting
 - White background
 
+---
+
+### Page Layout Budget (Worksheets)
+
+> ⚠️ **These numbers are hard limits.** Every worksheet page must be planned against this budget before any code is written. Exceeding the usable area causes content to overflow into the footer or off the page entirely.
+
+#### Global Constants
+
+| Value | Amount |
+|---|---|
+| Total page height | 11.00 in |
+| Top padding | − 0.75 in |
+| Bottom clearance (footer reserve) | − 1.20 in |
+| **Usable vertical flow area** | **9.05 in = 868.8 px** |
+
+**Rule:** Total normal-flow content height on each page must be **≤ 868.8 px**. Plan each page against this number before writing code.
+
+#### Component Height Constants
+
+Use these fixed values when calculating page budgets. Do not estimate or eyeball.
+
+| Component | Height |
+|---|---|
+| Page header line block | 29 px |
+| Gradient rule | 5 px |
+| Title block (Page 1) | 55.2 px |
+| Student Name block (Page 1) | 76 px |
+| Section header block | 34 px |
+| Activity heading block | 24 px |
+| One bullet row (single line) | 26.4 px |
+| Practice box total footprint | box height + 26 px |
+| Emoji row block (e.g. Activity F) | 50 px |
+
+#### Page 1 Budget
+
+| Stack item | Height |
+|---|---|
+| Header | 29 px |
+| Gradient Rule #1 | 5 px |
+| Title block | 55.2 px |
+| Gradient Rule #2 | 5 px |
+| Student Name block | 76 px |
+| **Fixed top subtotal** | **170.2 px** |
+| **Remaining for body content** | **868.8 − 170.2 = 698.6 px** |
+
+Recommended section caps for Page 1:
+
+| Section | Cap |
+|---|---|
+| Part 1 | 240 px |
+| Part 2 | 430 px |
+| Safety buffer | 28.6 px |
+| **Total** | **698.6 px** |
+
+#### Page 2 Budget
+
+| Stack item | Height |
+|---|---|
+| Header | 29 px |
+| Gradient rule | 5 px |
+| Top spacer | 20 px |
+| **Fixed top subtotal** | **54 px** |
+| **Remaining for body content** | **868.8 − 54 = 814.8 px** |
+
+Recommended section caps for Page 2:
+
+| Section | Cap |
+|---|---|
+| Part 2 Continued | 230 px |
+| Part 3 heading band | 48 px |
+| Activity D | 160 px |
+| Activity E | 160 px |
+| Activity F | 216 px |
+| **Total** | **814 px** |
+| Safety buffer | 0.8 px |
+
+#### Maximum Practice Box Heights
+
+These are the largest boxes that fit reliably within the page budgets above:
+
+| Box | Max height |
+|---|---|
+| Activity C | 60 px |
+| Activity D | 56 px |
+| Activity E | 56 px |
+| Activity F | 62 px |
+
+> If a new activity type is added that doesn't appear above, calculate its available space from the remaining page budget before setting its box height.
+
+---
+
 ### Footer
 
 The footer appears on **every page — no exceptions**.
@@ -665,6 +756,14 @@ Slide decks are presented on screens of very different sizes — laptops, tablet
 - [ ] Practice boxes (Worksheet only) have a `#EC8B24` border and white interior
 - [ ] No content has been invented — everything came from the Markdown
 
+**Page 1 Layout Budget (Worksheets only)**
+- [ ] Fixed top stack calculated: Header (29) + Gradient (5) + Title (55.2) + Gradient (5) + Student Name (76) = **170.2 px**
+- [ ] Remaining body budget confirmed: 868.8 − 170.2 = **698.6 px**
+- [ ] Part 1 content height is ≤ 240 px
+- [ ] Part 2 content height is ≤ 430 px
+- [ ] Combined Part 1 + Part 2 + safety buffer does not exceed 698.6 px
+- [ ] Every practice box height matches the defined maximums (C: 60px, D: 56px, E: 56px, F: 62px) or has been calculated against remaining budget
+
 **Footer**
 - [ ] Gradient rule is present directly above the footer content
 - [ ] Circular logo is in the bottom-left corner
@@ -704,6 +803,13 @@ Run this checklist on each continuation page before writing the code for the nex
 - [ ] Every table data cell is italic
 - [ ] Practice boxes have a `#EC8B24` border and white interior
 - [ ] No content has been invented — everything came from the Markdown
+
+**Page 2+ Layout Budget (Worksheets only)**
+- [ ] Fixed top stack calculated: Header (29) + Gradient (5) + Top spacer (20) = **54 px**
+- [ ] Remaining body budget confirmed: 868.8 − 54 = **814.8 px**
+- [ ] Section allocations do not exceed their caps: Part 2 Continued (230px) · Part 3 heading band (48px) · Activity D (160px) · Activity E (160px) · Activity F (216px)
+- [ ] Total allocated content height does not exceed 814.8 px
+- [ ] Every practice box height matches the defined maximums (C: 60px, D: 56px, E: 56px, F: 62px) or has been calculated against remaining budget
 
 **Footer**
 - [ ] Gradient rule is present directly above the footer content
@@ -871,5 +977,5 @@ Once all slides are complete, run this final check before declaring done:
 
 ---
 
-*End of Golden Age Learning Copilot Instructions v2.5*
+*End of Golden Age Learning Copilot Instructions v2.6*
 *Brand references: GAL_Brand_Design_Sheet.md · Visual_Branding_Style_Guide.md · Class1_MeetYourSmartphone.pptx*
