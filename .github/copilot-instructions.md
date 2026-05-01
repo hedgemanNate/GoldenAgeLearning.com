@@ -1,5 +1,5 @@
 # Golden Age Learning — Copilot Document Generation Instructions
-**Version 2.6 — Next.js / TypeScript / Tailwind**
+**Version 2.7 — Next.js / TypeScript / Tailwind**
 
 ---
 
@@ -322,6 +322,18 @@ Every print page must have these elements in this exact order:
 
 1. **Page header** — "Golden Age Learning: Workshop Course Materials" — centered, Arial Regular 14pt
 2. **Logo** — Circular logo, top-right, vertically aligned with header text. **Quiz only — Worksheets have no logo in the header.**
+   Use these exact inline styles on the logo `<img>` element:
+   ```
+   position: "absolute"
+   right: 0
+   top: "50%"
+   transform: "translateY(calc(-50% - 10px))"
+   width: "44px"
+   height: "44px"
+   borderRadius: "50%"
+   objectFit: "cover"
+   ```
+   The header container must have `position: "relative"` for the absolute positioning to work.
 3. **Gradient Rule #1**
 4. **Document title** — Subject words in black + document type word in gold (`#EC8B24`) — same line, Arial Bold 26pt
 5. **Gradient Rule #2**
@@ -721,7 +733,7 @@ Slide decks are presented on screens of very different sizes — laptops, tablet
 **Header**
 - [ ] Header text reads exactly: "Golden Age Learning: Workshop Course Materials"
 - [ ] Header text is Arial Regular 14pt, centered
-- [ ] Quiz: circular logo is positioned top-right, vertically aligned with header text
+- [ ] Quiz: circular logo is positioned top-right, vertically aligned with header text using these exact styles — `position: absolute, right: 0, top: 50%, transform: translateY(calc(-50% - 10px)), width: 44px, height: 44px, borderRadius: 50%, objectFit: cover` — and the header container has `position: relative`
 - [ ] Worksheet: no logo anywhere in the header — text only
 
 **Gradient Rules**
@@ -977,5 +989,5 @@ Once all slides are complete, run this final check before declaring done:
 
 ---
 
-*End of Golden Age Learning Copilot Instructions v2.6*
+*End of Golden Age Learning Copilot Instructions v2.7*
 *Brand references: GAL_Brand_Design_Sheet.md · Visual_Branding_Style_Guide.md · Class1_MeetYourSmartphone.pptx*

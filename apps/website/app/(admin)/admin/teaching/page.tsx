@@ -25,7 +25,7 @@ const CLASSES: ClassEntry[] = [
     duration: "90m",
     assets: {
       slides: null,
-      quiz: null,
+      quiz: "/admin/teaching/master-the-keyboard/quiz",
       worksheet: "/admin/teaching/master-the-keyboard/worksheet",
     },
   },
