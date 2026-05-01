@@ -9,39 +9,24 @@ function PrintButton() {
     window.print();
   };
 
-  const handleOpenPrintableView = () => {
-    if (typeof window === "undefined") return;
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("printMode", "1");
-
-    const popup = window.open(url.toString(), "_blank", "noopener,noreferrer");
-    if (!popup) {
-      // Fallback when pop-ups are blocked.
-      window.location.href = url.toString();
-    }
-  };
-
   return (
     <div
       className="no-print"
       style={{
         position: "fixed",
-        top: "20px",
+        top: "24px",
         right: "24px",
-        zIndex: 9999,
+        zIndex: 1000,
         display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
         gap: "10px",
-        pointerEvents: "auto",
+        pointerEvents: "none",
       }}
     >
       <button
         type="button"
         onClick={handlePrint}
         style={{
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
           gap: "8px",
           backgroundColor: "#EC8B24",
@@ -73,26 +58,6 @@ function PrintButton() {
           <rect x="6" y="14" width="12" height="8" />
         </svg>
         Print / Save as PDF
-      </button>
-
-      <button
-        type="button"
-        onClick={handleOpenPrintableView}
-        style={{
-          backgroundColor: "#111820",
-          color: "#FAF5C9",
-          fontFamily: "Arial, sans-serif",
-          fontSize: "12px",
-          fontWeight: "bold",
-          padding: "9px 14px",
-          border: "1px solid rgba(245,237,214,0.35)",
-          borderRadius: "6px",
-          cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-          pointerEvents: "auto",
-        }}
-      >
-        Open Printable View
       </button>
     </div>
   );
