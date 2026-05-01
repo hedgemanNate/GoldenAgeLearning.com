@@ -15,6 +15,8 @@ interface ClassEntry {
     slides: string | null;
     quiz: string | null;
     worksheet: string | null;
+    script: string | null;
+    answers: string | null;
   };
 }
 
@@ -27,6 +29,8 @@ const CLASSES: ClassEntry[] = [
       slides: null,
       quiz: "/admin/teaching/master-the-keyboard/quiz",
       worksheet: "/admin/teaching/master-the-keyboard/worksheet",
+      script: "/admin/teaching/master-the-keyboard/script",
+      answers: "/admin/teaching/master-the-keyboard/answers",
     },
   },
 ];
@@ -41,10 +45,12 @@ interface AssetButton {
 
 function makeButtons(entry: ClassEntry): AssetButton[] {
   return [
-    { label: "Slides",     href: entry.assets.slides,     active: !!entry.assets.slides },
-    { label: "Quiz",       href: entry.assets.quiz,        active: !!entry.assets.quiz },
-    { label: "Worksheet",  href: entry.assets.worksheet,   active: !!entry.assets.worksheet },
-    { label: "Game",       href: null,                     active: false, comingSoon: true },
+    { label: "Slides",           href: entry.assets.slides,     active: !!entry.assets.slides },
+    { label: "Quiz",             href: entry.assets.quiz,        active: !!entry.assets.quiz },
+    { label: "Quiz Answers",     href: entry.assets.answers,    active: !!entry.assets.answers },
+    { label: "Worksheet",        href: entry.assets.worksheet,   active: !!entry.assets.worksheet },
+    { label: "Teacher's Script", href: entry.assets.script,     active: !!entry.assets.script },
+    { label: "Game",             href: null,                     active: false, comingSoon: true },
   ];
 }
 

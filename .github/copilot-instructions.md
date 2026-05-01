@@ -1,5 +1,5 @@
 # Golden Age Learning — Copilot Document Generation Instructions
-**Version 2.7 — Next.js / TypeScript / Tailwind**
+**Version 2.8 — Next.js / TypeScript / Tailwind**
 
 ---
 
@@ -133,6 +133,8 @@ Read the supplied Markdown and identify which type to produce:
 | Multiple choice questions, "Circle the best answer" | **Quiz** (Print Page) |
 | Activities, writing boxes, bullet item lists, write-in lines | **Worksheet** (Print Page) |
 | Slide-by-slide content, lesson topics, class number | **Slide Deck** |
+| Teacher's Script, class goals, slide-by-slide speaking notes | **Teacher's Script** (Simple Page) |
+| Answer Key, correct answers to quiz questions | **Quiz Answer Key** (Simple Page) |
 
 If the type is ambiguous, ask the user before writing any code.
 
@@ -963,6 +965,127 @@ Once all slides are complete, run this final check before declaring done:
 
 ---
 
+## STEP 3C — SIMPLE PAGES (TEACHER'S SCRIPT & QUIZ ANSWER KEY)
+
+Simple pages contain no Golden Age Learning branding. No logo, no gradient rules, no gold colors, no Arial font requirement. Their only design goal is **clarity and readability on a mobile phone screen**.
+
+### Who reads these
+- **Teacher's Script** — the instructor, on their phone, while teaching. They need to glance at it quickly between sentences.
+- **Quiz Answer Key** — the instructor, checking answers after a quiz. Fast scanning is the priority.
+
+### Design Rules — Both Types
+
+| Property | Value |
+|---|---|
+| Background | White `#FFFFFF` |
+| Max content width | `680px`, centered |
+| Font family | System sans-serif — `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` |
+| Base font size | `17px` — large enough to read without zooming on a phone |
+| Line height | `1.7` — generous, prevents lines from running together |
+| Padding | `20px` on all sides — keeps content away from screen edges on mobile |
+| Color scheme | Black text on white — no decorative colors |
+
+The page must be fully responsive. On a phone screen it should look like a clean notes document. No horizontal scrolling. No tiny text.
+
+---
+
+### Teacher's Script — Structure & Styling
+
+#### Page Title
+- Class name as `<h1>` — `24px`, bold, black, top of page
+- "Teacher's Script" as a subtitle line below — `16px`, regular weight, gray (`#666666`)
+- A thin `1px` gray (`#DDDDDD`) rule below the subtitle
+
+#### Class Goals Block
+- "Class Goals:" as a bold label — `17px`
+- Goals as a simple bullet list — `17px`, `line-height: 1.7`
+- Teacher's Note (if present) in a lightly shaded box — background `#F5F5F5`, `12px` padding, `border-left: 3px solid #CCCCCC`, italic text
+
+#### Timing + Slide Label (each section header)
+- Approximate timing on its own line — `13px`, gray (`#888888`), not bold
+- Slide label (e.g. `[SLIDE 1: TITLE SLIDE]`) as `<h2>` — `19px`, bold, black
+- A thin `1px` `#EEEEEE` rule below each slide label to visually separate sections
+
+#### Script Body Text
+- Each script paragraph at `17px`, `line-height: 1.7`
+- Words in `**bold**` in the Markdown rendered as `<strong>` — they are key terms the teacher should emphasize
+- Text in `(parentheses)` rendered in gray (`#888888`) italic — these are stage directions, not spoken words
+- Blank lines between paragraphs — do not collapse them
+
+#### Spacing Between Sections
+- `32px` top margin before each new slide section
+- This creates clear visual breaks when scrolling quickly on a phone
+
+---
+
+### Quiz Answer Key — Structure & Styling
+
+#### Page Title
+- "Class [N] Quiz: Answer Key" as `<h1>` — `24px`, bold, black
+- A thin `1px` gray (`#DDDDDD`) rule below the title
+
+#### Each Question Block
+- Question number and text as a bold label — `17px`, black
+- Correct answer on the next line, indented — `17px`, bold, green (`#2E7D32`)
+- Wrong answer options (if present in the Markdown) — `17px`, gray (`#999999`), regular weight
+- `20px` of space between question blocks for easy scanning
+
+#### No decorative elements
+- No borders, no background fills, no icons, no color accents other than the green correct answer
+- The green on the correct answer is the only color on the page — it must be immediately obvious at a glance
+
+---
+
+### Output Path — Simple Pages
+
+Follow the same route group pattern as print pages:
+
+| Document type | File path pattern |
+|---|---|
+| Teacher's Script | `app/(admin)/teaching/class-[n]-[slug]/script/page.tsx` |
+| Quiz Answer Key | `app/(admin)/teaching/class-[n]-[slug]/answers/page.tsx` |
+
+Add an entry to the `CLASSES` manifest in `app/(admin)/teaching/page.tsx` as with all other document types.
+
+---
+
+### Simple Page Checklist
+
+Run this checklist before declaring a simple page done.
+
+**Both types**
+- [ ] Background is pure white `#FFFFFF`
+- [ ] Max content width is `680px`, centered on the page
+- [ ] Font is system sans-serif — no custom fonts, no `@font-face`
+- [ ] Base font size is `17px` throughout — nothing smaller than `13px` anywhere
+- [ ] Line height is `1.7` — not tighter
+- [ ] `20px` padding on all sides — content does not touch screen edges
+- [ ] No horizontal scrolling at `375px` viewport width (iPhone SE size)
+- [ ] No Golden Age Learning logo, gradient rules, or gold colors anywhere
+- [ ] No content has been invented — everything came from the Markdown
+- [ ] Component file created at the correct path inside the `(admin)` route group
+- [ ] Entry added to the `CLASSES` manifest in `teaching/page.tsx`
+
+**Teacher's Script only**
+- [ ] Class name is `<h1>`, "Teacher's Script" subtitle is below it
+- [ ] Class Goals block is present with bullet list
+- [ ] Teacher's Note (if present) is in a shaded left-bordered box, italic
+- [ ] Each section has timing line (gray, small) + slide label `<h2>` + divider rule
+- [ ] Bold Markdown (`**word**`) rendered as `<strong>` — key terms are visually prominent
+- [ ] Parenthetical stage directions rendered in gray italic — not the same weight as spoken text
+- [ ] `32px` top margin before each new slide section
+
+**Quiz Answer Key only**
+- [ ] Title reads "Class [N] Quiz: Answer Key" as `<h1>`
+- [ ] Correct answer is bold and green (`#2E7D32`) — immediately obvious at a glance
+- [ ] Wrong answer options (if shown) are gray `#999999` and regular weight
+- [ ] `20px` spacing between each question block
+- [ ] No decorative colors other than green on correct answers
+
+✅ **Simple page complete**
+
+---
+
 ## WHAT NEVER TO DO
 
 - ❌ Use any font other than Arial in print pages
@@ -989,5 +1112,5 @@ Once all slides are complete, run this final check before declaring done:
 
 ---
 
-*End of Golden Age Learning Copilot Instructions v2.7*
+*End of Golden Age Learning Copilot Instructions v2.8*
 *Brand references: GAL_Brand_Design_Sheet.md · Visual_Branding_Style_Guide.md · Class1_MeetYourSmartphone.pptx*
