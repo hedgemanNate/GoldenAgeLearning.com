@@ -506,6 +506,95 @@ export function subscribeMaintenanceMode(callback: (enabled: boolean) => void): 
   });
 }
 
+// ─── Teaching Sessions ────────────────────────────────────────────────────────
+//
+// One active session per staff user; the session id is the staff uid.
+// State is read by both the controller and the bound display device via
+// onValue(); writes go through dedicated helpers below.
+
+import type { TeachingSession, TeachingSessionMode } from "../../types/teachingSession";
+
+export async function getTeachingSession(ownerId: string): Promise<TeachingSession | null> {
+  const snap = await get(ref(db, `teachingSessions/${ownerId}`));
+  if (!snap.exists()) return null;
+  return snap.val() as TeachingSession;
+}
+
+export async function startTeachingSession(params: {
+  ownerId: string;
+  ownerName: string;
+  classSlug: string;
+  totalSlides: number;
+}): Promise<void> {
+  const now = Date.now();
+  const session: TeachingSession = {
+    ownerId: params.ownerId,
+    ownerName: params.ownerName,
+    classSlug: params.classSlug,
+    status: "active",
+    mode: "slides",
+    currentSlide: 0,
+    totalSlides: params.totalSlides,
+    gameState: null,
+    displayBindId: null,
+    displayBoundAt: null,
+    createdAt: now,
+    updatedAt: now,
+    endedAt: null,
+  };
+  await set(ref(db, `teachingSessions/${params.ownerId}`), session);
+}
+
+export async function updateTeachingSession(
+  ownerId: string,
+  patch: Partial<Omit<TeachingSession, "ownerId" | "createdAt">>
+): Promise<void> {
+  await update(ref(db, `teachingSessions/${ownerId}`), {
+    ...patch,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function setTeachingSessionSlide(ownerId: string, slide: number): Promise<void> {
+  await updateTeachingSession(ownerId, { currentSlide: slide });
+}
+
+export async function setTeachingSessionMode(
+  ownerId: string,
+  mode: TeachingSessionMode
+): Promise<void> {
+  await updateTeachingSession(ownerId, { mode });
+}
+
+export async function bindTeachingSessionDisplay(
+  ownerId: string,
+  displayBindId: string
+): Promise<void> {
+  await updateTeachingSession(ownerId, {
+    displayBindId,
+    displayBoundAt: Date.now(),
+  });
+}
+
+export async function endTeachingSession(ownerId: string): Promise<void> {
+  await updateTeachingSession(ownerId, {
+    status: "ended",
+    endedAt: Date.now(),
+  });
+}
+
+export function subscribeToTeachingSession(
+  ownerId: string,
+  callback: (session: TeachingSession | null) => void,
+  onError?: (error: Error) => void
+) {
+  return onValue(
+    ref(db, `teachingSessions/${ownerId}`),
+    (snap) => callback(snap.exists() ? (snap.val() as TeachingSession) : null),
+    onError
+  );
+}
+
 // ─── Database Management ──────────────────────────────────────────────────────
 
 export async function backupDatabase(): Promise<{ backupFile: string }> {
