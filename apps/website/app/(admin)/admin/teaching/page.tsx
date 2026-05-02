@@ -29,7 +29,7 @@ const CLASSES: ClassEntry[] = [
       slides: null,
       quiz: "/admin/teaching/meet-your-smartphone/quiz",
       worksheet: "/admin/teaching/meet-your-smartphone/worksheet",
-      script: null,
+      script: "/admin/teaching/meet-your-smartphone/script",
       answers: null,
     },
   },
