@@ -1,5 +1,5 @@
 # Golden Age Learning — Copilot Document Generation Instructions
-**Version 2.8 — Next.js / TypeScript / Tailwind**
+**Version 3.0 — Next.js / TypeScript / Tailwind**
 
 ---
 
@@ -504,7 +504,9 @@ Copyright text must read **exactly**: `© 2024-2026 Golden Age Learning`
 
 ## STEP 3B — SLIDE DECKS
 
-Slide decks are full-screen browser presentations that replicate the look and feel of the existing Golden Age Learning PowerPoint style. They use keyboard arrow keys and on-screen buttons to navigate between slides. All slides live in one page component.
+Slide decks are full-screen browser presentations that replicate the look and feel of the established Golden Age Learning visual style. They use keyboard arrow keys and on-screen buttons to navigate between slides. All slides live in one page component.
+
+These presentations are shown on projectors in classrooms to an audience aged 55+. Every design decision must serve that context: text must be readable from the back of a room, slides must feel full and balanced, and the visual language must be consistent from the first slide to the last. Empty space, mismatched proportions, and small text all undermine the brand and the audience's confidence.
 
 ### Brand Colors
 
@@ -512,157 +514,286 @@ Slide decks are full-screen browser presentations that replicate the look and fe
 |---|---|---|
 | Background | `#252D32` | Every slide background |
 | Cream | `#FAF5C9` | Titles, primary text |
-| Orange | `#EC8B24` | Accents, top bar, icons, card borders, numbered circles |
-| White | `#FFFFFF` | Body text inside cards and content areas |
+| Orange | `#EC8B24` | Accents, top bar, icon circles, card borders, step circles |
+| White | `#FFFFFF` | Body text, icons that need contrast inside orange frames |
 | Muted Cream | `#C8C199` | Secondary labels (class number, location text) |
 | Card Background | `#1E272C` | Interior fill of content cards and boxes |
 
-### Typography
+### Typography — Base Sizes
 
-| Element | Font | Size | Weight | Color |
+All sizes are `vw`-based. The reference viewport is 1280px wide.
+
+| Element | Size | Weight | Color | Notes |
 |---|---|---|---|---|
-| Slide title | Garamond | 38pt | Bold | `#FAF5C9` |
-| Title slide main title | Garamond | 40pt | Bold | `#FAF5C9` |
-| Title slide subtitle | Lato | 24pt | Regular | `#EC8B24` |
-| Class label | Lato | 18pt | Regular | `#C8C199` |
-| Card / section label | Lato | 20pt | Bold | `#EC8B24` |
-| Body / description text | Lato | 17pt | Regular | `#FFFFFF` |
-| Tip box label | Lato | 18pt | Bold | `#EC8B24` |
-| Tip box body | Lato | 16pt | Regular | `#FFFFFF` |
-| Numbered circle text | Lato | 22pt | Bold | `#FFFFFF` |
-| Closing "Thank You!" | Garamond | 40pt | Bold | `#FAF5C9` |
-| Closing next-class line | Lato | 24pt | Regular | `#EC8B24` |
-| Closing location line | Lato | 18pt | Regular | `#C8C199` |
+| Content slide h2 (default) | `3.5vw` | Bold (Garamond) | `#FAF5C9` | Centered, lower-positioned — see h2 Standard below |
+| Title slide main title | `3.5vw` | Bold (Garamond) | `#FAF5C9` | Centered |
+| Title slide subtitle | `1.9vw` | Regular (Lato) | `#EC8B24` | Centered |
+| Class label | `1.4vw` | Regular (Lato) | `#C8C199` | Centered |
+| Overview agenda items | `1.8vw` | Regular (Lato) | `#FFFFFF` | Two-column list |
+| Checklist / summary items | `2vw` | Regular (Lato) | `#FFFFFF` | Two-column when 4+ items |
+| Step text | `1.8vw` | Regular (Lato) | `#FFFFFF` | Two-column when 4 steps |
+| Card label / section label | `1.6vw` | Bold (Lato) | `#EC8B24` | — |
+| Body / description text | `1.5vw` | Regular (Lato) | `#FFFFFF` | Scale up when a single paragraph fills the slide |
+| Tip box label | `1.4vw` | Bold (Lato) | `#EC8B24` | — |
+| Tip box body | `1.3vw` | Regular (Lato) | `#FFFFFF` | — |
+| Numbered circle text | `1.75vw` | Bold (Lato) | `#FFFFFF` | — |
+| Closing "Thank You!" | `3.5vw` | Bold (Garamond) | `#FAF5C9` | Centered |
+| Closing next-class line | `1.9vw` | Regular (Lato) | `#EC8B24` | Centered |
+| Closing location line | `1.4vw` | Regular (Lato) | `#C8C199` | Centered |
+
+### Content Slide h2 Standard
+
+This applies to every content slide (all layouts except Title and Closing).
+
+- **Font:** Garamond Bold, `3.5vw`
+- **Color:** `#FAF5C9`
+- **Alignment:** Horizontally centered — never left-aligned
+- **Vertical position:** Sits in the upper-middle area of the slide, not flush to the top. Add top spacing so the heading feels intentionally placed, not crowded against the orange top bar. Approximately `4–6% of slide height` of space between the top bar and the h2.
+
+This is the brand standard for all content slides. Do not use a smaller or left-aligned h2 as a default.
 
 ### Persistent Elements (Present on Every Slide)
 
 **Small circular logo — bottom-right corner of every slide.**
-Embedded as base64. Small size (~48×48px), consistent position across all slides.
+Approximately `4vw` wide. Consistent position across all slides.
 
-**Orange top accent bar — all content slides only (not title or closing slide).**
-Full-width, ~12px tall, solid `#EC8B24`, flush to the top edge of the slide.
+**Orange top accent bar — all content slides only (not title or closing).**
+Full-width, `~1.2vh` tall, solid `#EC8B24`, flush to the top edge of the slide.
 
 ### Slide Structure
 
-Target **10 slides**. The standard structure is:
+Target **12–13 slides**. Scale to the content — do not pad with invented material and do not compress concepts that deserve their own slide.
 
 | Position | Role |
 |---|---|
 | Slide 1 | Title slide |
-| Slide 2 | Overview — "What We'll Learn Today" |
-| Slides 3–8 | Core content — one concept per slide |
-| Slide 9 | Practice / Activity |
-| Slide 10 | Summary / "You've Mastered It!" |
-| Last slide | Closing — "Thank You!" |
+| Slide 2 | Overview — agenda for the class |
+| Slides 3–10 | Core content — one concept per slide |
+| Slide 11 | Summary / "You've Mastered It!" |
+| Slide 12 | Game Time / Activity |
+| Slide 13 | Closing — "Thank You!" |
 
-If content supports it, add a Game or bonus slide before the closing. If content has fewer concepts than slides, combine related points. Never pad with invented content.
+### Handling Photos, Animations, and Diagrams
+
+The PowerPoint script is written as if a designer and photographer will fulfill it. It describes photographs of real people, animated panel sequences, multi-panel diagrams, emoji collages, and game show graphics. None of these can be generated directly. Every image description and animation description must be interpreted and converted into a layout decision.
+
+#### The Core Principle: Extract Intent, Don't Chase the Description
+
+Every image description in the PowerPoint script has a **teaching intent** behind it. Your job is to identify that intent and serve it using the tools available — brand colors, typography, emoji, CSS shapes, and the defined layouts. Do not attempt to recreate the described scene literally.
+
+| Description type | Teaching intent | What to build |
+|---|---|---|
+| Photo of smiling senior using a phone | Warmth, approachability, "this is for you" | Large relevant emoji + warm layout, or a styled illustrative element |
+| Emoji collage (15–20 emojis) | Visual abundance, fun, discovery | A grid of large emojis rendered in the slide content area |
+| Game show graphic | Energy, fun, transition moment | Large game emoji (🎮 🎯 🎲), bold title, Layout 9 Simple Focus |
+| Gold medal with keyboard icon | Achievement, celebration | Large emoji combination (🥇 ⌨️) centered on a Layout 8 Checklist slide |
+| Microphone icon | The concept IS the icon | Large centered emoji (🎤) in an icon circle, Layout 5 |
+
+Ask: *What is this image trying to make the student feel or understand?* Build that feeling with what you have.
+
+#### Handling Slides with Too Many Items
+
+When a slide in the PowerPoint script lists more items than any single layout can accommodate comfortably (typically 5 or more short parallel items), do not cram them into a layout with a hard cap. Use **Layout 2 — Overview/Agenda** with a two-column list. This layout exists precisely for this situation. A cramped slide with 7 small items is a brand failure — it looks unprofessional and is hard to read from the back of a room.
+
+#### Handling Multi-Panel Diagram Descriptions
+
+Scripts often describe 2–3 panel sequences like "Panel 1: keyboard closed. Panel 2: keyboard open." These are not instructions to build literal sliding panels. They are describing a **before/after** or **cause/effect** teaching moment. Interpret them as follows:
+
+- **Before/after or two-state comparison** → Use **Layout 7 — Two-Column Content Cards**. Each panel becomes a card with a label and content.
+- **Step-by-step sequence (3–4 steps)** → Use **Layout 6 — Two-Column Steps**. Each panel becomes a numbered step.
+- **Single concept shown in context** → Use **Layout 5 — Icon + Tip**. The icon represents the concept; the body text explains it; the tip box holds the key takeaway.
+
+Never improvise a custom panel layout for a multi-panel description. Always map it to an existing layout type. Consistency across the deck depends on it.
+
+#### Handling Full-Slide Diagram Descriptions
+
+When the script calls for a single large labeled diagram filling most of the slide (e.g. "a large diagram of a keyboard with colored arrows labeling four key areas"), do not attempt to draw the diagram literally. Instead:
+
+- Extract the labeled elements from the description — these are the teaching points
+- Treat them as a list of items with labels and descriptions
+- Use **Layout 4 — Diagram + Row List** (visual placeholder left, labeled list right) or **Layout 8 — Checklist** depending on whether a visual anchor helps
+- For keyboard part labels specifically, render styled HTML key-cap elements (`border: 1px solid #EC8B24`, rounded corners, label text) as the visual element
+
+The goal is always to communicate the labeled content clearly — not to reproduce the diagram.
+
+#### Handling Animation Descriptions
+
+Animations described in the PowerPoint script fall into two categories:
+
+**Do not implement:**
+- Sliding or appearing keyboard panels
+- Panel-to-panel transitions
+- Letters appearing one at a time
+- Any motion that requires tracking state or timing across multiple elements
+- Decorative movement of any kind
+
+**Only implement if the motion directly teaches the concept:**
+- A blinking cursor (the concept IS the blinking) → `@keyframes blink` on a white vertical bar, `1s step-end infinite`
+- A pulsing icon when the slide is specifically about that interaction → simple `@keyframes pulse` scale animation
+
+If an animation description does not meet the "motion teaches the concept" test, convert it to a static layout using the multi-panel guidance above.
+
+#### Handling Keyboard Diagrams
+
+Render keyboard keys as styled HTML elements:
+- Key cap: `border: 1px solid #EC8B24`, `borderRadius: 4px`, `padding: 4px 8px`, `backgroundColor: #1E272C`, `color: #FFFFFF`, `fontFamily: Lato`
+- Label below or beside the key cap in `#EC8B24`
+- Group related keys visually using a flex container with `gap`
+
+These render clearly at projection scale and stay on-brand.
+
+---
 
 ### Slide Layout Types
 
-Choose the layout that best fits the content on each slide.
+Choose the layout that best matches the content. Every layout uses the h2 standard defined above.
 
 ---
 
 #### LAYOUT 1 — Title Slide
-*Opening slide. No orange top bar. Centered composition.*
+*Opening slide. No orange top bar. Centered vertical composition.*
 
-- Large circular logo — centered horizontally, upper portion of slide
-- Main title — Garamond Bold 40pt, `#FAF5C9`, centered
-- Subtitle line — Lato 24pt, `#EC8B24`, centered
-- Class label — Lato 18pt, `#C8C199`, centered
+- **Large focal logo** — centered horizontally, upper portion of slide. Size: `18vw × 18vw`, `borderRadius: 50%`, `objectFit: cover`. This is the primary brand moment of the deck — it must be prominent.
+- **Main title** — Garamond Bold `3.5vw`, `#FAF5C9`, centered, directly below the logo
+- **Subtitle line** — Lato `1.9vw`, `#EC8B24`, centered
+- **Class label** — Lato `1.4vw`, `#C8C199`, centered
+- **Small logo** — bottom-right (always present)
+
+> Both logos are required on the title slide: the large focal logo in the content stack and the small persistent logo bottom-right.
+
+---
+
+#### LAYOUT 2 — Overview / Agenda
+*Use for: "What We'll Learn Today" or any slide listing 5–8 agenda items.*
+
+This layout is distinct from the Three-Column Cards layout. Use it when the slide is a list of short parallel items — not when each item needs its own icon and description card.
+
+- Orange top bar
+- **h2 title** — Garamond Bold `3.5vw`, `#FAF5C9`, centered, lower-positioned (upper-middle zone)
+- **Two-column list** — agenda items split evenly across two columns, filling the available width
+  - Each item: Lato `1.8vw`, `#FFFFFF`, with a small `#EC8B24` bullet or dash
+  - Columns are center-aligned as a block on the slide; items within each column are left-aligned at a shared edge
+  - Text scales up to fill available space — do not leave the lower half of the slide empty
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 2 — Three-Column Cards
-*Use for: "What We'll Learn Today" or any 3-topic overview.*
+#### LAYOUT 3 — Three-Column Cards
+*Use for: Exactly 3 parallel topics, each needing an icon, label, and description.*
 
 - Orange top bar
-- Slide title — left-aligned, Garamond Bold 38pt, `#FAF5C9`
-- Three equal columns, each containing:
+- **h2 title** — centered, standard treatment
+- Three equal-width cards:
   - Card background `#1E272C` with `#EC8B24` border
   - Icon or emoji — large, centered, upper portion of card
-  - Card title — Lato Bold 20pt, `#EC8B24`, centered
-  - Description text — Lato 17pt, `#FFFFFF`, centered
+  - Card title — Lato Bold `1.6vw`, `#EC8B24`, centered
+  - Description — Lato `1.35vw`, `#FFFFFF`, centered
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 3 — Diagram + Row List
-*Use for: Content with a visual or device image on the left and labeled items on the right.*
+#### LAYOUT 4 — Diagram + Row List
+*Use for: Content with a visual (device diagram, image placeholder) on the left and labeled items on the right.*
 
 - Orange top bar
-- Slide title — Garamond Bold 38pt, `#FAF5C9`
-- Left column: image, diagram, or styled placeholder
-- Right column: up to 3 rows, each containing:
-  - Orange vertical accent bar on the left edge of the row
+- **h2 title** — centered, standard treatment
+- Left column: image, styled HTML diagram, or emoji placeholder — fills the left ~35% of the slide
+- Right column: up to 3 rows, each with:
+  - Orange vertical accent bar on the left edge
   - Icon or emoji
-  - Item title — Lato Bold 20pt, `#EC8B24`
-  - Item description — Lato 17pt, `#FFFFFF`
+  - Item title — Lato Bold `1.6vw`, `#EC8B24`
+  - Item description — Lato `1.5vw`, `#FFFFFF`
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 4 — Large Icon + Content
-*Use for: Single-concept slides. Optional tip box.*
+#### LAYOUT 5 — Icon + Tip
+*Use for: Single-concept slides built around one key visual with an explanation and optional tip.*
 
 - Orange top bar
-- Slide title — Garamond Bold 38pt, `#FAF5C9`
-- Left side: large icon or emoji inside an orange-bordered circle (`#EC8B24`)
-- Right side:
-  - Body text — Lato 20pt, `#FFFFFF`
-  - Tip box (if content includes a tip): `#1E272C` background, `#EC8B24` border, "💡 Tip" label in orange, tip text in white
+- **h2 title** — centered, standard treatment
+- **Left side — icon circle:**
+  - Orange-bordered circle (`#EC8B24`, `2–3px` border), `#252D32` fill
+  - Icon, emoji, or drawn shape inside — centered and sized to fill the circle comfortably. If the symbol has visual whitespace, scale the icon up until it reads clearly at projection scale.
+  - **Icon color:** Use white (`#FFFFFF`) when the symbol would otherwise blend into the orange border or the dark background. Text-based icons (e.g. `123`) and single-color glyphs should default to white.
+  - **Circle size:** Start at approximately `22vw` diameter. Scale down if the circle dominates the layout relative to the text content — a tighter frame often reads better. Once you establish a circle size that looks right on an early slide, **use that same size on all subsequent icon slides in the deck** for visual consistency.
+  - **Drawn shapes:** If a text glyph looks optically off-center at presentation scale, replace it with a simple drawn HTML/CSS shape (e.g. a white vertical rectangle for a cursor). Optical correctness takes priority over character convenience.
+- **Right side:**
+  - Body text — Lato `1.5vw`, `#FFFFFF`. Scale up to `1.7vw` if a single explanatory paragraph is the only content and the slide needs to fill the space.
+  - **Tip box** (if content includes a tip):
+    - Background `#1E272C`, border `#EC8B24` `1px`
+    - "💡 Tip" label — Lato Bold `1.4vw`, `#EC8B24`
+    - Tip body — Lato `1.3vw`, `#FFFFFF`
+    - **Width:** Size the tip box to its content. Short tip copy (one line, an emoji row, a brief phrase) should use a content-width box — do not stretch a narrow tip into a full-column-width container. The box width should feel proportionate to what's inside it.
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 5 — Numbered Steps
-*Use for: Step-by-step instructions, procedures, ordered sequences.*
+#### LAYOUT 6 — Two-Column Steps
+*Use for: Step-by-step sequences of 3–4 short steps.*
 
 - Orange top bar
-- Slide title — Garamond Bold 38pt, `#FAF5C9`
-- Up to 4 steps, each with:
-  - Filled orange circle (`#EC8B24`) containing the step number in white (Lato Bold 22pt)
-  - Step text alongside — Lato 20pt, `#FFFFFF`
-- Optional callout box on the right (for a reassurance or note):
-  - `#1E272C` background, `#EC8B24` border
-  - Icon centered in upper half, text in lower half
+- **h2 title** — centered, standard treatment
+- **Two-column step layout** — steps split into two columns of 1–2 steps each
+  - Each step: filled orange circle (`#EC8B24`) with white step number (Lato Bold `1.75vw`), step text alongside in Lato `1.8vw`, `#FFFFFF`
+  - Column block centered on slide; step starts aligned at a shared left edge within each column
+  - Step text scales up — do not use small text for a 4-step slide with ample space
+- Optional callout box (reassurance or note) — if content includes one, place it on the right side: `#1E272C` background, `#EC8B24` border
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 6 — Checklist / Summary
-*Use for: "What you've learned" recaps and achievement summaries.*
+#### LAYOUT 7 — Two-Column Content Cards
+*Use for: Slides contrasting two states, two options, or a before/after concept.*
 
 - Orange top bar
-- Slide title — Garamond Bold 38pt, `#FAF5C9`
-- Up to 5 items, each with:
-  - Orange filled circle with white checkmark ✓ on the left
-  - Item text — Lato 20pt, `#FFFFFF`
-- Optional decorative element on the right (large star or icon in `#EC8B24`)
+- **h2 title** — centered, standard treatment
+- Two equal-width content cards side by side:
+  - Card background `#1E272C`, border `#EC8B24` `1px`
+  - Card heading — Lato Bold `1.6vw`, `#EC8B24`, centered
+  - Card body — Lato `1.5vw`, `#FFFFFF`
+  - Icon or emoji at top of each card if content supports it
+- Card padding should feel generous — cards that feel spacious read as more important
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 7 — Simple Focus / Activity
-*Use for: "Time to Practice", "Game Time", minimal transition slides.*
+#### LAYOUT 8 — Checklist / Summary
+*Use for: Recap and "You've mastered it" slides.*
 
 - Orange top bar
-- Slide title — Garamond Bold 38pt, `#FAF5C9`
-- Body text or prompt — centered, Lato 20pt, `#FFFFFF`
-- Optional large emoji or icon centered on slide
+- **h2 title** — centered, standard treatment
+- **Two-column checklist** (for 4+ items):
+  - Items split evenly across two columns
+  - Each item: orange filled circle with white checkmark ✓, item text in Lato `2vw`, `#FFFFFF`
+  - Column block centered on slide; item starts aligned at a shared left edge within each column
+  - Text is large — this is a celebration slide, content should fill the space confidently
+- **Single-column** (for 3 or fewer items): centered, same sizing
+- Optional decorative element on the right if using single-column (large star or icon in `#EC8B24`)
 - Small logo — bottom-right
 
 ---
 
-#### LAYOUT 8 — Closing Slide
+#### LAYOUT 9 — Simple Focus / Activity
+*Use for: "Game Time", "Time to Practice", minimal transition slides.*
+
+- Orange top bar
+- **h2 title** — centered, standard treatment
+- Subtitle or prompt line — Lato `1.9vw`, `#EC8B24`, centered
+- Optional large emoji — centered, `8–10vw`
+- Keep it simple and uncluttered — this slide is a moment of transition, not teaching
+- Small logo — bottom-right
+
+---
+
+#### LAYOUT 10 — Closing Slide
 *Last slide. No orange top bar. Mirrors the title slide structure.*
 
-- Large circular logo — centered, upper portion
-- "Thank You!" — Garamond Bold 40pt, `#FAF5C9`, centered
-- Thin orange horizontal rule below the title
-- Next class line — "Next Class: [Title from Markdown]" — Lato 24pt, `#EC8B24`, centered
-- Location line — "Golden Age Learning  •  Manatee & Sarasota Counties, Florida" — Lato 18pt, `#C8C199`, centered
+- **Large focal logo** — centered, upper portion, `18vw × 18vw`
+- "Thank You!" — Garamond Bold `3.5vw`, `#FAF5C9`, centered
+- Thin orange horizontal rule — below the title, centered, approximately `40%` of slide width
+- Next class line — "Next Class: [Title from Markdown]" — Lato `1.9vw`, `#EC8B24`, centered
+- Location line — "Golden Age Learning  •  Manatee & Sarasota Counties, Florida" — Lato `1.4vw`, `#C8C199`, centered
 - Small logo — bottom-right
 
 ---
@@ -671,49 +802,43 @@ Choose the layout that best fits the content on each slide.
 
 | Content signal in the Markdown | Use layout |
 |---|---|
-| 3 topics introduced as an overview | Layout 2 |
-| A labeled diagram or device parts | Layout 3 |
-| One concept + optional tip | Layout 4 |
-| Numbered steps or instructions | Layout 5 |
-| Summary of what was learned | Layout 6 |
-| Practice time, game, or activity | Layout 7 |
-| Opening slide | Layout 1 |
-| Closing / Thank You | Layout 8 |
+| Opening slide | Layout 1 — Title |
+| Agenda list of 5–8 short items | Layout 2 — Overview |
+| Exactly 3 topics each needing icon + card | Layout 3 — Three-Column Cards |
+| Visual or diagram on left, labeled items on right | Layout 4 — Diagram + Row List |
+| Single concept with icon + explanation + optional tip | Layout 5 — Icon + Tip |
+| 3–4 numbered steps or instructions | Layout 6 — Two-Column Steps |
+| Two contrasting states, options, or concepts | Layout 7 — Two-Column Content Cards |
+| Recap / "What you've learned" | Layout 8 — Checklist |
+| Game time, practice, transition | Layout 9 — Simple Focus |
+| Closing / Thank You | Layout 10 — Closing |
 
-When content doesn't clearly match one layout, prefer Layout 4 or Layout 5 — they handle most instructional content well.
+When content doesn't clearly match one layout, prefer Layout 5 (Icon + Tip) — it handles most single-concept instructional slides well.
+
+### Deck-Wide Consistency Rules
+
+These rules apply across the entire deck, not just individual slides:
+
+1. **Icon circle size** — Once you set an icon circle size that looks right on an early slide, use that exact same size on every subsequent icon slide. Never let the circle size drift from slide to slide.
+2. **h2 treatment** — Every content slide uses the same centered, lower-positioned h2. No slide should have a smaller or left-aligned title unless it is the title or closing slide.
+3. **Column layouts** — Once you establish a two-column pattern for list content, apply it consistently to all similar slides in the deck. Single-column list slides look underdeveloped next to two-column slides.
+4. **Empty space** — No slide should have a visually empty lower half. If content doesn't fill the slide, increase text size, increase spacing, or reconsider the layout. Empty space looks unfinished and unprofessional.
+5. **Balance** — Every slide should feel visually balanced. Left-heavy, right-heavy, or top-heavy compositions are a brand problem, not just an aesthetic preference.
 
 ### Navigation
 
 The slide deck must support:
 - **Arrow keys** (left/right) to move between slides
 - **On-screen Previous / Next buttons** for mouse and touch users
-- A **slide counter** showing current position (e.g. "3 / 10"), styled subtly so it doesn't compete with slide content
+- A **slide counter** showing current position (e.g. "3 / 13"), styled subtly in `#C8C199` so it doesn't compete with slide content
 
 ### Responsive Sizing
 
-Slide decks are presented on screens of very different sizes — laptops, tablets, classroom projectors, and TVs. Font sizes must scale with the slide container, not be fixed in `pt` or `px`.
-
-**Use `vw`-based font sizing throughout.** The reference viewport is 1280px wide. Scale all font sizes proportionally from there.
-
-| Element | Size |
-|---|---|
-| Slide title (Garamond Bold) | `3vw` |
-| Title slide main title | `3.2vw` |
-| Title slide subtitle | `1.9vw` |
-| Class / location label | `1.4vw` |
-| Card label / section label | `1.6vw` |
-| Body / description text | `1.35vw` |
-| Tip box label | `1.4vw` |
-| Tip box body | `1.25vw` |
-| Numbered circle text | `1.75vw` |
-
-**Additional responsive rules:**
 - The slide container must maintain a **16:9 aspect ratio** at all viewport sizes. Use `aspect-ratio: 16/9` and let the width fill the viewport.
-- All internal spacing (padding, gaps, icon sizes) should scale proportionally — use `%` or `vw` units, not fixed `px` values.
-- The small logo in the bottom-right should be approximately `4vw` wide.
-- The large logo on title and closing slides should be approximately `18vw` wide.
-- The orange top accent bar should remain `~1.2vh` tall across all screen sizes.
+- All font sizes use `vw` units as defined in the typography table above. Never use fixed `pt` or `px` for fonts.
+- All internal spacing, padding, and icon sizes use proportional units (`%` or `vw`), not fixed `px`.
 - Test mentally at three sizes: **small laptop (1024px)**, **standard monitor (1280px)**, and **projector/TV (1920px)**. Nothing should overflow or disappear at any of these.
+
 
 ---
 
@@ -849,8 +974,10 @@ Run this checklist on each continuation page before writing the code for the nex
 These apply to every single slide without exception:
 
 - [ ] Background is `#252D32` — not black, not dark gray, not any other color
-- [ ] Small circular logo is in the bottom-right corner
-- [ ] No text overflows its container — if it's tight, reduce font size
+- [ ] Small circular logo is in the bottom-right corner, approximately `4vw` wide
+- [ ] No text overflows its container — if it's tight, increase the layout space or reduce font size
+- [ ] The lower half of the slide is not visually empty — content fills the slide confidently
+- [ ] The slide feels visually balanced — not left-heavy, right-heavy, or top-heavy
 - [ ] No content has been invented — everything came from the Markdown
 
 ---
@@ -858,11 +985,13 @@ These apply to every single slide without exception:
 ### Title Slide Checklist (Slide 1)
 
 - [ ] No orange top bar — title slide has none
-- [ ] Large circular logo is centered horizontally in the upper portion
-- [ ] Main title: Garamond Bold 40pt, `#FAF5C9`, centered
-- [ ] Subtitle line: Lato 24pt, `#EC8B24`, centered
-- [ ] Class label: Lato 18pt, `#C8C199`, centered
+- [ ] **Large focal logo** is centered horizontally, `18vw × 18vw`, `borderRadius: 50%`, `objectFit: cover`
+- [ ] Large focal logo is in the upper portion of the content stack, above the h1 title
+- [ ] Main title: Garamond Bold `3.5vw`, `#FAF5C9`, centered
+- [ ] Subtitle line: Lato `1.9vw`, `#EC8B24`, centered
+- [ ] Class label: Lato `1.4vw`, `#C8C199`, centered
 - [ ] Small logo present bottom-right
+- [ ] Both logos confirmed — large focal logo in content stack AND small logo bottom-right
 - [ ] Universal checks above all pass
 
 ✅ **Title slide complete — proceed to Slide 2**
@@ -871,42 +1000,62 @@ These apply to every single slide without exception:
 
 ### Content Slide Checklist (Slides 2 through second-to-last)
 
-- [ ] Orange top bar is present — full width, ~12px tall, solid `#EC8B24`, flush to top edge
-- [ ] Slide title: Garamond Bold 38pt, `#FAF5C9`
-- [ ] All body text uses Lato
-- [ ] All orange accents (borders, circles, icons, bars) use exactly `#EC8B24`
+**Every content slide:**
+- [ ] Orange top bar present — full width, `~1.2vh` tall, solid `#EC8B24`, flush to top edge
+- [ ] h2 title: Garamond Bold `3.5vw`, `#FAF5C9`, **horizontally centered**
+- [ ] h2 has top spacing so it sits in the upper-middle zone — not crowded against the top bar
+- [ ] All body text uses Lato with `vw`-based sizing
+- [ ] All orange accents use exactly `#EC8B24`
 - [ ] Cards and boxes use `#1E272C` as background fill
-- [ ] Card titles / section labels: Lato Bold 20pt, `#EC8B24`
-- [ ] Body / description text: Lato 17pt, `#FFFFFF`
 - [ ] Small logo present bottom-right
 - [ ] Universal checks above all pass
 
 **Layout-specific items — check whichever applies:**
 
-*Layout 2 — Three-Column Cards*
-- [ ] Three equal columns present
-- [ ] Each card has `#1E272C` background and `#EC8B24` border
-- [ ] Each card has an icon, a title in orange, and description in white
+*Layout 2 — Overview / Agenda*
+- [ ] Items split into two equal columns
+- [ ] Column block is centered on the slide; items within each column left-align at a shared edge
+- [ ] Item text is Lato `1.8vw` — not smaller
+- [ ] Text fills the available space — the lower half of the slide is not empty
 
-*Layout 3 — Diagram + Row List*
-- [ ] Left column has image, diagram, or placeholder
+*Layout 3 — Three-Column Cards*
+- [ ] Exactly three equal-width cards
+- [ ] Each card has `#1E272C` background and `#EC8B24` border
+- [ ] Each card has an icon/emoji, orange title, and white description
+
+*Layout 4 — Diagram + Row List*
+- [ ] Left column has image, styled diagram, or emoji placeholder
 - [ ] Right column has up to 3 rows, each with orange accent bar, icon, title, and description
 
-*Layout 4 — Large Icon + Content*
-- [ ] Left side has large icon inside an orange-bordered circle
-- [ ] Tip box (if applicable) has `#1E272C` background, `#EC8B24` border, orange label, white body
+*Layout 5 — Icon + Tip*
+- [ ] Icon circle has `#EC8B24` border and `#252D32` fill
+- [ ] Icon is sized to fill the circle comfortably — not undersized inside the frame
+- [ ] Icon color is white (`#FFFFFF`) if the symbol would otherwise blend into orange or dark background
+- [ ] Circle size matches the established deck-wide circle size — not larger than other icon slides
+- [ ] If a glyph is optically off-center, a drawn CSS shape is used instead
+- [ ] Tip box (if present) is sized to its content — not stretched to full column width for short tip copy
+- [ ] Tip box has `#1E272C` background, `#EC8B24` border, orange label, white body
 
-*Layout 5 — Numbered Steps*
-- [ ] Each step has a filled orange circle with white step number
-- [ ] Callout box (if applicable) has `#1E272C` background and `#EC8B24` border
+*Layout 6 — Two-Column Steps*
+- [ ] Steps split into two columns
+- [ ] Each step has filled orange circle with white number (Lato Bold `1.75vw`)
+- [ ] Step text is Lato `1.8vw` — not smaller
+- [ ] Column block centered; step starts aligned at shared left edge within each column
 
-*Layout 6 — Checklist / Summary*
-- [ ] Each item has an orange filled circle with a white checkmark
-- [ ] Item text is Lato 20pt, `#FFFFFF`
+*Layout 7 — Two-Column Content Cards*
+- [ ] Two equal-width cards with `#1E272C` background and `#EC8B24` border
+- [ ] Card padding feels generous — cards do not look cramped
+- [ ] Card heading: Lato Bold `1.6vw`, `#EC8B24`; body: Lato `1.5vw`, `#FFFFFF`
 
-*Layout 7 — Simple Focus*
-- [ ] Content is centered and uncluttered
-- [ ] Body text is Lato 20pt, `#FFFFFF`
+*Layout 8 — Checklist / Summary*
+- [ ] 4+ items use two-column layout; 3 or fewer use single centered column
+- [ ] Each item has orange filled circle with white checkmark
+- [ ] Item text is Lato `2vw` — not smaller
+- [ ] Column block centered; item starts aligned at shared left edge
+
+*Layout 9 — Simple Focus*
+- [ ] Slide is uncluttered — this is a transition moment
+- [ ] Any body text is centered, Lato `1.9vw`
 
 ✅ **Content slide complete — proceed to next slide**
 
@@ -915,11 +1064,11 @@ These apply to every single slide without exception:
 ### Closing Slide Checklist (Last Slide)
 
 - [ ] No orange top bar — closing slide has none
-- [ ] Large circular logo is centered horizontally in the upper portion
-- [ ] "Thank You!" text: Garamond Bold 40pt, `#FAF5C9`, centered
-- [ ] Thin orange horizontal rule present below the title
-- [ ] Next class line reads "Next Class: [title]": Lato 24pt, `#EC8B24`, centered
-- [ ] Location line reads "Golden Age Learning  •  Manatee & Sarasota Counties, Florida": Lato 18pt, `#C8C199`, centered
+- [ ] Large focal logo centered, `18vw × 18vw`, upper portion
+- [ ] "Thank You!" Garamond Bold `3.5vw`, `#FAF5C9`, centered
+- [ ] Thin orange horizontal rule below the title, approximately `40%` of slide width
+- [ ] Next class line: "Next Class: [title]" — Lato `1.9vw`, `#EC8B24`, centered
+- [ ] Location line: "Golden Age Learning  •  Manatee & Sarasota Counties, Florida" — Lato `1.4vw`, `#C8C199`, centered
 - [ ] Small logo present bottom-right
 - [ ] Universal checks above all pass
 
@@ -932,34 +1081,35 @@ These apply to every single slide without exception:
 Once all slides are complete, run this final check before declaring done:
 
 **Assets**
-- [ ] Logo file was found at the correct path and is embedded as inline base64 — not a URL
-- [ ] Garamond font file loaded from the correct local path — confirmed in `@font-face`, not from a CDN
-- [ ] Lato font file loaded from the correct local path — confirmed in `@font-face`, not from a CDN
-- [ ] Both font names registered in `tailwind.config.ts` — Tailwind utility classes available
+- [ ] Logo file found at correct path and embedded as inline base64 — not a URL
+- [ ] Garamond font file (`AGaramondPro-Bold.otf`) loaded from local path via `@font-face` — not CDN
+- [ ] Lato font file (`Lato-Regular.ttf`) loaded from local path via `@font-face` — not CDN
+- [ ] Both font names registered via `@theme {}` in `globals.css` or via inline style props
 - [ ] No Tailwind default font classes (`font-sans`, `font-serif`) used on branded elements
 
 **Structure**
-- [ ] Total slide count is approximately 10 (±1)
-- [ ] Slide 1 is a Title slide — no orange top bar
-- [ ] All slides between title and closing have the orange top bar
-- [ ] Last slide is a Closing slide — no orange top bar
-- [ ] Small logo appears on every single slide
+- [ ] Slide count is 12–13 — no fewer, no invented padding
+- [ ] Slide 1 is Title — no orange top bar, large focal logo present
+- [ ] All content slides have the orange top bar
+- [ ] Last slide is Closing — no orange top bar, large focal logo present
+- [ ] Small logo appears bottom-right on every single slide
 
-**Typography**
-- [ ] Garamond is used for all slide titles — no Arial, no Lato for titles
-- [ ] Lato is used for all body text — no Arial, no Garamond for body
-
-**Responsive Sizing**
-- [ ] All font sizes use `vw` units — no fixed `pt` or `px` font sizes anywhere
+**Typography & Sizing**
+- [ ] All slide h2 titles use Garamond Bold `3.5vw`, centered — no left-aligned or undersized titles
+- [ ] All body text uses Lato with `vw`-based sizing — no fixed `pt` or `px`
 - [ ] Slide container maintains 16:9 aspect ratio
-- [ ] All spacing and icon sizes use proportional units (`%` or `vw`), not fixed `px`
-- [ ] Nothing overflows or disappears at 1024px wide (small laptop)
-- [ ] Nothing overflows or disappears at 1920px wide (projector/TV)
+- [ ] All spacing uses proportional units — no fixed `px` for layout dimensions
+
+**Deck Consistency**
+- [ ] Icon circle size is identical across all icon slides
+- [ ] Two-column layout used consistently for all list and step slides with 4+ items
+- [ ] No slide has a visually empty lower half
+- [ ] Every slide feels balanced — no obvious left, right, or top-heavy compositions
 
 **Navigation**
 - [ ] Arrow key navigation works (left/right)
 - [ ] On-screen Previous / Next buttons work
-- [ ] Slide counter shows correct current position
+- [ ] Slide counter shows correct current position in `#C8C199`
 
 ✅ **Deck complete**
 
@@ -1112,5 +1262,5 @@ Run this checklist before declaring a simple page done.
 
 ---
 
-*End of Golden Age Learning Copilot Instructions v2.8*
+*End of Golden Age Learning Copilot Instructions v3.0*
 *Brand references: GAL_Brand_Design_Sheet.md · Visual_Branding_Style_Guide.md · Class1_MeetYourSmartphone.pptx*

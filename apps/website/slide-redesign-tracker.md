@@ -23,8 +23,8 @@ Review status:
 | 1 | Completed | Yes | Yes | Yes |
 | 2 | Completed | Yes | Yes | Yes |
 | 3 | Completed | Yes | Yes | Yes |
-| 4 | In progress | Yes | No | No |
-| 5 | Not started | Yes | No | No |
+| 4 | Completed | Yes | Yes | Yes |
+| 5 | In progress | Yes | No | No |
 | 6 | Not started | Yes | No | No |
 | 7 | Not started | Yes | No | No |
 | 8 | Not started | Yes | No | No |
@@ -116,7 +116,7 @@ GAL DOC Correction Needed:
 
 ## Slide 4
 
-Status: In progress
+Status: Completed
 
 Started As:
 - Layout: `checklist`
@@ -143,7 +143,7 @@ GAL DOC Correction Needed:
 
 ## Slide 5
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `icon-tip`
@@ -154,14 +154,19 @@ Started As:
 - Intended role: explain cursor behavior
 
 Adjustments Made:
-- None yet.
+- Replaced the Slide 5 cursor glyph with a drawn vertical bar centered inside the orange circle so the cursor reads visually centered instead of leaning to one side.
+- Changed the Slide 5 cursor bar to white so it reads like a live text cursor instead of blending with the orange frame.
+- Added a blink animation to the Slide 5 cursor bar so it behaves like a real typing cursor.
+- Matched the Slide 5 circle size to the smaller Slide 3 circle treatment rather than leaving it at the larger default icon-circle size.
 
 GAL DOC Correction Needed:
-- None yet.
+- The icon-tip instructions should allow replacing text glyphs with simple drawn shapes when a character is technically centered but still looks optically off-center at presentation scale.
+- The same instructions should allow cursor-style visuals to use a white blinking bar rather than inheriting the accent color used by the surrounding icon frame.
+- The icon-circle guidance should note that icon-tip slides can share a smaller custom circle size across multiple slides when a tighter frame is part of the emerging deck style.
 
 ## Slide 6
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `steps`
@@ -174,14 +179,16 @@ Started As:
 - Intended role: step-by-step correction demo
 
 Adjustments Made:
-- None yet.
+- Reworked Slide 6's four step items into two columns so the slide uses the same wider, more balanced line-item structure established on Slide 4.
+- Increased the Slide 6 step text size so the instructions read larger and fill the slide more confidently instead of sitting as a smaller single-column stack.
 
 GAL DOC Correction Needed:
-- None yet.
+- The steps-slide instructions should allow a two-column variant for short four-step teaching demos when a single narrow column leaves too much empty space.
+- That same guidance should allow step text to scale up to the stronger Slide 4 line-item size when the slide is carrying only a small number of short instructions.
 
 ## Slide 7
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `icon-content`
@@ -193,14 +200,19 @@ Started As:
 - Intended role: explain single caps versus caps lock
 
 Adjustments Made:
-- None yet.
+- Changed the Slide 7 shift-arrow icon to white so it reads as the active symbol inside the orange-framed circle instead of blending into the accent color.
+- Matched the Slide 7 icon circle size to the smaller circle treatment used on the earlier icon slides rather than leaving it at the larger default icon-content size.
+- Enlarged the two Slide 7 information cards with more padding and slightly wider spacing so the layout feels fuller and more deliberate.
+- Increased the Slide 7 card heading and body text sizes so both columns read more like major teaching points and less like secondary captions.
 
 GAL DOC Correction Needed:
-- None yet.
+- The icon-content instructions should allow slide-specific icon color overrides, including white symbols inside the orange bordered circle when the symbol needs stronger contrast.
+- Those same instructions should note that icon-content slides can reuse the smaller established icon-circle size from earlier slides when the deck is converging on a tighter circle treatment.
+- The two-column card guidance should allow moderate card enlargement through padding, spacing, and text-size increases when the base cards feel undersized on the slide.
 
 ## Slide 8
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `icon-tip`
@@ -210,14 +222,18 @@ Started As:
 - Intended role: numbers and symbols slide
 
 Adjustments Made:
-- None yet.
+- Matched the Slide 8 icon circle to the smaller circle size already established on the earlier icon slides instead of leaving it at the larger default icon-tip size.
+- Changed the `123` icon color to white so it reads clearly inside the orange bordered circle.
+- Increased the Slide 8 body paragraph size so the numbers-and-symbols explanation fills the slide more confidently.
 
 GAL DOC Correction Needed:
-- None yet.
+- The icon-tip instructions should note that later icon slides can reuse the smaller established icon-circle size rather than always falling back to the larger default circle.
+- Those same instructions should allow white icon text inside the orange bordered circle when a text-based icon like `123` needs stronger contrast.
+- The icon-tip body-copy guidance should allow slide-specific paragraph size increases when a single explanatory paragraph feels undersized on the slide.
 
 ## Slide 9
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `icon-tip`
@@ -228,14 +244,16 @@ Started As:
 - Intended role: emoji introduction slide
 
 Adjustments Made:
-- None yet.
+- Matched the Slide 9 icon circle to the smaller circle size already established on the other revised icon slides instead of leaving it at the larger default icon-tip size.
+- Narrowed the Slide 9 tip card so it wraps its emoji content more naturally instead of stretching across the full width of the text column.
 
 GAL DOC Correction Needed:
-- None yet.
+- The icon-tip instructions should allow later icon slides to reuse the smaller established icon-circle size rather than always using the larger default circle.
+- The tip-box guidance should allow short tip content, especially emoji-only examples, to use a content-width card instead of forcing the tip container to span the full text column.
 
 ## Slide 10
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `icon-tip`
@@ -246,14 +264,16 @@ Started As:
 - Intended role: voice dictation slide
 
 Adjustments Made:
-- None yet.
+- Matched the Slide 10 microphone circle to the same smaller icon-circle size already established on the other revised icon slides instead of leaving it at the larger default `icon-tip` size.
+- Narrowed the Slide 10 tip card so the short `It's like magic!` tip reads as a compact callout instead of spanning the full text column width.
 
 GAL DOC Correction Needed:
-- None yet.
+- The `icon-tip` instructions should allow short-tip slides like voice dictation to reuse the smaller established icon-circle size rather than reverting to the larger default circle.
+- The tip-box guidance should allow very short tip copy to render in a content-width card instead of forcing full-column width.
 
 ## Slide 11
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `checklist`
@@ -266,14 +286,16 @@ Started As:
 - Intended role: lesson recap slide
 
 Adjustments Made:
-- None yet.
+- Reworked the Slide 11 recap bullets into a two-column layout so the four summary items use the available width instead of sitting in a single centered stack.
+- Increased the Slide 11 line-item size to match the larger revised checklist styling used on the earlier updated content slides.
 
 GAL DOC Correction Needed:
-- None yet.
+- The recap checklist instructions should allow a two-column variant when a short set of summary bullets can be presented more clearly across the slide width.
+- The recap-slide guidance should allow larger line-item text consistent with the other revised checklist slides instead of defaulting back to the smaller single-column list treatment.
 
 ## Slide 12
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `focus`
@@ -283,14 +305,14 @@ Started As:
 - Intended role: transition into game/review activity
 
 Adjustments Made:
-- None yet.
+- No redesign changes were needed after review.
 
 GAL DOC Correction Needed:
-- None yet.
+- None.
 
 ## Slide 13
 
-Status: Not started
+Status: Completed
 
 Started As:
 - Layout: `closing`
@@ -298,7 +320,7 @@ Started As:
 - Intended role: closing slide
 
 Adjustments Made:
-- None yet.
+- No redesign changes were needed after review.
 
 GAL DOC Correction Needed:
-- None yet.
+- None.

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import type { CSSProperties } from "react";
 
 function PrintButton() {
@@ -265,19 +264,6 @@ const PAGE_STYLE: CSSProperties = {
 };
 
 export default function MasterTheKeyboardWorksheet() {
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const search = new URLSearchParams(window.location.search);
-    if (search.get("printMode") !== "1") return;
-
-    const timer = window.setTimeout(() => {
-      window.print();
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
   return (
     <>
       <style>{`

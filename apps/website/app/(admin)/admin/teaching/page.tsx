@@ -22,7 +22,19 @@ interface ClassEntry {
 
 const CLASSES: ClassEntry[] = [
   {
-    name: "Master the Keyboard",
+    name: "Class 1 Meet Your Smartphone",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: null,
+      quiz: null,
+      worksheet: "/admin/teaching/meet-your-smartphone/worksheet",
+      script: null,
+      answers: null,
+    },
+  },
+  {
+    name: "Class 2 Master the Keyboard",
     category: "Smartphone Basics",
     duration: "90m",
     assets: {

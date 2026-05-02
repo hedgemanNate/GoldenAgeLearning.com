@@ -159,6 +159,10 @@ function FullScreen({ children }: { children: React.ReactNode }) {
           src: url('/fonts/Lato-Regular.ttf') format('truetype');
           font-weight: normal;
         }
+        @keyframes cursorBlink {
+          0%, 45% { opacity: 1; }
+          55%, 100% { opacity: 0; }
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
       `}</style>
       {children}
@@ -376,6 +380,7 @@ function TitleLayout({ slide }: { slide: SlideContent }) {
 function ChecklistLayout({ slide }: { slide: SlideContent }) {
   const isOverviewSlide = slide.id === 2;
   const isQuickTourSlide = slide.id === 4;
+  const isRecapSlide = slide.id === 11;
   const count = slide.bullets?.length ?? 0;
 
   if (isOverviewSlide) {
@@ -533,6 +538,80 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
     );
   }
 
+  if (isRecapSlide) {
+    const bullets = slide.bullets ?? [];
+    const midpoint = Math.ceil(bullets.length / 2);
+    const columns = [bullets.slice(0, midpoint), bullets.slice(midpoint)];
+
+    return (
+      <>
+        <h2 style={slideTitle}>{slide.title}</h2>
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "3vw",
+            alignContent: "center",
+            marginTop: "3vh",
+            width: "100%",
+          }}
+        >
+          {columns.map((column, columnIndex) => (
+            <div
+              key={columnIndex}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: "2.4vh",
+                width: "min(30vw, 100%)",
+                justifySelf: "center",
+              }}
+            >
+              {column.map((bullet, bulletIndex) => (
+                <div
+                  key={`${columnIndex}-${bulletIndex}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "1.2vw",
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: "1.95vw",
+                    color: "#FFFFFF",
+                    lineHeight: 1.35,
+                    textAlign: "left",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "2.2vw",
+                      height: "2.2vw",
+                      minWidth: "2.2vw",
+                      borderRadius: "50%",
+                      backgroundColor: "#EC8B24",
+                      color: "#252D32",
+                      fontSize: "1.2vw",
+                      fontFamily: "'Lato', sans-serif",
+                      fontWeight: "bold",
+                      marginTop: "0.15vw",
+                    }}
+                  >
+                    ✓
+                  </span>
+                  <span>{bullet}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   // Scale font down a touch for longer lists to keep everything on screen
   const itemFontSize = count > 5 ? "1.7vw" : "1.95vw";
   const circleSize = count > 5 ? "2vw" : "2.4vw";
@@ -598,6 +677,13 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
 // Layout 4 — Large icon + body text + optional tip box
 function IconTipLayout({ slide }: { slide: SlideContent }) {
   const isKeyboardPopupSlide = slide.id === 3;
+  const isCursorSlide = slide.id === 5;
+  const isNumbersSlide = slide.id === 8;
+  const isEmojiSlide = slide.id === 9;
+  const isVoiceDictationSlide = slide.id === 10;
+  const isCompactTipSlide = isEmojiSlide || isVoiceDictationSlide;
+  const isSizedIconSlide =
+    isKeyboardPopupSlide || isCursorSlide || isNumbersSlide || isCompactTipSlide;
 
   return (
     <>
@@ -633,18 +719,30 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: isKeyboardPopupSlide ? "20.8vw" : undefined,
-            justifySelf: isKeyboardPopupSlide ? "center" : undefined,
+            width: isSizedIconSlide ? "20.8vw" : undefined,
+            justifySelf: isSizedIconSlide ? "center" : undefined,
             aspectRatio: "1",
             border: "0.35vw solid #EC8B24",
             borderRadius: "50%",
             fontSize: isKeyboardPopupSlide ? "11vw" : "8vw",
             lineHeight: 1,
             fontFamily: "'Lato', sans-serif",
-            color: "#EC8B24",
+            color: isNumbersSlide ? "#FFFFFF" : "#EC8B24",
           }}
         >
-          {slide.emoji ?? "•"}
+          {isCursorSlide ? (
+            <div
+              style={{
+                width: "2vw",
+                height: "11vw",
+                backgroundColor: "#FFFFFF",
+                borderRadius: "0.15vw",
+                animation: "cursorBlink 1s step-end infinite",
+              }}
+            />
+          ) : (
+            slide.emoji ?? "•"
+          )}
         </div>
 
         {/* Body + tip */}
@@ -652,7 +750,7 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
           <p
             style={{
               fontFamily: "'Lato', sans-serif",
-              fontSize: "1.7vw",
+              fontSize: isNumbersSlide ? "1.95vw" : "1.7vw",
               color: "#FFFFFF",
               lineHeight: 1.55,
             }}
@@ -666,6 +764,9 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
                 border: "1px solid #EC8B24",
                 borderRadius: "0.5vw",
                 padding: "1.5vh 1.5vw",
+                alignSelf: isCompactTipSlide ? "flex-start" : undefined,
+                width: isCompactTipSlide ? "fit-content" : undefined,
+                maxWidth: isCompactTipSlide ? "32vw" : undefined,
               }}
             >
               <div
@@ -699,6 +800,8 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
 
 // Slide 7 — Capital letters: icon + two-column text
 function IconContentLayout({ slide }: { slide: SlideContent }) {
+  const isCapitalLettersSlide = slide.id === 7;
+
   return (
     <>
       <h2 style={slideTitle}>{slide.title}</h2>
@@ -717,11 +820,13 @@ function IconContentLayout({ slide }: { slide: SlideContent }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            width: isCapitalLettersSlide ? "20.8vw" : undefined,
+            justifySelf: isCapitalLettersSlide ? "center" : undefined,
             aspectRatio: "1",
             border: "0.35vw solid #EC8B24",
             borderRadius: "50%",
-            fontSize: "8vw",
-            color: "#EC8B24",
+            fontSize: isCapitalLettersSlide ? "8.8vw" : "8vw",
+            color: isCapitalLettersSlide ? "#FFFFFF" : "#EC8B24",
           }}
         >
           {slide.emoji ?? "⇧"}
@@ -732,7 +837,7 @@ function IconContentLayout({ slide }: { slide: SlideContent }) {
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "2vw",
+              gap: isCapitalLettersSlide ? "2.4vw" : "2vw",
             }}
           >
             {[slide.columns.left, slide.columns.right].map((col, i) => (
@@ -742,7 +847,7 @@ function IconContentLayout({ slide }: { slide: SlideContent }) {
                   backgroundColor: "#1E272C",
                   border: "1px solid #EC8B24",
                   borderRadius: "0.5vw",
-                  padding: "2vh 1.5vw",
+                  padding: isCapitalLettersSlide ? "2.4vh 1.8vw" : "2vh 1.5vw",
                 }}
               >
                 {col.split("\n").map((line, j) => (
@@ -750,7 +855,14 @@ function IconContentLayout({ slide }: { slide: SlideContent }) {
                     key={j}
                     style={{
                       fontFamily: "'Lato', sans-serif",
-                      fontSize: j === 0 ? "1.4vw" : "1.6vw",
+                      fontSize:
+                        j === 0
+                          ? isCapitalLettersSlide
+                            ? "1.55vw"
+                            : "1.4vw"
+                          : isCapitalLettersSlide
+                            ? "1.8vw"
+                            : "1.6vw",
                       color: j === 0 ? "#EC8B24" : "#FFFFFF",
                       fontWeight: j === 0 ? "bold" : "normal",
                       lineHeight: 1.5,
@@ -782,6 +894,87 @@ function IconContentLayout({ slide }: { slide: SlideContent }) {
 
 // Layout 5 — Numbered steps
 function StepsLayout({ slide }: { slide: SlideContent }) {
+  const isFixMistakesSlide = slide.id === 6;
+
+  if (isFixMistakesSlide) {
+    const steps = slide.steps ?? [];
+    const midpoint = Math.ceil(steps.length / 2);
+    const columns = [steps.slice(0, midpoint), steps.slice(midpoint)];
+
+    return (
+      <>
+        <h2 style={slideTitle}>{slide.title}</h2>
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "3vw",
+            alignContent: "center",
+            marginTop: "3vh",
+            width: "100%",
+          }}
+        >
+          {columns.map((column, columnIndex) => (
+            <ol
+              key={columnIndex}
+              style={{
+                listStyle: "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: "2.2vh",
+                width: "min(32vw, 100%)",
+                justifySelf: "center",
+              }}
+            >
+              {column.map((step, stepIndex) => {
+                const index = columnIndex * midpoint + stepIndex;
+
+                return (
+                  <li
+                    key={`${columnIndex}-${stepIndex}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "1.2vw",
+                      fontFamily: "'Lato', sans-serif",
+                      fontSize: "1.95vw",
+                      color: "#FFFFFF",
+                      lineHeight: 1.35,
+                      textAlign: "left",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "2.4vw",
+                        height: "2.4vw",
+                        minWidth: "2.4vw",
+                        borderRadius: "50%",
+                        backgroundColor: "#EC8B24",
+                        color: "#252D32",
+                        fontSize: "1.3vw",
+                        fontFamily: "'Lato', sans-serif",
+                        fontWeight: "bold",
+                        marginTop: "0.15vw",
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <h2 style={slideTitle}>{slide.title}</h2>
