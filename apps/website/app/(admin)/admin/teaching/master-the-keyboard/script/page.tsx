@@ -1,3 +1,7 @@
+import { ScriptSlideTitle } from "../../../../../../components/teaching/ScriptSlideTitle";
+
+const CLASS_SLUG = "master-the-keyboard";
+
 export default function MasterTheKeyboardScript() {
   return (
     <div
@@ -70,9 +74,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 1 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 0–3 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={1}>
             [SLIDE 1: TITLE SLIDE]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Hello again, everyone, and welcome back! It&rsquo;s so wonderful to see you all. Last time, we got to know our devices, and today, we&rsquo;re going to tackle something that might seem tricky but is actually quite simple once you know the secrets: the on-screen keyboard!
@@ -85,9 +89,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 2 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 3–5 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={2}>
             [SLIDE 2: TODAY&rsquo;S GOALS]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;So, what&rsquo;s our adventure for today? First, we&rsquo;ll learn how to make the keyboard appear and disappear. Then, we&rsquo;ll get into the real nitty-gritty: typing letters and making spaces, and most importantly, how to fix those little mistakes that everyone makes.
@@ -100,9 +104,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 3 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 5–10 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={3}>
             [SLIDE 3: WHERE IS THE KEYBOARD?]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Alright, first things first. Where is this keyboard? Unlike a typewriter, it&rsquo;s not always there. It&rsquo;s smart! It only pops up when you need it. Let&rsquo;s all try this together. Everyone please find your &lsquo;Notes&rsquo; app, or you can open a new text message.
@@ -124,9 +128,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 4 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 10–13 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={4}>
             [SLIDE 4: A TOUR OF THE KEYBOARD]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Now that our keyboards are open, let&rsquo;s take a quick tour. It looks like a lot of buttons, but we only need to focus on a few key players. You can see them highlighted on the slide.
@@ -148,9 +152,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 5 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 13–15 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={5}>
             [SLIDE 5: THE BLINKING LINE (CURSOR)]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Before we type, I want you to notice one more thing. Do you see a little blinking vertical line on your screen where you&rsquo;re about to type? That line is called the <strong>cursor</strong>.
@@ -163,9 +167,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 6 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 15–20 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={6}>
             [SLIDE 6: FIXING MISTAKES]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Okay, let&rsquo;s get our hands dirty! The most important rule of typing is: don&rsquo;t be afraid to make mistakes! Why? Because they are so easy to fix.
@@ -184,9 +188,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 7 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 20–23 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={7}>
             [SLIDE 7: HOW TO MAKE CAPITAL LETTERS]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;What if you want to type someone&rsquo;s name, or start a sentence properly? You need a capital letter. For that, we use the <strong>Shift key</strong>&mdash;the one with the upward-pointing arrow.
@@ -202,9 +206,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 8 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 23–26 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={8}>
             [SLIDE 8: FINDING NUMBERS &amp; SYMBOLS]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;So we have letters covered. But what about your address, or your phone number? Or what if you want to ask a question?
@@ -220,9 +224,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 9 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 26–30 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={9}>
             [SLIDE 9: A TOUCH OF FUN WITH EMOJIS]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Now for my favorite part! Sometimes words aren&rsquo;t enough. You want to show that you&rsquo;re happy, or that you&rsquo;re sending love, or that you&rsquo;re laughing. For that, we use Emojis!
@@ -241,9 +245,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 10 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 30–33 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={10}>
             [SLIDE 10: A WHOLE NEW WAY TO TYPE]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;Okay, I have one last secret to share with you today, and it is the most magical one of all. What if your hands are tired, or you have a lot to say and don&rsquo;t feel like typing it all out? Well, you can talk to your phone and it will type for you.
@@ -256,9 +260,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 11 ── */}
         <div style={{ marginTop: "32px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 33–35 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={11}>
             [SLIDE 11: YOU DID IT!]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0" }}>
             &ldquo;And that&rsquo;s it! Look at everything you&rsquo;ve learned to do today. You can find your keyboard, type and fix mistakes, capitalize, find numbers, and even add a little fun with emojis. You have truly mastered the basics of the keyboard. You should all be very proud of yourselves! The only way to get more comfortable is to practice, so don&rsquo;t be afraid to send texts and emails and just play around with it.&rdquo;
@@ -268,9 +272,9 @@ export default function MasterTheKeyboardScript() {
         {/* ── Slide 12 ── */}
         <div style={{ marginTop: "32px", marginBottom: "48px" }}>
           <p style={{ fontSize: "13px", color: "#888888", margin: "0 0 4px 0" }}>Approx. 35–60 minutes</p>
-          <h2 style={{ fontSize: "19px", fontWeight: "bold", color: "#000000", margin: "0 0 6px 0" }}>
+          <ScriptSlideTitle classSlug={CLASS_SLUG} slideNumber={12}>
             [SLIDE 12: GAME TIME!]
-          </h2>
+          </ScriptSlideTitle>
           <hr style={{ border: "none", borderTop: "1px solid #EEEEEE", margin: "0 0 14px 0" }} />
           <p style={{ fontSize: "17px", lineHeight: "1.7", color: "#000000", margin: "0 0 12px 0" }}>
             &ldquo;And now, to put our new skills to the test in a fun way, it is time for our game! Let&rsquo;s get ready to play and see what we&rsquo;ve learned about the keyboard today.&rdquo;
