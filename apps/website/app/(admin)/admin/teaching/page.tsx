@@ -27,7 +27,7 @@ const CLASSES: ClassEntry[] = [
     duration: "90m",
     assets: {
       slides: null,
-      quiz: null,
+      quiz: "/admin/teaching/meet-your-smartphone/quiz",
       worksheet: "/admin/teaching/meet-your-smartphone/worksheet",
       script: null,
       answers: null,
