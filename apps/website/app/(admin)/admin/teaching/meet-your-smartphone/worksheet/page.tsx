@@ -375,32 +375,6 @@ function MatchTable() {
   );
 }
 
-function RuledAnswerBox() {
-  return (
-    <div
-      style={{
-        width: "100%",
-        border: "1pt solid #EC8B24",
-        padding: "10px 12px 6px 12px",
-        boxSizing: "border-box",
-        marginTop: "8px",
-        marginBottom: "16px",
-      }}
-    >
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          style={{
-            height: "14px",
-            borderBottom: index === 3 ? "none" : "1px solid #C8C8C8",
-            marginBottom: index === 3 ? 0 : "10px",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function Footer() {
   return (
     <div style={{ position: "absolute", bottom: 0, left: "0.75in", right: "0.75in" }}>
@@ -496,42 +470,62 @@ export default function MeetYourSmartphoneWorksheetPage() {
           <MatchTable />
         </section>
 
+        <Footer />
+      </div>
+
+      {/* PAGE 2 */}
+      <div className="page" style={pageStyle}>
+        <PageHeader />
+        <GradientRule />
+
+        <div style={{ height: "20px" }} />
+
         <section>
-          <SectionHeader>Part 3: What does it do?</SectionHeader>
+          <SectionHeader>Part 3: What Does It Do?</SectionHeader>
           <p
             style={{
               fontFamily: "Arial, sans-serif",
               fontSize: "12pt",
               fontWeight: "normal",
+              fontStyle: "italic",
               color: "#000000",
-              margin: "0 0 4px 0",
+              margin: "0 0 16px 0",
               lineHeight: 1.45,
             }}
           >
-            <strong>1.</strong> A quick press of the Power Button
+            (Write down the main function of each app)
           </p>
-          <RuledAnswerBox />
-          <p
-            style={{
-              fontFamily: "Arial, sans-serif",
-              fontSize: "12pt",
-              fontWeight: "normal",
-              color: "#000000",
-              margin: 0,
-              lineHeight: 1.6,
-            }}
-          >
-            <strong>2.</strong> To move between screens, you should{" "}
-            <span
+
+          {[
+            { num: 1, label: "Phone App" },
+            { num: 2, label: "Map App" },
+            { num: 3, label: "Settings App" },
+          ].map(({ num, label }) => (
+            <div
+              key={num}
               style={{
-                display: "inline-block",
-                minWidth: "180px",
-                borderBottom: "1px solid #000000",
-                transform: "translateY(-2px)",
+                display: "flex",
+                alignItems: "baseline",
+                gap: "6px",
+                marginBottom: "28px",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "12pt",
+                color: "#000000",
               }}
-            />{" "}
-            your finger across the screen.
-          </p>
+            >
+              <span style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>
+                {num}. {label}:
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  borderBottom: "1pt solid #000000",
+                  display: "block",
+                  minWidth: "80px",
+                }}
+              />
+            </div>
+          ))}
         </section>
 
         <Footer />
