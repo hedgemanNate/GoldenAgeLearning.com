@@ -26,7 +26,7 @@ const CLASSES: ClassEntry[] = [
     category: "Smartphone Basics",
     duration: "90m",
     assets: {
-      slides: null,
+      slides: "/admin/teaching/meet-your-smartphone/slides",
       quiz: "/admin/teaching/meet-your-smartphone/quiz",
       worksheet: "/admin/teaching/meet-your-smartphone/worksheet",
       script: "/admin/teaching/meet-your-smartphone/script",
