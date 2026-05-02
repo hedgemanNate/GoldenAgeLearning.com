@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { setTeachingSessionSlide } from "../../../../../../../lib/firebase/db";
 import { useTeachingSessionDisplay } from "../../../../../../../hooks/useTeachingSession";
 import {
   masterTheKeyboardSlides,
@@ -29,6 +31,33 @@ function DisplayInner() {
   const params = useSearchParams();
   const ownerId = params.get("owner");
   const { session, loading, isReplaced } = useTeachingSessionDisplay(ownerId);
+
+  useEffect(() => {
+    if (!ownerId || !session) return;
+    if (session.status !== "active" || session.mode !== "slides") return;
+
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      event.preventDefault();
+
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const nextSlide = Math.max(
+        0,
+        Math.min(session.totalSlides - 1, session.currentSlide + direction)
+      );
+
+      if (nextSlide === session.currentSlide) return;
+
+      await setTeachingSessionSlide(ownerId, nextSlide);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [ownerId, session]);
 
   if (!ownerId) {
     return (
@@ -295,6 +324,17 @@ function TitleLayout({ slide }: { slide: SlideContent }) {
         gap: "1.5vw",
       }}
     >
+      <img
+        src={LOGO}
+        alt="Golden Age Learning"
+        style={{
+          width: "18vw",
+          height: "18vw",
+          borderRadius: "50%",
+          objectFit: "cover",
+          marginBottom: "0.5vw",
+        }}
+      />
       <h1
         style={{
           fontFamily: "'Garamond', serif",
@@ -334,9 +374,167 @@ function TitleLayout({ slide }: { slide: SlideContent }) {
 
 // Checklist / overview / summary — orange circle bullets
 function ChecklistLayout({ slide }: { slide: SlideContent }) {
+  const isOverviewSlide = slide.id === 2;
+  const isQuickTourSlide = slide.id === 4;
   const count = slide.bullets?.length ?? 0;
+
+  if (isOverviewSlide) {
+    const bullets = slide.bullets ?? [];
+    const midpoint = Math.ceil(bullets.length / 2);
+    const columns = [bullets.slice(0, midpoint), bullets.slice(midpoint)];
+
+    return (
+      <>
+        <h2
+          style={{
+            ...slideTitle,
+            fontSize: "4.3vw",
+            lineHeight: 1.08,
+            marginTop: "8vh",
+            textAlign: "center",
+            alignSelf: "center",
+          }}
+        >
+          {slide.title}
+        </h2>
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "2.5vw",
+            alignContent: "center",
+            marginTop: "3vh",
+          }}
+        >
+          {columns.map((column, columnIndex) => (
+            <div
+              key={columnIndex}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: "2.4vh",
+              }}
+            >
+              {column.map((bullet, bulletIndex) => (
+                <div
+                  key={`${columnIndex}-${bulletIndex}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "1.2vw",
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: "1.85vw",
+                    color: "#FFFFFF",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "2.2vw",
+                      height: "2.2vw",
+                      minWidth: "2.2vw",
+                      borderRadius: "50%",
+                      backgroundColor: "#EC8B24",
+                      color: "#252D32",
+                      fontSize: "1.2vw",
+                      fontFamily: "'Lato', sans-serif",
+                      fontWeight: "bold",
+                      marginTop: "0.15vw",
+                    }}
+                  >
+                    ✓
+                  </span>
+                  <span>{bullet}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  if (isQuickTourSlide) {
+    const bullets = slide.bullets ?? [];
+    const midpoint = Math.ceil(bullets.length / 2);
+    const columns = [bullets.slice(0, midpoint), bullets.slice(midpoint)];
+
+    return (
+      <>
+        <h2 style={slideTitle}>{slide.title}</h2>
+        <div
+          style={{
+            flex: 1,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "3vw",
+            alignContent: "center",
+            marginTop: "3vh",
+            width: "100%",
+          }}
+        >
+          {columns.map((column, columnIndex) => (
+            <div
+              key={columnIndex}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: "2.2vh",
+                width: "min(32vw, 100%)",
+                justifySelf: "center",
+              }}
+            >
+              {column.map((bullet, bulletIndex) => (
+                <div
+                  key={`${columnIndex}-${bulletIndex}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "1.2vw",
+                    fontFamily: "'Lato', sans-serif",
+                    fontSize: "1.95vw",
+                    color: "#FFFFFF",
+                    lineHeight: 1.35,
+                    textAlign: "left",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "2.2vw",
+                      height: "2.2vw",
+                      minWidth: "2.2vw",
+                      borderRadius: "50%",
+                      backgroundColor: "#EC8B24",
+                      color: "#252D32",
+                      fontSize: "1.2vw",
+                      fontFamily: "'Lato', sans-serif",
+                      fontWeight: "bold",
+                      marginTop: "0.15vw",
+                    }}
+                  >
+                    ✓
+                  </span>
+                  <span>{bullet}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   // Scale font down a touch for longer lists to keep everything on screen
-  const itemFontSize = count > 5 ? "1.45vw" : "1.7vw";
+  const itemFontSize = count > 5 ? "1.7vw" : "1.95vw";
   const circleSize = count > 5 ? "2vw" : "2.4vw";
   const circleFontSize = count > 5 ? "1.1vw" : "1.3vw";
   const gapSize = count > 5 ? "1.2vh" : "1.8vh";
@@ -351,8 +549,10 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
+          alignItems: "center",
           gap: gapSize,
           marginTop: "2vh",
+          width: "100%",
         }}
       >
         {slide.bullets?.map((b, i) => (
@@ -365,6 +565,8 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
               fontFamily: "'Lato', sans-serif",
               fontSize: itemFontSize,
               color: "#FFFFFF",
+              width: "min(70vw, 100%)",
+              textAlign: "left",
             }}
           >
             <span
@@ -395,9 +597,26 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
 
 // Layout 4 — Large icon + body text + optional tip box
 function IconTipLayout({ slide }: { slide: SlideContent }) {
+  const isKeyboardPopupSlide = slide.id === 3;
+
   return (
     <>
-      <h2 style={slideTitle}>{slide.title}</h2>
+      <h2
+        style={
+          isKeyboardPopupSlide
+            ? {
+                ...slideTitle,
+                fontSize: "4.3vw",
+                lineHeight: 1.08,
+                marginTop: "8vh",
+                textAlign: "center",
+                alignSelf: "center",
+              }
+            : slideTitle
+        }
+      >
+        {slide.title}
+      </h2>
       <div
         style={{
           flex: 1,
@@ -405,7 +624,7 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
           gridTemplateColumns: "1fr 2.2fr",
           gap: "4vw",
           alignItems: "center",
-          marginTop: "2.5vh",
+          marginTop: isKeyboardPopupSlide ? "3vh" : "2.5vh",
         }}
       >
         {/* Icon circle */}
@@ -414,10 +633,13 @@ function IconTipLayout({ slide }: { slide: SlideContent }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            width: isKeyboardPopupSlide ? "20.8vw" : undefined,
+            justifySelf: isKeyboardPopupSlide ? "center" : undefined,
             aspectRatio: "1",
             border: "0.35vw solid #EC8B24",
             borderRadius: "50%",
-            fontSize: "8vw",
+            fontSize: isKeyboardPopupSlide ? "11vw" : "8vw",
+            lineHeight: 1,
             fontFamily: "'Lato', sans-serif",
             color: "#EC8B24",
           }}
@@ -703,8 +925,11 @@ function ClosingLayout({ slide: _ }: { slide: SlideContent }) {
 
 const slideTitle: React.CSSProperties = {
   fontFamily: "'Garamond', serif",
-  fontSize: "3vw",
+  fontSize: "4.3vw",
   fontWeight: "bold",
   color: "#FAF5C9",
-  lineHeight: 1.15,
+  lineHeight: 1.08,
+  marginTop: "8vh",
+  textAlign: "center",
+  alignSelf: "center",
 };
