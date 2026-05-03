@@ -64,12 +64,20 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
     );
   }
 
+  if (isDisplayPage) {
+    return (
+      <div className="h-screen overflow-hidden bg-black flex">
+        <main className="flex-1 h-screen overflow-hidden">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-dark-bg)] flex">
-      {!isDisplayPage && <AdminSidebar />}
-      <main
-        className={isDisplayPage ? "flex-1 min-h-screen overflow-y-auto" : "ml-[170px] flex-1 min-h-screen overflow-y-auto"}
-      >
+      <AdminSidebar />
+      <main className="ml-[170px] flex-1 min-h-screen overflow-y-auto">
         {children}
       </main>
     </div>
