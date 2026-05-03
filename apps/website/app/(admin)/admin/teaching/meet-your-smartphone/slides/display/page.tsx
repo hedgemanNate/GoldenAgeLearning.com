@@ -233,7 +233,11 @@ function OverviewLayout({ slide }: { slide: SlideContent }) {
           gridTemplateColumns: "1fr 1fr",
           gap: "2.5vw",
           alignContent: "center",
+          justifyContent: "center",
           marginTop: "3vh",
+          maxWidth: "60vw",
+          marginLeft: "auto",
+          marginRight: "auto",
         }}
       >
         {columns.map((column, ci) => (
@@ -243,6 +247,7 @@ function OverviewLayout({ slide }: { slide: SlideContent }) {
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
+              alignItems: "center",
               gap: "2.8vh",
             }}
           >
@@ -605,7 +610,15 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
     : [bullets];
 
   return (
-    <>
+    <div style={{
+      height: "100%",
+      minHeight: 0,
+      width: "100%",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
       <h2 style={slideTitle}>{slide.title}</h2>
       <div
         style={{
@@ -614,8 +627,14 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
           gridTemplateColumns: useTwoCol ? "1fr 1fr" : "1fr",
           gap: "3vw",
           alignContent: "center",
+          justifyContent: "center",
+          alignItems: "center",
           marginTop: "3vh",
           width: "100%",
+          maxWidth: useTwoCol ? "60vw" : "48vw",
+          marginLeft: "auto",
+          marginRight: "auto",
+          height: "auto",
         }}
       >
         {columns.map((column, ci) => (
@@ -625,10 +644,11 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
+              alignItems: "center",
               gap: "2.4vh",
               ...(useTwoCol
                 ? { width: "min(32vw, 100%)", justifySelf: "center" as const }
-                : { alignItems: "center" }),
+                : { width: "min(60vw, 100%)" }),
             }}
           >
             {column.map((bullet, bi) => (
@@ -636,7 +656,7 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
                 key={`${ci}-${bi}`}
                 style={{
                   display: "flex",
-                  alignItems: "flex-start",
+                  alignItems: "center",
                   gap: "1.4vw",
                   fontFamily: "'Lato', sans-serif",
                   fontSize: "2vw",
@@ -671,7 +691,7 @@ function ChecklistLayout({ slide }: { slide: SlideContent }) {
           </div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

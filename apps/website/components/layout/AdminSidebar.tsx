@@ -19,7 +19,9 @@ const NAV_GROUPS: { group: string; items: NavItem[]; adminOnly?: boolean }[] = [
     group: "Main",
     items: [
       { label: "Dashboard", href: "/admin" },
-      { label: "Teaching", href: "/admin/teaching" },
+      { label: "Teaching", href: "/admin/teaching", children: [
+        { label: "Games", href: "/admin/teaching/games" },
+      ] },
     ],
   },
   {
