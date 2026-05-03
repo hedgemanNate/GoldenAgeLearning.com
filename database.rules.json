@@ -92,6 +92,19 @@
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
         ".write": "auth != null && (auth.uid == $ownerId || root.child('users').child(auth.uid).child('role').val() == 'superAdmin' || (root.child('users').child(auth.uid).child('role').val() == 'staff' && newData.exists() && data.exists() && newData.child('ownerId').val() == data.child('ownerId').val()))"
       }
+    },
+    "games": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
+    },
+    "gameQuestions": {
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
     }
   }
 }

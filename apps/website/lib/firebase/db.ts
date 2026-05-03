@@ -21,6 +21,7 @@ import type { Message, MessageWithId } from "../../types/message";
 import type { Payment, PaymentWithId } from "../../types/payment";
 import type { ActivityLog, ActivityLogWithId } from "../../types/activityLog";
 import type { ClassTemplate, ClassTemplateWithId, TaxonomyTag } from "../../types/classTemplate";
+import type { GameInstance, GameInstanceWithId, GameQuestion } from "../../types/game";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
@@ -606,4 +607,74 @@ export async function backupDatabase(): Promise<{ backupFile: string }> {
 export async function deleteAllData(): Promise<void> {
   const callable = httpsCallable(functions, "deleteAllData");
   await callable({});
+}
+
+// ─── Games ────────────────────────────────────────────────────────────────────
+
+export async function createGame(
+  data: Omit<GameInstance, "createdAt">,
+): Promise<string> {
+  const newRef = push(ref(db, "games"));
+  await set(newRef, { ...data, createdAt: Date.now() });
+  return newRef.key!;
+}
+
+export async function updateGame(
+  gameId: string,
+  data: Partial<Omit<GameInstance, "createdAt" | "createdBy">>,
+): Promise<void> {
+  await update(ref(db, `games/${gameId}`), data);
+}
+
+export async function deleteGame(gameId: string): Promise<void> {
+  await set(ref(db, `games/${gameId}`), null);
+  await set(ref(db, `gameQuestions/${gameId}`), null);
+}
+
+export function subscribeToGames(
+  callback: (games: GameInstanceWithId[]) => void,
+  onError?: (error: Error) => void,
+) {
+  return onValue(
+    ref(db, "games"),
+    (snap) => {
+      if (!snap.exists()) {
+        callback([]);
+        return;
+      }
+      const games = Object.entries(snap.val() as Record<string, GameInstance>).map(
+        ([id, val]) => ({ id, ...val }),
+      );
+      callback(games);
+    },
+    onError,
+  );
+}
+
+export async function replaceGameQuestions(
+  gameId: string,
+  questions: GameQuestion[],
+): Promise<void> {
+  await set(ref(db, `gameQuestions/${gameId}`), questions);
+  await update(ref(db, `games/${gameId}`), { questionCount: questions.length });
+}
+
+export async function getGameQuestions(gameId: string): Promise<GameQuestion[]> {
+  const snap = await get(ref(db, `gameQuestions/${gameId}`));
+  if (!snap.exists()) return [];
+  const val = snap.val() as GameQuestion[] | Record<string, GameQuestion>;
+  if (Array.isArray(val)) return val;
+  return Object.values(val);
+}
+
+export async function awardGamePoints(
+  pointsMap: Record<string, number>,
+  classId: string,
+): Promise<{ awarded: number }> {
+  const callable = httpsCallable<
+    { pointsMap: Record<string, number>; classId: string },
+    { awarded: number }
+  >(functions, "awardGamePoints");
+  const result = await callable({ pointsMap, classId });
+  return result.data;
 }
