@@ -76,7 +76,7 @@ export default function MillionairePlayPage({ params }: PageProps) {
 
   // ─── Derived: live game state from session ─────────────────────────────────
   const gameState: MillionaireGameState | null = useMemo(() => {
-    if (!session || session.mode !== "game" || !session.gameState) return null;
+    if (!session || session.status !== "active" || session.mode !== "game" || !session.gameState) return null;
     return session.gameState as unknown as MillionaireGameState;
   }, [session]);
 
@@ -248,8 +248,42 @@ export default function MillionairePlayPage({ params }: PageProps) {
 
   // ─── END GAME ──────────────────────────────────────────────────────────────
   const handleEndGame = async () => {
-    if (!confirm("End this game session?")) return;
-    if (ownerId) await endTeachingSession(ownerId);
+    if (!ownerId) return;
+    if (!confirm("End and reset this game session? The next time you press Play, it will start fresh.")) return;
+    setBusy(true);
+    try {
+      await endTeachingSession(ownerId);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEmergencyEnd = async () => {
+    if (!gameState || !ownerId) return;
+    const lockedInPoints = getLockedInPoints(gameState);
+    if (!confirm(
+      `End the game now? This will lock in ${lockedInPoints.toLocaleString()} points, end the display, and leave the remote.`
+    )) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await writeState({
+        ...gameState,
+        phase: "game-over",
+        pointsFrozen: true,
+        finalPoints: lockedInPoints,
+        selectedAnswer: null,
+        lockedAnswer: null,
+        timerEndsAt: null,
+        timerPausedMs: null,
+        updatedAt: Date.now(),
+      });
+      await endTeachingSession(ownerId);
+    } finally {
+      setBusy(false);
+    }
   };
 
   // ─── AWARD POINTS (placeholder — needs enrollment lookup) ──────────────────
@@ -277,6 +311,7 @@ export default function MillionairePlayPage({ params }: PageProps) {
 
   const tiers = tierAvailability(questions);
   const ready = canStartGame(questions);
+  const lockedInPoints = gameState ? getLockedInPoints(gameState) : 0;
 
   // No active game state → show pre-game screen
   if (!gameState) {
@@ -301,13 +336,22 @@ export default function MillionairePlayPage({ params }: PageProps) {
           <p className="text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.4)]">Game</p>
           <p className="text-[14px] font-semibold">{game.name}</p>
         </div>
-        <Link
-          href={`/admin/teaching/${game.classId}/slides/display?owner=${ownerId ?? ""}`}
-          target="_blank"
-          className="text-[11px] text-[var(--color-teal)] underline"
-        >
-          Open Display ↗
-        </Link>
+        <div className="flex items-center gap-[12px]">
+          <Link
+            href={`/admin/teaching/${game.classId}/slides/display?owner=${ownerId ?? ""}`}
+            target="_blank"
+            className="text-[11px] text-[var(--color-teal)] underline"
+          >
+            Open Display ↗
+          </Link>
+          <button
+            onClick={handleEndGame}
+            disabled={busy}
+            className="text-[11px] text-red-300 underline disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            End & Reset
+          </button>
+        </div>
       </div>
 
       {/* Status strip */}
@@ -326,7 +370,12 @@ export default function MillionairePlayPage({ params }: PageProps) {
         {(gameState.phase === "question"
           || gameState.phase === "selected"
           || gameState.phase === "locked"
-          || gameState.phase === "ask-instructor") && (
+          || gameState.phase === "ask-instructor"
+          || gameState.phase === "revealed-correct"
+          || gameState.phase === "revealed-wrong"
+          || gameState.phase === "safe-haven"
+          || gameState.phase === "walk-away"
+          || gameState.phase === "game-over") && (
           <AnswerButtons state={gameState} onTap={handleAnswerTap} />
         )}
 
@@ -386,17 +435,40 @@ export default function MillionairePlayPage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Emergency end for unexpected situations */}
+        {gameState.phase !== "game-over" && (
+          <div className="mt-[4px] pt-[12px] border-t border-[rgba(245,237,214,0.08)]">
+            <button
+              onClick={handleEmergencyEnd}
+              disabled={busy}
+              className="w-full py-[14px] rounded-[10px] bg-transparent border-2 border-red-500/70 text-red-300 text-[14px] font-semibold hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ⏹ End Game Now
+            </button>
+            <p className="mt-[8px] text-[11px] text-center text-[rgba(245,237,214,0.45)]">
+              Locks in {lockedInPoints.toLocaleString()} points, ends the display, and exits this remote.
+            </p>
+          </div>
+        )}
+
         {/* Game over actions */}
         {gameState.phase === "game-over" && (
           <div className="flex flex-col gap-[10px] mt-[12px]">
             <BigButton onClick={handleAwardPoints} color="gold" disabled={busy}>
               🏆 Award {gameState.finalPoints.toLocaleString()} Points
             </BigButton>
+            <Link
+              href="/admin"
+              className="w-full py-[12px] rounded-[10px] bg-[var(--color-dark-surface)] border border-[rgba(245,237,214,0.15)] text-[var(--color-cream)] text-[13px] font-medium text-center"
+            >
+              ← Back to Admin Panel
+            </Link>
             <button
               onClick={handleEndGame}
-              className="w-full py-[12px] rounded-[10px] bg-transparent border border-[rgba(245,237,214,0.15)] text-[rgba(245,237,214,0.6)] text-[13px] font-medium"
+              disabled={busy}
+              className="w-full py-[12px] rounded-[10px] bg-transparent border border-red-500/50 text-red-300 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              End Game Session
+              End & Reset Game Session
             </button>
           </div>
         )}
@@ -508,18 +580,31 @@ function AnswerButtons({
 }) {
   const q = state.questions[state.questionIndex];
   const letters: AnswerLetter[] = ["a", "b", "c", "d"];
+  const isResolved = state.phase === "revealed-correct"
+    || state.phase === "revealed-wrong"
+    || state.phase === "safe-haven"
+    || state.phase === "walk-away"
+    || state.phase === "game-over";
   return (
     <div className="grid grid-cols-2 gap-[10px]">
       {letters.map((letter) => {
         const hidden = (state.fiftyFiftyHidden ?? []).includes(letter);
         const isSelected = state.selectedAnswer === letter;
         const isLocked = state.lockedAnswer === letter;
-        const disabled = hidden || state.phase === "locked";
+        const isCorrect = q ? letter === q.correct_answer : false;
+        const isWrongLocked = isLocked && !isCorrect;
+        const disabled = hidden || state.phase === "locked" || isResolved;
 
         let classes =
           "py-[28px] rounded-[14px] text-[26px] font-bold transition-colors border-2 ";
         if (hidden) {
           classes += "bg-[rgba(255,255,255,0.02)] text-[rgba(255,255,255,0.15)] border-[rgba(255,255,255,0.05)] cursor-not-allowed";
+        } else if (isResolved && isCorrect) {
+          classes += "bg-[rgba(34,197,94,0.3)] text-[#4ade80] border-[#4ade80]";
+        } else if (isResolved && isWrongLocked) {
+          classes += "bg-[rgba(239,68,68,0.3)] text-[#f87171] border-[#f87171]";
+        } else if (isResolved) {
+          classes += "bg-[rgba(255,255,255,0.02)] text-[rgba(255,255,255,0.25)] border-[rgba(255,255,255,0.06)] cursor-not-allowed";
         } else if (isLocked) {
           classes += "bg-[var(--color-gold)] text-[var(--color-dark-bg)] border-[var(--color-cream)]";
         } else if (isSelected) {
@@ -613,4 +698,8 @@ function Centered({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+function getLockedInPoints(state: MillionaireGameState): number {
+  return state.pointsFrozen ? state.finalPoints : state.bankedPoints;
 }
