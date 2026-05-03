@@ -322,7 +322,7 @@ function UploadQuestionsModal({ game, onClose }: UploadQuestionsModalProps) {
         setErrors([]);
       } else {
         setParsed(null);
-        setErrors(result.errors);
+        setErrors(result.ok === false ? result.errors : []);
       }
     };
     reader.readAsText(file);
