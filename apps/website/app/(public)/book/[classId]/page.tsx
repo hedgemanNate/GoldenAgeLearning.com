@@ -299,6 +299,7 @@ function BookingFlowContent({ params }: { params: Promise<{ classId: string }> }
           starRating: null,
           profilePicture: null,
           totalRedemptions: 0,
+          points_total: 0,
           squareCustomerId: null,
           squareCardId: null,
           createdAt: Date.now(),
