@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { setTeachingSessionSlide } from "../../../../../../../lib/firebase/db";
 import { useTeachingSessionDisplay } from "../../../../../../../hooks/useTeachingSession";
+import MillionaireDisplay from "../../../../../../../components/teaching/millionaire/MillionaireDisplay";
+import type { MillionaireGameState } from "../../../../../../../types/game";
 import {
   masterTheKeyboardSlides,
   type SlideContent,
@@ -112,11 +114,23 @@ function DisplayInner() {
   }
 
   if (session.mode === "game") {
+    if (session.gameState) {
+      const gameState = session.gameState as unknown as MillionaireGameState;
+      return (
+        <FullScreen>
+          <MillionaireDisplay
+            state={gameState}
+            gameName="Master the Keyboard"
+            audioEnabled={true}
+          />
+        </FullScreen>
+      );
+    }
     return (
       <FullScreen>
         <StatusMessage
           title="Game Mode"
-          body="Follow along on the teacher's device."
+          body="Waiting for instructor to start the game…"
         />
       </FullScreen>
     );

@@ -631,6 +631,12 @@ export async function deleteGame(gameId: string): Promise<void> {
   await set(ref(db, `gameQuestions/${gameId}`), null);
 }
 
+export async function getGame(gameId: string): Promise<GameInstanceWithId | null> {
+  const snap = await get(ref(db, `games/${gameId}`));
+  if (!snap.exists()) return null;
+  return { id: gameId, ...(snap.val() as GameInstance) };
+}
+
 export function subscribeToGames(
   callback: (games: GameInstanceWithId[]) => void,
   onError?: (error: Error) => void,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "../../../../../hooks/useAuth";
 import {
   subscribeToGames,
@@ -251,12 +252,36 @@ function parseCSV(text: string): ParseResult {
     if (isNaN(difficulty) || difficulty < 1 || difficulty > 15)
       errors.push(`Row ${row}: "difficulty" must be 1–15 — got "${diffRaw}".`);
 
+    // fifty_fifty_remove must be exactly two letters, comma-separated,
+    // both wrong (i.e. neither is the correct answer).
+    const removeLetters = fiftyFifty
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
+    const validLetter = (s: string): s is "a" | "b" | "c" | "d" =>
+      ["a", "b", "c", "d"].includes(s);
+
+    if (removeLetters.length !== 2) {
+      errors.push(
+        `Row ${row}: "fifty_fifty_remove" must be exactly two comma-separated letters — got "${fiftyFifty}".`
+      );
+    } else if (!removeLetters.every(validLetter)) {
+      errors.push(`Row ${row}: "fifty_fifty_remove" letters must be a, b, c, or d — got "${fiftyFifty}".`);
+    } else if (removeLetters[0] === removeLetters[1]) {
+      errors.push(`Row ${row}: "fifty_fifty_remove" letters must be different — got "${fiftyFifty}".`);
+    } else if (validLetter(correct) && removeLetters.includes(correct)) {
+      errors.push(
+        `Row ${row}: "fifty_fifty_remove" must not include the correct answer "${correct}".`
+      );
+    }
+
     if (errors.length === 0) {
       questions.push({
         question, option_a, option_b, option_c, option_d,
         correct_answer: correct as "a" | "b" | "c" | "d",
         difficulty,
-        fifty_fifty_remove: fiftyFifty,
+        fifty_fifty_remove: removeLetters.join(","),
       });
     }
   }
@@ -541,7 +566,7 @@ export default function AdminTeachingGames() {
                 <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Game Type</th>
                 <th className="w-[10ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Timer</th>
                 <th className="w-[12ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Questions</th>
-                <th className="w-[20ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium"></th>
+                <th className="w-[26ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -552,8 +577,14 @@ export default function AdminTeachingGames() {
                   <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.6)]">{gameTypeLabel(game.gameType)}</td>
                   <td className="w-[10ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">{game.timerSeconds}s</td>
                   <td className="w-[12ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">{game.questionCount}</td>
-                  <td className="w-[20ch] px-[8px] py-[13px]">
+                  <td className="w-[26ch] px-[8px] py-[13px]">
                     <div className="flex items-center gap-[12px]">
+                      <Link
+                        href={`/admin/teaching/games/play/${game.id}`}
+                        className="text-[var(--color-gold)] text-[12px] font-semibold hover:opacity-75 transition-opacity"
+                      >
+                        Play
+                      </Link>
                       <button
                         onClick={() => setUploadGame(game)}
                         className="text-[var(--color-teal)] text-[12px] font-medium hover:opacity-75 transition-opacity"
