@@ -21,6 +21,7 @@ import type { Message, MessageWithId } from "../../types/message";
 import type { Payment, PaymentWithId } from "../../types/payment";
 import type { ActivityLog, ActivityLogWithId } from "../../types/activityLog";
 import type { ClassTemplate, ClassTemplateWithId, TaxonomyTag } from "../../types/classTemplate";
+import type { GameInstance, GameInstanceWithId, GameQuestion } from "../../types/game";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
@@ -506,6 +507,95 @@ export function subscribeMaintenanceMode(callback: (enabled: boolean) => void): 
   });
 }
 
+// ─── Teaching Sessions ────────────────────────────────────────────────────────
+//
+// One active session per staff user; the session id is the staff uid.
+// State is read by both the controller and the bound display device via
+// onValue(); writes go through dedicated helpers below.
+
+import type { TeachingSession, TeachingSessionMode } from "../../types/teachingSession";
+
+export async function getTeachingSession(ownerId: string): Promise<TeachingSession | null> {
+  const snap = await get(ref(db, `teachingSessions/${ownerId}`));
+  if (!snap.exists()) return null;
+  return snap.val() as TeachingSession;
+}
+
+export async function startTeachingSession(params: {
+  ownerId: string;
+  ownerName: string;
+  classSlug: string;
+  totalSlides: number;
+}): Promise<void> {
+  const now = Date.now();
+  const session: TeachingSession = {
+    ownerId: params.ownerId,
+    ownerName: params.ownerName,
+    classSlug: params.classSlug,
+    status: "active",
+    mode: "slides",
+    currentSlide: 0,
+    totalSlides: params.totalSlides,
+    gameState: null,
+    displayBindId: null,
+    displayBoundAt: null,
+    createdAt: now,
+    updatedAt: now,
+    endedAt: null,
+  };
+  await set(ref(db, `teachingSessions/${params.ownerId}`), session);
+}
+
+export async function updateTeachingSession(
+  ownerId: string,
+  patch: Partial<Omit<TeachingSession, "ownerId" | "createdAt">>
+): Promise<void> {
+  await update(ref(db, `teachingSessions/${ownerId}`), {
+    ...patch,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function setTeachingSessionSlide(ownerId: string, slide: number): Promise<void> {
+  await updateTeachingSession(ownerId, { currentSlide: slide });
+}
+
+export async function setTeachingSessionMode(
+  ownerId: string,
+  mode: TeachingSessionMode
+): Promise<void> {
+  await updateTeachingSession(ownerId, { mode });
+}
+
+export async function bindTeachingSessionDisplay(
+  ownerId: string,
+  displayBindId: string
+): Promise<void> {
+  await updateTeachingSession(ownerId, {
+    displayBindId,
+    displayBoundAt: Date.now(),
+  });
+}
+
+export async function endTeachingSession(ownerId: string): Promise<void> {
+  await updateTeachingSession(ownerId, {
+    status: "ended",
+    endedAt: Date.now(),
+  });
+}
+
+export function subscribeToTeachingSession(
+  ownerId: string,
+  callback: (session: TeachingSession | null) => void,
+  onError?: (error: Error) => void
+) {
+  return onValue(
+    ref(db, `teachingSessions/${ownerId}`),
+    (snap) => callback(snap.exists() ? (snap.val() as TeachingSession) : null),
+    onError
+  );
+}
+
 // ─── Database Management ──────────────────────────────────────────────────────
 
 export async function backupDatabase(): Promise<{ backupFile: string }> {
@@ -517,4 +607,80 @@ export async function backupDatabase(): Promise<{ backupFile: string }> {
 export async function deleteAllData(): Promise<void> {
   const callable = httpsCallable(functions, "deleteAllData");
   await callable({});
+}
+
+// ─── Games ────────────────────────────────────────────────────────────────────
+
+export async function createGame(
+  data: Omit<GameInstance, "createdAt">,
+): Promise<string> {
+  const newRef = push(ref(db, "games"));
+  await set(newRef, { ...data, createdAt: Date.now() });
+  return newRef.key!;
+}
+
+export async function updateGame(
+  gameId: string,
+  data: Partial<Omit<GameInstance, "createdAt" | "createdBy">>,
+): Promise<void> {
+  await update(ref(db, `games/${gameId}`), data);
+}
+
+export async function deleteGame(gameId: string): Promise<void> {
+  await set(ref(db, `games/${gameId}`), null);
+  await set(ref(db, `gameQuestions/${gameId}`), null);
+}
+
+export async function getGame(gameId: string): Promise<GameInstanceWithId | null> {
+  const snap = await get(ref(db, `games/${gameId}`));
+  if (!snap.exists()) return null;
+  return { id: gameId, ...(snap.val() as GameInstance) };
+}
+
+export function subscribeToGames(
+  callback: (games: GameInstanceWithId[]) => void,
+  onError?: (error: Error) => void,
+) {
+  return onValue(
+    ref(db, "games"),
+    (snap) => {
+      if (!snap.exists()) {
+        callback([]);
+        return;
+      }
+      const games = Object.entries(snap.val() as Record<string, GameInstance>).map(
+        ([id, val]) => ({ id, ...val }),
+      );
+      callback(games);
+    },
+    onError,
+  );
+}
+
+export async function replaceGameQuestions(
+  gameId: string,
+  questions: GameQuestion[],
+): Promise<void> {
+  await set(ref(db, `gameQuestions/${gameId}`), questions);
+  await update(ref(db, `games/${gameId}`), { questionCount: questions.length });
+}
+
+export async function getGameQuestions(gameId: string): Promise<GameQuestion[]> {
+  const snap = await get(ref(db, `gameQuestions/${gameId}`));
+  if (!snap.exists()) return [];
+  const val = snap.val() as GameQuestion[] | Record<string, GameQuestion>;
+  if (Array.isArray(val)) return val;
+  return Object.values(val);
+}
+
+export async function awardGamePoints(
+  pointsMap: Record<string, number>,
+  classId: string,
+): Promise<{ awarded: number }> {
+  const callable = httpsCallable<
+    { pointsMap: Record<string, number>; classId: string },
+    { awarded: number }
+  >(functions, "awardGamePoints");
+  const result = await callable({ pointsMap, classId });
+  return result.data;
 }

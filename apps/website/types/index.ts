@@ -5,3 +5,5 @@ export * from "./discount";
 export * from "./message";
 export * from "./payment";
 export * from "./activityLog";
+export * from "./teachingSession";
+export * from "./game";

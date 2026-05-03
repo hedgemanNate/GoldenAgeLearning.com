@@ -20,6 +20,7 @@ export interface User {
   totalRedemptions: number;
   squareCustomerId: string | null;
   squareCardId: string | null;
+  points_total: number;
   createdAt: number;
   lastLoginAt: number | null;
 }

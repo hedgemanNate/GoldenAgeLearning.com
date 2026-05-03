@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthContext } from "../../context/AuthContext";
 import { signOut } from "../../lib/firebase/auth";
 import AdminSidebar from "../layout/AdminSidebar";
@@ -9,8 +9,10 @@ import AdminSidebar from "../layout/AdminSidebar";
 export default function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const { firebaseUser, user, loading } = useAuthContext();
   const router = useRouter();
+  const pathname = usePathname() ?? "";
 
   const isAuthorized = user?.role === "staff" || user?.role === "superAdmin";
+  const isDisplayPage = pathname.endsWith("/slides/display");
 
   useEffect(() => {
     if (loading) return;
@@ -58,6 +60,16 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (isDisplayPage) {
+    return (
+      <div className="h-screen overflow-hidden bg-black flex">
+        <main className="flex-1 h-screen overflow-hidden">
+          {children}
+        </main>
       </div>
     );
   }
