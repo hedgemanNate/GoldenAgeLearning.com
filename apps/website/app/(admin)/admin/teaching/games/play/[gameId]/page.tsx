@@ -98,15 +98,14 @@ export default function MillionairePlayPage({ params }: PageProps) {
     if (!canStartGame(questions)) return;
     setBusy(true);
     try {
-      // Ensure a teaching session exists for this user.
-      if (!session) {
-        await startTeachingSession({
-          ownerId: user.uid,
-          ownerName: user.name,
-          classSlug: game.classId,
-          totalSlides: 0,
-        });
-      }
+      // Create (or recreate) a fresh active teaching session.
+      // We always overwrite here so a stale "ended" session doesn\'t block the display.
+      await startTeachingSession({
+        ownerId: user.uid,
+        ownerName: user.name,
+        classSlug: game.classId,
+        totalSlides: 0,
+      });
       await setTeachingSessionMode(user.uid, "game");
       const selected = selectQuestions(questions);
       await writeStateFor(user.uid, initialGameState(selected));
@@ -132,7 +131,7 @@ export default function MillionairePlayPage({ params }: PageProps) {
   const handleAnswerTap = async (letter: AnswerLetter) => {
     if (!gameState) return;
     if (!(gameState.phase === "question" || gameState.phase === "selected" || gameState.phase === "ask-instructor")) return;
-    if (gameState.fiftyFiftyHidden.includes(letter)) return;
+    if ((gameState.fiftyFiftyHidden ?? []).includes(letter)) return;
 
     if (gameState.selectedAnswer === letter) {
       // Second tap → lock in
@@ -506,7 +505,7 @@ function AnswerButtons({
   return (
     <div className="grid grid-cols-2 gap-[10px]">
       {letters.map((letter) => {
-        const hidden = state.fiftyFiftyHidden.includes(letter);
+        const hidden = (state.fiftyFiftyHidden ?? []).includes(letter);
         const isSelected = state.selectedAnswer === letter;
         const isLocked = state.lockedAnswer === letter;
         const disabled = hidden || state.phase === "locked";

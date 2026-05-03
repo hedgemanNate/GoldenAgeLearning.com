@@ -210,7 +210,7 @@ function AnswerOption({
   state: MillionaireGameState;
   correctAnswer: AnswerLetter;
 }) {
-  const hidden = state.fiftyFiftyHidden.includes(letter);
+  const hidden = (state.fiftyFiftyHidden ?? []).includes(letter);
   const isSelected = state.selectedAnswer === letter;
   const isLocked = state.lockedAnswer === letter;
   const isRevealedCorrect = state.phase === "revealed-correct" || state.phase === "safe-haven";

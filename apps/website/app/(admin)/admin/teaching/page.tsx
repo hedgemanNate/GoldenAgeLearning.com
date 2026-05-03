@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { subscribeToGames } from "../../../../lib/firebase/db";
+import type { GameInstanceWithId } from "../../../../types/game";
 
 // ─── Class manifest ────────────────────────────────────────────────────────────
 // This is the source of truth for the Teaching page.
 // Add a new entry here each time a new class is ready for teaching assets.
 // Set each asset's href when its page is built; leave it null when not yet built.
+// classSlug must match the classId stored on GameInstance (set when creating a game).
 interface ClassEntry {
+  classSlug: string;
   name: string;
   category: string;
   duration: string;
@@ -22,6 +26,7 @@ interface ClassEntry {
 
 const CLASSES: ClassEntry[] = [
   {
+    classSlug: "meet-your-smartphone",
     name: "Class 1 Meet Your Smartphone",
     category: "Smartphone Basics",
     duration: "90m",
@@ -34,6 +39,7 @@ const CLASSES: ClassEntry[] = [
     },
   },
   {
+    classSlug: "master-the-keyboard",
     name: "Class 2 Master the Keyboard",
     category: "Smartphone Basics",
     duration: "90m",
@@ -55,19 +61,19 @@ interface AssetButton {
   comingSoon?: boolean;
 }
 
-function makeButtons(entry: ClassEntry): AssetButton[] {
+function makeButtons(entry: ClassEntry, gameHref: string | null): AssetButton[] {
   return [
     { label: "Slides",           href: entry.assets.slides,     active: !!entry.assets.slides },
     { label: "Quiz",             href: entry.assets.quiz,        active: !!entry.assets.quiz },
     { label: "Quiz Answers",     href: entry.assets.answers,    active: !!entry.assets.answers },
     { label: "Worksheet",        href: entry.assets.worksheet,   active: !!entry.assets.worksheet },
     { label: "Teacher's Script", href: entry.assets.script,     active: !!entry.assets.script },
-    { label: "Game",             href: null,                     active: false, comingSoon: true },
+    { label: "Game",             href: gameHref,                 active: !!gameHref },
   ];
 }
 
-function ClassCard({ entry }: { entry: ClassEntry }) {
-  const buttons = makeButtons(entry);
+function ClassCard({ entry, gameHref }: { entry: ClassEntry; gameHref: string | null }) {
+  const buttons = makeButtons(entry, gameHref);
 
   return (
     <div className="bg-[var(--color-dark-surface)] rounded-[10px] border border-[rgba(245,237,214,0.07)] px-[24px] py-[20px]">
@@ -128,6 +134,20 @@ function ClassCard({ entry }: { entry: ClassEntry }) {
 
 export default function AdminTeaching() {
   const [search, setSearch] = useState("");
+  // Map of classSlug → play URL, populated by live game subscription.
+  const [gameMap, setGameMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    return subscribeToGames((games: GameInstanceWithId[]) => {
+      const map: Record<string, string> = {};
+      for (const g of games) {
+        if (g.classId) {
+          map[g.classId] = `/admin/teaching/games/play/${g.id}`;
+        }
+      }
+      setGameMap(map);
+    });
+  }, []);
 
   const filtered = CLASSES.filter((c) =>
     !search.trim() || c.name.toLowerCase().includes(search.toLowerCase())
@@ -159,7 +179,7 @@ export default function AdminTeaching() {
       ) : (
         <div className="flex flex-col gap-[12px]">
           {filtered.map((entry) => (
-            <ClassCard key={entry.name} entry={entry} />
+            <ClassCard key={entry.name} entry={entry} gameHref={gameMap[entry.classSlug] ?? null} />
           ))}
         </div>
       )}

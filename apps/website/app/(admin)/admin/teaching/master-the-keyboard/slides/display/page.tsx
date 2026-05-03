@@ -91,28 +91,6 @@ function DisplayInner() {
     );
   }
 
-  if (session.status === "ended") {
-    return (
-      <FullScreen>
-        <StatusMessage
-          title="Session ended"
-          body="Thanks for joining. This display can be closed."
-        />
-      </FullScreen>
-    );
-  }
-
-  if (isReplaced) {
-    return (
-      <FullScreen>
-        <StatusMessage
-          title="Display replaced"
-          body="Another display took over this session. Refresh to reconnect."
-        />
-      </FullScreen>
-    );
-  }
-
   if (session.mode === "game") {
     if (session.gameState) {
       const gameState = session.gameState as unknown as MillionaireGameState;
@@ -131,6 +109,28 @@ function DisplayInner() {
         <StatusMessage
           title="Game Mode"
           body="Waiting for instructor to start the game…"
+        />
+      </FullScreen>
+    );
+  }
+
+  if (session.status === "ended") {
+    return (
+      <FullScreen>
+        <StatusMessage
+          title="Session ended"
+          body="Thanks for joining. This display can be closed."
+        />
+      </FullScreen>
+    );
+  }
+
+  if (isReplaced) {
+    return (
+      <FullScreen>
+        <StatusMessage
+          title="Display replaced"
+          body="Another display took over this session. Refresh to reconnect."
         />
       </FullScreen>
     );
