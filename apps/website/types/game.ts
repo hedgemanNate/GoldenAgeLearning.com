@@ -4,6 +4,7 @@ export type GameType = "millionaire";
 // Transitions are driven exclusively by the instructor remote.
 export type MillionaireGamePhase =
   | "idle"              // game configured but not started — Opening Screen on display
+  | "starting"          // lets play.mp3 playing — display shows transition, timer not started
   | "question"          // question on screen, timer running, no answer selected
   | "selected"          // an answer is highlighted, not yet locked
   | "locked"            // final answer locked, awaiting Reveal — final answer.mp3
@@ -88,4 +89,7 @@ export interface MillionaireGameState {
 
   startedAt: number;
   updatedAt: number;
+  // Timer config stored in state so the display can call beginFirstQuestion
+  // without needing the GameInstance (which is only on the instructor's device).
+  timerSeconds: number;
 }

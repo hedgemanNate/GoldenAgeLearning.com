@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { setTeachingSessionSlide } from "../../../../../../../lib/firebase/db";
+import { setTeachingSessionSlide, updateTeachingSession } from "../../../../../../../lib/firebase/db";
 import { useTeachingSessionDisplay } from "../../../../../../../hooks/useTeachingSession";
 import MillionaireDisplay from "../../../../../../../components/teaching/millionaire/MillionaireDisplay";
 import type { MillionaireGameState } from "../../../../../../../types/game";
+import { beginFirstQuestion } from "../../../../../../../lib/games/millionaire";
 import {
   meetYourSmartphoneSlides,
   type SlideContent,
@@ -882,6 +883,12 @@ function DisplayInner() {
           state={gameState}
           gameName="Meet Your Smartphone"
           audioEnabled={true}
+          onStartingComplete={ownerId ? async () => {
+            const gs = session.gameState as unknown as MillionaireGameState;
+            await updateTeachingSession(ownerId, {
+              gameState: beginFirstQuestion(gs, gs.timerSeconds) as unknown as Record<string, unknown>,
+            });
+          } : undefined}
         />
       </div>
     );

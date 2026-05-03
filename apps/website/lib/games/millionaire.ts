@@ -94,7 +94,7 @@ export function selectQuestions(pool: GameQuestion[]): GameQuestion[] {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-export function initialGameState(questions: GameQuestion[]): MillionaireGameState {
+export function initialGameState(questions: GameQuestion[], timerSeconds: number): MillionaireGameState {
   const now = Date.now();
   return {
     questions,
@@ -109,6 +109,7 @@ export function initialGameState(questions: GameQuestion[]): MillionaireGameStat
     finalPoints: 0,
     timerEndsAt: null,
     timerPausedMs: null,
+    timerSeconds,
     startedAt: now,
     updatedAt: now,
   };

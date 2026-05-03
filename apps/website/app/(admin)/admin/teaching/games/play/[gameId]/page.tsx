@@ -21,7 +21,6 @@ import { useTeachingSession } from "../../../../../../../hooks/useTeachingSessio
 import {
   selectQuestions,
   initialGameState,
-  beginFirstQuestion,
   nextQuestionState,
   applyCorrectAnswer,
   applyWrongAnswer,
@@ -108,7 +107,7 @@ export default function MillionairePlayPage({ params }: PageProps) {
       });
       await setTeachingSessionMode(user.uid, "game");
       const selected = selectQuestions(questions);
-      await writeStateFor(user.uid, initialGameState(selected));
+      await writeStateFor(user.uid, initialGameState(selected, game.timerSeconds));
     } finally {
       setBusy(false);
     }
@@ -122,9 +121,16 @@ export default function MillionairePlayPage({ params }: PageProps) {
   };
 
   // ─── BEGIN Q1 ──────────────────────────────────────────────────────────────
+  // Write phase "starting" — lets play.mp3 begins on the display.
+  // When the audio ends, the display's onStartingComplete callback writes
+  // the "question" phase + starts the timer via beginFirstQuestion.
   const handleBeginFirst = async () => {
-    if (!gameState || !game) return;
-    await writeState(beginFirstQuestion(gameState, game.timerSeconds));
+    if (!gameState) return;
+    await writeState({
+      ...gameState,
+      phase: "starting",
+      updatedAt: Date.now(),
+    });
   };
 
   // ─── ANSWER TAP (single → highlight, second → lock) ────────────────────────

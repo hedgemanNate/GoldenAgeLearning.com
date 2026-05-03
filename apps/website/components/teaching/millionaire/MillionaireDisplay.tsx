@@ -24,13 +24,18 @@ interface Props {
   state: MillionaireGameState;
   gameName: string;
   audioEnabled: boolean;
+  /** Called by the audio hook when `lets play.mp3` ends — transitions starting → question. */
+  onStartingComplete?: () => void;
 }
 
-export default function MillionaireDisplay({ state, gameName, audioEnabled }: Props) {
-  useMillionaireAudio(state, audioEnabled);
+export default function MillionaireDisplay({ state, gameName, audioEnabled, onStartingComplete }: Props) {
+  useMillionaireAudio(state, audioEnabled, onStartingComplete);
 
   if (state.phase === "idle") {
     return <OpeningScreen gameName={gameName} />;
+  }
+  if (state.phase === "starting") {
+    return <StartingScreen />;
   }
   if (state.phase === "game-over") {
     return <GameOverScreen state={state} />;
@@ -40,6 +45,32 @@ export default function MillionaireDisplay({ state, gameName, audioEnabled }: Pr
   if (!question) return <OpeningScreen gameName={gameName} />;
 
   return <QuestionScreen state={state} question={question} />;
+}
+
+// ─── Starting Screen ─────────────────────────────────────────────────────────
+// Shown while lets play.mp3 plays. Audio hook drives the transition to question.
+function StartingScreen() {
+  return (
+    <Shell>
+      <div style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", textAlign: "center", gap: "2vw",
+      }}>
+        <h1 style={{
+          fontFamily: "'Garamond', serif", fontSize: "5vw", fontWeight: "bold",
+          color: "#FAF5C9", margin: 0, lineHeight: 1.1,
+        }}>
+          Who Wants to Be a Millionaire
+        </h1>
+        <p style={{
+          fontFamily: "'Lato', sans-serif", fontSize: "2.2vw",
+          color: "#EC8B24", margin: 0, letterSpacing: "0.05em",
+        }}>
+          Get Ready…
+        </p>
+      </div>
+    </Shell>
+  );
 }
 
 // ─── Opening Screen ──────────────────────────────────────────────────────────
