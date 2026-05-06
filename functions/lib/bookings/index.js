@@ -119,14 +119,26 @@ exports.onBookingCreated = functions.database
         }
     }
     if (customer?.phone) {
-        deliveries.push({
-            label: `customer booking SMS (${customer.phone})`,
-            task: (0, sms_1.sendBookingConfirmationSms)(customer.phone, {
-                className: cls?.name ?? "Unknown Class",
-                classDate,
-                classTime,
-            }),
-        });
+        if (booking.status === "paid") {
+            deliveries.push({
+                label: `customer payment received SMS (${customer.phone})`,
+                task: (0, sms_1.sendPaymentReceivedSms)(customer.phone, {
+                    amount: `$${(booking.amount / 100).toFixed(2)}`,
+                    className: cls?.name ?? "Unknown Class",
+                    classDate,
+                }),
+            });
+        }
+        else {
+            deliveries.push({
+                label: `customer booking SMS (${customer.phone})`,
+                task: (0, sms_1.sendBookingConfirmationSms)(customer.phone, {
+                    className: cls?.name ?? "Unknown Class",
+                    classDate,
+                    classTime,
+                }),
+            });
+        }
     }
     const results = await Promise.allSettled(deliveries.map((delivery) => delivery.task));
     results.forEach((result, index) => {

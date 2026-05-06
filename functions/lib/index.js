@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.backupDatabase = exports.deleteAllData = exports.sendPasswordResetCallable = exports.saveCustomerCard = exports.deleteCustomerCard = exports.getCustomerCard = exports.processPayment = exports.sendStaffInvite = exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.deleteCustomer = exports.onCustomerCreated = exports.sendAdminMessage = exports.processScheduledMessages = void 0;
+exports.onContactRequestCreated = exports.awardGamePoints = exports.backupDatabase = exports.deleteAllData = exports.sendPasswordResetCallable = exports.saveCustomerCard = exports.deleteCustomerCard = exports.getCustomerCard = exports.processPayment = exports.sendStaffInvite = exports.changeUserRole = exports.onBookingCreated = exports.twilioInbound = exports.deleteCustomer = exports.onCustomerCreated = exports.sendAdminMessage = exports.processScheduledMessages = void 0;
 const admin = __importStar(require("firebase-admin"));
 // Initialize admin SDK
 if (!admin.apps.length) {
@@ -63,4 +63,8 @@ Object.defineProperty(exports, "sendPasswordResetCallable", { enumerable: true, 
 var database_1 = require("./database");
 Object.defineProperty(exports, "deleteAllData", { enumerable: true, get: function () { return database_1.deleteAllData; } });
 Object.defineProperty(exports, "backupDatabase", { enumerable: true, get: function () { return database_1.backupDatabase; } });
+var games_1 = require("./games");
+Object.defineProperty(exports, "awardGamePoints", { enumerable: true, get: function () { return games_1.awardGamePoints; } });
+var contactRequests_1 = require("./contactRequests");
+Object.defineProperty(exports, "onContactRequestCreated", { enumerable: true, get: function () { return contactRequests_1.onContactRequestCreated; } });
 //# sourceMappingURL=index.js.map

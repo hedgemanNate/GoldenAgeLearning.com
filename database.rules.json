@@ -105,6 +105,13 @@
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
       }
+    },
+    "contactRequests": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$requestId": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['name', 'phone', 'email', 'createdAt', 'source']) && newData.child('name').isString() && newData.child('phone').isString() && newData.child('email').isString() && newData.child('createdAt').isNumber() && newData.child('source').isString()"
+      }
     }
   }
 }

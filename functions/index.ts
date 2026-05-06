@@ -15,4 +15,5 @@ export { processPayment, getCustomerCard, deleteCustomerCard, saveCustomerCard }
 export { sendPasswordResetCallable } from "./emails";
 export { deleteAllData, backupDatabase } from "./database";
 export { awardGamePoints } from "./games";
+export { onContactRequestCreated } from "./contactRequests";
 
