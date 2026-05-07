@@ -64,6 +64,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/the-world-of-apps/answers",
     },
   },
+  {
+    classSlug: "browsing-and-online-safety",
+    name: "Class 4 Browsing & Online Safety",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/browsing-and-online-safety/slides",
+      quiz: "/admin/teaching/browsing-and-online-safety/quiz",
+      worksheet: "/admin/teaching/browsing-and-online-safety/worksheet",
+      script: "/admin/teaching/browsing-and-online-safety/script",
+      answers: "/admin/teaching/browsing-and-online-safety/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
