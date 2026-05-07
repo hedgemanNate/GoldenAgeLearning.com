@@ -90,6 +90,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/making-connections/answers",
     },
   },
+  {
+    classSlug: "email-essentials",
+    name: "Class 6 Email Essentials",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/email-essentials/slides",
+      quiz: "/admin/teaching/email-essentials/quiz",
+      worksheet: "/admin/teaching/email-essentials/worksheet",
+      script: "/admin/teaching/email-essentials/script",
+      answers: "/admin/teaching/email-essentials/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
