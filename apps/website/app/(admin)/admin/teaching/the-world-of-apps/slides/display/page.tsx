@@ -738,51 +738,59 @@ function StepsLayout({ slide }: { slide: SlideContent }) {
   return (
     <>
       <h2 style={slideTitle}>{slide.title}</h2>
-      <ol
+      <div
         style={{
-          listStyle: "none",
           flex: 1,
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          gap: "2.2vh",
           marginTop: "2.5vh",
         }}
       >
-        {steps.map((s, i) => (
-          <li
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "2vw",
-              fontFamily: "'Lato', sans-serif",
-              fontSize: "1.7vw",
-              color: "#FFFFFF",
-            }}
-          >
-            <span
+        <ol
+          style={{
+            listStyle: "none",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2.2vh",
+            width: "min(65vw, 100%)",
+          }}
+        >
+          {steps.map((s, i) => (
+            <li
+              key={i}
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                width: "3vw",
-                height: "3vw",
-                minWidth: "3vw",
-                borderRadius: "50%",
-                backgroundColor: "#EC8B24",
-                color: "#252D32",
-                fontSize: "1.75vw",
+                gap: "2vw",
                 fontFamily: "'Lato', sans-serif",
-                fontWeight: "bold",
+                fontSize: "1.7vw",
+                color: "#FFFFFF",
               }}
             >
-              {i + 1}
-            </span>
-            {s}
-          </li>
-        ))}
-      </ol>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "3vw",
+                  height: "3vw",
+                  minWidth: "3vw",
+                  borderRadius: "50%",
+                  backgroundColor: "#EC8B24",
+                  color: "#252D32",
+                  fontSize: "1.75vw",
+                  fontFamily: "'Lato', sans-serif",
+                  fontWeight: "bold",
+                }}
+              >
+                {i + 1}
+              </span>
+              {s}
+            </li>
+          ))}
+        </ol>
+      </div>
     </>
   );
 }
