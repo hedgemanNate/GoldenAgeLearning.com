@@ -77,6 +77,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/browsing-and-online-safety/answers",
     },
   },
+  {
+    classSlug: "making-connections",
+    name: "Class 5 Making Connections",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/making-connections/slides",
+      quiz: "/admin/teaching/making-connections/quiz",
+      worksheet: "/admin/teaching/making-connections/worksheet",
+      script: "/admin/teaching/making-connections/script",
+      answers: "/admin/teaching/making-connections/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
