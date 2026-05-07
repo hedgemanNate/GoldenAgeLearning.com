@@ -51,6 +51,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/master-the-keyboard/answers",
     },
   },
+  {
+    classSlug: "the-world-of-apps",
+    name: "Class 3 The World of Apps",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/the-world-of-apps/slides",
+      quiz: "/admin/teaching/the-world-of-apps/quiz",
+      worksheet: "/admin/teaching/the-world-of-apps/worksheet",
+      script: "/admin/teaching/the-world-of-apps/script",
+      answers: "/admin/teaching/the-world-of-apps/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
