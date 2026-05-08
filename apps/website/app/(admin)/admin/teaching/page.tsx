@@ -142,6 +142,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/staying-safe-online/answers",
     },
   },
+  {
+    classSlug: "capture-the-moment",
+    name: "Class 10 Capture the Moment",
+    category: "Photography",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/capture-the-moment/slides",
+      quiz: "/admin/teaching/capture-the-moment/quiz",
+      worksheet: "/admin/teaching/capture-the-moment/worksheet",
+      script: "/admin/teaching/capture-the-moment/script",
+      answers: "/admin/teaching/capture-the-moment/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
