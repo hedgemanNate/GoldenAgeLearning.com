@@ -51,6 +51,188 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/master-the-keyboard/answers",
     },
   },
+  {
+    classSlug: "the-world-of-apps",
+    name: "Class 3 The World of Apps",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/the-world-of-apps/slides",
+      quiz: "/admin/teaching/the-world-of-apps/quiz",
+      worksheet: "/admin/teaching/the-world-of-apps/worksheet",
+      script: "/admin/teaching/the-world-of-apps/script",
+      answers: "/admin/teaching/the-world-of-apps/answers",
+    },
+  },
+  {
+    classSlug: "browsing-and-online-safety",
+    name: "Class 4 Browsing & Online Safety",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/browsing-and-online-safety/slides",
+      quiz: "/admin/teaching/browsing-and-online-safety/quiz",
+      worksheet: "/admin/teaching/browsing-and-online-safety/worksheet",
+      script: "/admin/teaching/browsing-and-online-safety/script",
+      answers: "/admin/teaching/browsing-and-online-safety/answers",
+    },
+  },
+  {
+    classSlug: "making-connections",
+    name: "Class 5 Making Connections",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/making-connections/slides",
+      quiz: "/admin/teaching/making-connections/quiz",
+      worksheet: "/admin/teaching/making-connections/worksheet",
+      script: "/admin/teaching/making-connections/script",
+      answers: "/admin/teaching/making-connections/answers",
+    },
+  },
+  {
+    classSlug: "email-essentials",
+    name: "Class 6 Email Essentials",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/email-essentials/slides",
+      quiz: "/admin/teaching/email-essentials/quiz",
+      worksheet: "/admin/teaching/email-essentials/worksheet",
+      script: "/admin/teaching/email-essentials/script",
+      answers: "/admin/teaching/email-essentials/answers",
+    },
+  },
+  {
+    classSlug: "texting-and-messaging",
+    name: "Class 7 Texting & Messaging",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/texting-and-messaging/slides",
+      quiz: "/admin/teaching/texting-and-messaging/quiz",
+      worksheet: "/admin/teaching/texting-and-messaging/worksheet",
+      script: "/admin/teaching/texting-and-messaging/script",
+      answers: "/admin/teaching/texting-and-messaging/answers",
+    },
+  },
+  {
+    classSlug: "see-them-smile",
+    name: "Class 8 See Them Smile",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/see-them-smile/slides",
+      quiz: "/admin/teaching/see-them-smile/quiz",
+      worksheet: "/admin/teaching/see-them-smile/worksheet",
+      script: "/admin/teaching/see-them-smile/script",
+      answers: "/admin/teaching/see-them-smile/answers",
+    },
+  },
+  {
+    classSlug: "staying-safe-online",
+    name: "Class 9 Staying Safe Online",
+    category: "Digital Security",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/staying-safe-online/slides",
+      quiz: "/admin/teaching/staying-safe-online/quiz",
+      worksheet: "/admin/teaching/staying-safe-online/worksheet",
+      script: "/admin/teaching/staying-safe-online/script",
+      answers: "/admin/teaching/staying-safe-online/answers",
+    },
+  },
+  {
+    classSlug: "capture-the-moment",
+    name: "Class 10 Capture the Moment",
+    category: "Photography",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/capture-the-moment/slides",
+      quiz: "/admin/teaching/capture-the-moment/quiz",
+      worksheet: "/admin/teaching/capture-the-moment/worksheet",
+      script: "/admin/teaching/capture-the-moment/script",
+      answers: "/admin/teaching/capture-the-moment/answers",
+    },
+  },
+  {
+    classSlug: "find-anything-anytime",
+    name: "Class 11 Find Anything, Anytime",
+    category: "Searching",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/find-anything-anytime/slides",
+      quiz: "/admin/teaching/find-anything-anytime/quiz",
+      worksheet: "/admin/teaching/find-anything-anytime/worksheet",
+      script: "/admin/teaching/find-anything-anytime/script",
+      answers: "/admin/teaching/find-anything-anytime/answers",
+    },
+  },
+  {
+    classSlug: "on-the-go-with-maps",
+    name: "Class 12 On the Go with Maps",
+    category: "Navigation",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/on-the-go-with-maps/slides",
+      quiz: "/admin/teaching/on-the-go-with-maps/quiz",
+      worksheet: "/admin/teaching/on-the-go-with-maps/worksheet",
+      script: "/admin/teaching/on-the-go-with-maps/script",
+      answers: "/admin/teaching/on-the-go-with-maps/answers",
+    },
+  },
+  {
+    classSlug: "news-and-weather",
+    name: "Class 13 News & Weather",
+    category: "Staying Informed",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/news-and-weather/slides",
+      quiz: "/admin/teaching/news-and-weather/quiz",
+      worksheet: "/admin/teaching/news-and-weather/worksheet",
+      script: "/admin/teaching/news-and-weather/script",
+      answers: "/admin/teaching/news-and-weather/answers",
+    },
+  },
+  {
+    classSlug: "your-digital-wallet",
+    name: "Class 14 Your Digital Wallet",
+    category: "Mobile Payments",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/your-digital-wallet/slides",
+      quiz: "/admin/teaching/your-digital-wallet/quiz",
+      worksheet: "/admin/teaching/your-digital-wallet/worksheet",
+      script: "/admin/teaching/your-digital-wallet/script",
+      answers: "/admin/teaching/your-digital-wallet/answers",
+    },
+  },
+  {
+    classSlug: "entertainment-everywhere",
+    name: "Class 15 Entertainment Everywhere",
+    category: "Entertainment",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/entertainment-everywhere/slides",
+      quiz: "/admin/teaching/entertainment-everywhere/quiz",
+      worksheet: "/admin/teaching/entertainment-everywhere/worksheet",
+      script: "/admin/teaching/entertainment-everywhere/script",
+      answers: "/admin/teaching/entertainment-everywhere/answers",
+    },
+  },
+  {
+    classSlug: "connect-with-your-community",
+    name: "Class 16 Connect with Your Community",
+    category: "Social Media",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/connect-with-your-community/slides",
+      quiz: "/admin/teaching/connect-with-your-community/quiz",
+      worksheet: "/admin/teaching/connect-with-your-community/worksheet",
+      script: "/admin/teaching/connect-with-your-community/script",
+      answers: "/admin/teaching/connect-with-your-community/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -113,6 +295,7 @@ function ClassCard({ entry, gameHref }: { entry: ClassEntry; gameHref: string | 
             <Link
               key={btn.label}
               href={btn.href}
+              prefetch={false}
               className="inline-flex items-center px-[14px] py-[7px] rounded-[6px] font-sans text-[12px] font-semibold bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:brightness-110 transition"
             >
               {btn.label}
