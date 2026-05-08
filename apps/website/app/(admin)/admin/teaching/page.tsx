@@ -155,6 +155,32 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/capture-the-moment/answers",
     },
   },
+  {
+    classSlug: "find-anything-anytime",
+    name: "Class 11 Find Anything, Anytime",
+    category: "Searching",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/find-anything-anytime/slides",
+      quiz: "/admin/teaching/find-anything-anytime/quiz",
+      worksheet: "/admin/teaching/find-anything-anytime/worksheet",
+      script: "/admin/teaching/find-anything-anytime/script",
+      answers: "/admin/teaching/find-anything-anytime/answers",
+    },
+  },
+  {
+    classSlug: "on-the-go-with-maps",
+    name: "Class 12 On the Go with Maps",
+    category: "Navigation",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/on-the-go-with-maps/slides",
+      quiz: "/admin/teaching/on-the-go-with-maps/quiz",
+      worksheet: "/admin/teaching/on-the-go-with-maps/worksheet",
+      script: "/admin/teaching/on-the-go-with-maps/script",
+      answers: "/admin/teaching/on-the-go-with-maps/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
