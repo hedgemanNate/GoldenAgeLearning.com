@@ -220,6 +220,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/entertainment-everywhere/answers",
     },
   },
+  {
+    classSlug: "connect-with-your-community",
+    name: "Class 16 Connect with Your Community",
+    category: "Social Media",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/connect-with-your-community/slides",
+      quiz: "/admin/teaching/connect-with-your-community/quiz",
+      worksheet: "/admin/teaching/connect-with-your-community/worksheet",
+      script: "/admin/teaching/connect-with-your-community/script",
+      answers: "/admin/teaching/connect-with-your-community/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -282,6 +295,7 @@ function ClassCard({ entry, gameHref }: { entry: ClassEntry; gameHref: string | 
             <Link
               key={btn.label}
               href={btn.href}
+              prefetch={false}
               className="inline-flex items-center px-[14px] py-[7px] rounded-[6px] font-sans text-[12px] font-semibold bg-[var(--color-gold)] text-[var(--color-dark-bg)] hover:brightness-110 transition"
             >
               {btn.label}
