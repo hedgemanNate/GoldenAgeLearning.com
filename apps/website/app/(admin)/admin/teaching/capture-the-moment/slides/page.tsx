@@ -310,7 +310,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Digital Security · Class 9
+          Photography · Class 10
         </p>
         {children}
       </div>

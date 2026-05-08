@@ -181,6 +181,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/on-the-go-with-maps/answers",
     },
   },
+  {
+    classSlug: "news-and-weather",
+    name: "Class 13 News & Weather",
+    category: "Staying Informed",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/news-and-weather/slides",
+      quiz: "/admin/teaching/news-and-weather/quiz",
+      worksheet: "/admin/teaching/news-and-weather/worksheet",
+      script: "/admin/teaching/news-and-weather/script",
+      answers: "/admin/teaching/news-and-weather/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 

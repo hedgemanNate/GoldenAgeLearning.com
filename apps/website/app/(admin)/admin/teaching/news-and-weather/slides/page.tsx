@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTeachingSession } from "../../../../../../hooks/useTeachingSession";
-import { onTheGoWithMapsSlides } from "../_slides/content";
+import { newsAndWeatherSlides } from "../_slides/content";
 
-const CLASS_SLUG = "on-the-go-with-maps";
-const TOTAL_SLIDES = onTheGoWithMapsSlides.length;
+const CLASS_SLUG = "news-and-weather";
+const TOTAL_SLIDES = newsAndWeatherSlides.length;
 
-export default function OnTheGoWithMapsSlidesLaunch() {
+export default function NewsAndWeatherSlidesLaunch() {
   const {
     session,
     loading,
@@ -301,7 +301,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          On the Go with Maps &mdash; Slides
+          News &amp; Weather &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +310,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Navigation · Class 12
+          Staying Informed · Class 13
         </p>
         {children}
       </div>
@@ -399,3 +399,4 @@ function dangerBtn(disabled: boolean): React.CSSProperties {
     opacity: disabled ? 0.6 : 1,
   };
 }
+

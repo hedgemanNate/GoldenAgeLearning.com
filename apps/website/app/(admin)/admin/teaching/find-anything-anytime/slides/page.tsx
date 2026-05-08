@@ -301,7 +301,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Capture the Moment &mdash; Slides
+          Find Anything, Anytime &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +310,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Digital Security · Class 9
+          Searching · Class 11
         </p>
         {children}
       </div>
