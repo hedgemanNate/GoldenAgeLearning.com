@@ -103,6 +103,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/email-essentials/answers",
     },
   },
+  {
+    classSlug: "texting-and-messaging",
+    name: "Class 7 Texting & Messaging",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/texting-and-messaging/slides",
+      quiz: "/admin/teaching/texting-and-messaging/quiz",
+      worksheet: "/admin/teaching/texting-and-messaging/worksheet",
+      script: "/admin/teaching/texting-and-messaging/script",
+      answers: "/admin/teaching/texting-and-messaging/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
