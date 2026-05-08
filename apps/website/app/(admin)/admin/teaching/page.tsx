@@ -116,6 +116,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/texting-and-messaging/answers",
     },
   },
+  {
+    classSlug: "see-them-smile",
+    name: "Class 8 See Them Smile",
+    category: "Smartphone Basics",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/see-them-smile/slides",
+      quiz: "/admin/teaching/see-them-smile/quiz",
+      worksheet: "/admin/teaching/see-them-smile/worksheet",
+      script: "/admin/teaching/see-them-smile/script",
+      answers: "/admin/teaching/see-them-smile/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
