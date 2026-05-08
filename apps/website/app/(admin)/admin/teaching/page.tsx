@@ -207,6 +207,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/your-digital-wallet/answers",
     },
   },
+  {
+    classSlug: "entertainment-everywhere",
+    name: "Class 15 Entertainment Everywhere",
+    category: "Entertainment",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/entertainment-everywhere/slides",
+      quiz: "/admin/teaching/entertainment-everywhere/quiz",
+      worksheet: "/admin/teaching/entertainment-everywhere/worksheet",
+      script: "/admin/teaching/entertainment-everywhere/script",
+      answers: "/admin/teaching/entertainment-everywhere/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
