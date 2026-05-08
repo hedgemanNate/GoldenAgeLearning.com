@@ -129,6 +129,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/see-them-smile/answers",
     },
   },
+  {
+    classSlug: "staying-safe-online",
+    name: "Class 9 Staying Safe Online",
+    category: "Digital Security",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/staying-safe-online/slides",
+      quiz: "/admin/teaching/staying-safe-online/quiz",
+      worksheet: "/admin/teaching/staying-safe-online/worksheet",
+      script: "/admin/teaching/staying-safe-online/script",
+      answers: "/admin/teaching/staying-safe-online/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 
