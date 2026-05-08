@@ -7,6 +7,7 @@ import { browsingAndOnlineSafetySlides } from "../_slides/content";
 
 const CLASS_SLUG = "browsing-and-online-safety";
 const TOTAL_SLIDES = browsingAndOnlineSafetySlides.length;
+const titleSlide = browsingAndOnlineSafetySlides[0];
 
 export default function BrowsingAndOnlineSafetySlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Browsing &amp; Online Safety — Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 4
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

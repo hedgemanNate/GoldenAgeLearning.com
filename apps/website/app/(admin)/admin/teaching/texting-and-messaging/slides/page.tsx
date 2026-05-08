@@ -7,6 +7,7 @@ import { textingAndMessagingSlides } from "../_slides/content";
 
 const CLASS_SLUG = "texting-and-messaging";
 const TOTAL_SLIDES = textingAndMessagingSlides.length;
+const titleSlide = textingAndMessagingSlides[0];
 
 export default function TextingAndMessagingSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Texting &amp; Messaging &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 7
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

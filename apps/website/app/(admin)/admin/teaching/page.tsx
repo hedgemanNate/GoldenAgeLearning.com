@@ -194,6 +194,19 @@ const CLASSES: ClassEntry[] = [
       answers: "/admin/teaching/news-and-weather/answers",
     },
   },
+  {
+    classSlug: "your-digital-wallet",
+    name: "Class 14 Your Digital Wallet",
+    category: "Mobile Payments",
+    duration: "90m",
+    assets: {
+      slides: "/admin/teaching/your-digital-wallet/slides",
+      quiz: "/admin/teaching/your-digital-wallet/quiz",
+      worksheet: "/admin/teaching/your-digital-wallet/worksheet",
+      script: "/admin/teaching/your-digital-wallet/script",
+      answers: "/admin/teaching/your-digital-wallet/answers",
+    },
+  },
 ];
 // ──────────────────────────────────────────────────────────────────────────────
 

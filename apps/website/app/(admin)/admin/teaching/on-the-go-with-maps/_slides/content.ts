@@ -38,7 +38,7 @@ export const onTheGoWithMapsSlides: Slide[] = [
     layout: "title",
     title: "On the Go with Maps",
     subtitle: "Your Guide to Navigation and Discovery",
-    classLabel: "Class 12 \u00b7 Golden Age Learning",
+    classLabel: "Navigation \u00b7 Class 12",
   },
 
   // Slide 2 — Agenda

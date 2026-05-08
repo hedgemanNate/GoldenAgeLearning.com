@@ -7,6 +7,7 @@ import { stayingSafeOnlineSlides } from "../_slides/content";
 
 const CLASS_SLUG = "staying-safe-online";
 const TOTAL_SLIDES = stayingSafeOnlineSlides.length;
+const titleSlide = stayingSafeOnlineSlides[0];
 
 export default function StayingSafeOnlineSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Staying Safe Online &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Digital Security · Class 9
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

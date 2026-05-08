@@ -7,6 +7,7 @@ import { seeThemSmileSlides } from "../_slides/content";
 
 const CLASS_SLUG = "see-them-smile";
 const TOTAL_SLIDES = seeThemSmileSlides.length;
+const titleSlide = seeThemSmileSlides[0];
 
 export default function SeeThemSmileSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          See Them Smile &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 8
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

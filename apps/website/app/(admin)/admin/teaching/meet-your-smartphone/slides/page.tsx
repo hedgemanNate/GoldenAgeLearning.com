@@ -7,6 +7,7 @@ import { meetYourSmartphoneSlides } from "../_slides/content";
 
 const CLASS_SLUG = "meet-your-smartphone";
 const TOTAL_SLIDES = meetYourSmartphoneSlides.length;
+const titleSlide = meetYourSmartphoneSlides[0];
 
 export default function MeetYourSmartphoneSlidesLaunch() {
   const {
@@ -299,7 +300,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Meet Your Smartphone — Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -308,7 +309,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 1
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

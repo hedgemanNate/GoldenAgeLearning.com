@@ -7,6 +7,7 @@ import { newsAndWeatherSlides } from "../_slides/content";
 
 const CLASS_SLUG = "news-and-weather";
 const TOTAL_SLIDES = newsAndWeatherSlides.length;
+const titleSlide = newsAndWeatherSlides[0];
 
 export default function NewsAndWeatherSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          News &amp; Weather &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Staying Informed · Class 13
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

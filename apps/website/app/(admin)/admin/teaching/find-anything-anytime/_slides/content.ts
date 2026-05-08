@@ -38,7 +38,7 @@ export const findAnythingAnytimeSlides: Slide[] = [
     layout: "title",
     title: "Find Anything, Anytime",
     subtitle: "The Art of Searching the Internet",
-    classLabel: "Class 11 \u00b7 Golden Age Learning",
+    classLabel: "Searching \u00b7 Class 11",
   },
 
   // Slide 2 — Agenda

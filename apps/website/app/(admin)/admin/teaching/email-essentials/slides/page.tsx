@@ -7,6 +7,7 @@ import { emailEssentialsSlides } from "../_slides/content";
 
 const CLASS_SLUG = "email-essentials";
 const TOTAL_SLIDES = emailEssentialsSlides.length;
+const titleSlide = emailEssentialsSlides[0];
 
 export default function EmailEssentialsSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Email Essentials &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 6
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

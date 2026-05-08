@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTeachingSession } from "../../../../../../hooks/useTeachingSession";
-import { makingConnectionsSlides } from "../_slides/content";
+import { yourDigitalWalletSlides } from "../_slides/content";
 
-const CLASS_SLUG = "making-connections";
-const TOTAL_SLIDES = makingConnectionsSlides.length;
-const titleSlide = makingConnectionsSlides[0];
+const CLASS_SLUG = "your-digital-wallet";
+const TOTAL_SLIDES = yourDigitalWalletSlides.length;
+const titleSlide = yourDigitalWalletSlides[0];
 
-export default function MakingConnectionsSlidesLaunch() {
+export default function YourDigitalWalletSlidesLaunch() {
   const {
     session,
     loading,

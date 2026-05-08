@@ -7,6 +7,7 @@ import { captureTheMomentSlides } from "../_slides/content";
 
 const CLASS_SLUG = "capture-the-moment";
 const TOTAL_SLIDES = captureTheMomentSlides.length;
+const titleSlide = captureTheMomentSlides[0];
 
 export default function CaptureTheMomentSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Capture the Moment &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Photography · Class 10
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

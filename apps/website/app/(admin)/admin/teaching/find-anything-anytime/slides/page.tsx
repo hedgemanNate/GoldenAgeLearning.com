@@ -7,6 +7,7 @@ import { findAnythingAnytimeSlides } from "../_slides/content";
 
 const CLASS_SLUG = "find-anything-anytime";
 const TOTAL_SLIDES = findAnythingAnytimeSlides.length;
+const titleSlide = findAnythingAnytimeSlides[0];
 
 export default function FindAnythingAnytimeSlidesLaunch() {
   const {
@@ -301,7 +302,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Find Anything, Anytime &mdash; Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -310,7 +311,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Searching · Class 11
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

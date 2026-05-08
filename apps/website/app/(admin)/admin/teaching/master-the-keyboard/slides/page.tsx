@@ -7,6 +7,7 @@ import { masterTheKeyboardSlides } from "../_slides/content";
 
 const CLASS_SLUG = "master-the-keyboard";
 const TOTAL_SLIDES = masterTheKeyboardSlides.length;
+const titleSlide = masterTheKeyboardSlides[0];
 
 export default function MasterTheKeyboardSlidesLaunch() {
   const {
@@ -307,7 +308,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          Master the Keyboard — Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -316,7 +317,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 2
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

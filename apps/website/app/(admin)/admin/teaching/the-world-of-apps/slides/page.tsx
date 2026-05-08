@@ -7,6 +7,7 @@ import { theWorldOfAppsSlides } from "../_slides/content";
 
 const CLASS_SLUG = "the-world-of-apps";
 const TOTAL_SLIDES = theWorldOfAppsSlides.length;
+const titleSlide = theWorldOfAppsSlides[0];
 
 export default function TheWorldOfAppsSlidesLaunch() {
   const {
@@ -305,7 +306,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 4px 0",
           }}
         >
-          The World of Apps — Slides
+          {titleSlide.title} &mdash; Slides
         </h1>
         <p
           style={{
@@ -314,7 +315,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             margin: "0 0 24px 0",
           }}
         >
-          Smartphone Basics · Class 3
+          {titleSlide.classLabel}
         </p>
         {children}
       </div>

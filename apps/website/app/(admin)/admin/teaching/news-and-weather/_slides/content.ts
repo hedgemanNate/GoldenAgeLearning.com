@@ -38,7 +38,7 @@ export const newsAndWeatherSlides: Slide[] = [
     layout: "title",
     title: "News & Weather",
     subtitle: "Your Morning Paper, Reimagined",
-    classLabel: "Class 13 \u00b7 Golden Age Learning",
+    classLabel: "Staying Informed \u00b7 Class 13",
   },
 
   // Slide 2 — Agenda
