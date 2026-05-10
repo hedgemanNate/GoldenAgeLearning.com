@@ -11,6 +11,9 @@ import { useAuthContext } from "../../../../../../../context/AuthContext";
 import {
   getGame,
   getGameQuestions,
+  getFamilyFeudMainQuestions,
+  getFamilyFeudFastMoneyQuestions,
+  getBookingsByClass,
   updateTeachingSession,
   startTeachingSession,
   setTeachingSessionMode,
@@ -29,10 +32,18 @@ import {
   tierAvailability,
   canStartGame,
 } from "../../../../../../../lib/games/millionaire";
+import {
+  initialGameState as ffInitialState,
+  canStartFamilyFeudGame,
+} from "../../../../../../../lib/games/familyFeud";
+import FamilyFeudRemote from "../../../../../../../components/teaching/familyFeud/FamilyFeudRemote";
 import type {
   GameInstanceWithId,
   GameQuestion,
   MillionaireGameState,
+  FamilyFeudMainQuestion,
+  FamilyFeudFastMoneyQuestion,
+  FamilyFeudGameState,
 } from "../../../../../../../types/game";
 
 type AnswerLetter = "a" | "b" | "c" | "d";
@@ -48,6 +59,8 @@ export default function MillionairePlayPage({ params }: PageProps) {
 
   const [game, setGame] = useState<GameInstanceWithId | null>(null);
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
+  const [ffMainQuestions, setFfMainQuestions] = useState<FamilyFeudMainQuestion[]>([]);
+  const [ffFastMoneyQuestions, setFfFastMoneyQuestions] = useState<FamilyFeudFastMoneyQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,6 +77,16 @@ export default function MillionairePlayPage({ params }: PageProps) {
         } else {
           setGame(g);
           setQuestions(qs);
+          if (g.gameType === "familyFeud") {
+            const [mainQs, fastMoneyQs] = await Promise.all([
+              getFamilyFeudMainQuestions(gameId),
+              getFamilyFeudFastMoneyQuestions(gameId),
+            ]);
+            if (!cancelled) {
+              setFfMainQuestions(mainQs);
+              setFfFastMoneyQuestions(fastMoneyQs);
+            }
+          }
         }
       } catch {
         if (!cancelled) setLoadError("Failed to load game.");
@@ -74,13 +97,21 @@ export default function MillionairePlayPage({ params }: PageProps) {
     return () => { cancelled = true; };
   }, [gameId]);
 
-  // ─── Derived: live game state from session ─────────────────────────────────
+  // ─── Derived: live Millionaire game state from session ────────────────────
   const gameState: MillionaireGameState | null = useMemo(() => {
     if (!session || session.status !== "active" || session.mode !== "game" || !session.gameState) return null;
+    if ((session.gameState as Record<string, unknown>).gameType === "familyFeud") return null;
     return session.gameState as unknown as MillionaireGameState;
   }, [session]);
 
-  // ─── State write helper ────────────────────────────────────────────────────
+  // ─── Derived: live Family Feud game state from session ────────────────────
+  const ffGameState: FamilyFeudGameState | null = useMemo(() => {
+    if (!session || session.status !== "active" || session.mode !== "game" || !session.gameState) return null;
+    if ((session.gameState as Record<string, unknown>).gameType !== "familyFeud") return null;
+    return session.gameState as unknown as FamilyFeudGameState;
+  }, [session]);
+
+  // ─── State write helpers ───────────────────────────────────────────────────
   const writeState = useCallback(
     async (patch: MillionaireGameState) => {
       if (!ownerId) return;
@@ -90,6 +121,13 @@ export default function MillionairePlayPage({ params }: PageProps) {
     },
     [ownerId]
   );
+
+  const writeFFState = useCallback(async (s: FamilyFeudGameState) => {
+    if (!ownerId) return;
+    await updateTeachingSession(ownerId, {
+      gameState: s as unknown as Record<string, unknown>,
+    });
+  }, [ownerId]);
 
   // ─── START GAME ────────────────────────────────────────────────────────────
   const handleStartGame = async () => {
@@ -114,10 +152,59 @@ export default function MillionairePlayPage({ params }: PageProps) {
   };
 
   // helper that writes state for a specific owner (used during start)
-  const writeStateFor = async (uid: string, s: MillionaireGameState) => {
+  const writeStateFor = async (uid: string, s: unknown) => {
     await updateTeachingSession(uid, {
-      gameState: s as unknown as Record<string, unknown>,
+      gameState: s as Record<string, unknown>,
     });
+  };
+
+  // ─── FF START GAME ─────────────────────────────────────────────────────────
+  const handleFFStartGame = async () => {
+    if (!user || !game) return;
+    if (!canStartFamilyFeudGame(ffMainQuestions, ffFastMoneyQuestions)) {
+      alert("Upload 3 main questions and 5 fast money questions before starting.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await startTeachingSession({
+        ownerId: user.uid,
+        ownerName: user.name,
+        classSlug: game.classId,
+        totalSlides: 0,
+      });
+      await setTeachingSessionMode(user.uid, "game");
+      const initialState = ffInitialState(
+        ffMainQuestions,
+        ffFastMoneyQuestions,
+        game.fastMoneyTimerPlayer1 ?? 20,
+        game.fastMoneyTimerPlayer2 ?? 25,
+      );
+      await writeStateFor(user.uid, initialState);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ─── FF AWARD POINTS ───────────────────────────────────────────────────────
+  const handleFFAwardPoints = async (ffState: FamilyFeudGameState) => {
+    if (!game || !ownerId) return;
+    if (!confirm(`Award ${ffState.gameTotal} points to all enrolled students?`)) return;
+    setBusy(true);
+    try {
+      const bookings = await getBookingsByClass(game.classId);
+      const pointsMap: Record<string, number> = {};
+      for (const b of bookings) {
+        pointsMap[b.customerId] = ffState.gameTotal;
+      }
+      const result = await awardGamePoints(pointsMap, game.classId);
+      alert(`Points awarded to ${result.awarded} students.`);
+      await endTeachingSession(ownerId);
+    } catch (e) {
+      alert(`Failed to award points: ${e instanceof Error ? e.message : "unknown error"}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   // ─── BEGIN Q1 ──────────────────────────────────────────────────────────────
@@ -308,6 +395,35 @@ export default function MillionairePlayPage({ params }: PageProps) {
   if (loading) return <Centered text="Loading game…" />;
   if (loadError) return <Centered text={loadError} />;
   if (!game) return <Centered text="Game not found." />;
+
+  // ─── Family Feud dispatch — checked before Millionaire render ─────────────
+  if (game.gameType === "familyFeud") {
+    if (!ffGameState) {
+      return (
+        <FFPreGameScreen
+          game={game}
+          mainQs={ffMainQuestions}
+          fastMoneyQs={ffFastMoneyQuestions}
+          busy={busy}
+          ownerId={ownerId}
+          onStart={handleFFStartGame}
+        />
+      );
+    }
+    return (
+      <FamilyFeudRemote
+        game={game}
+        mainQuestions={ffMainQuestions}
+        fastMoneyQuestions={ffFastMoneyQuestions}
+        state={ffGameState}
+        ownerId={ownerId ?? ""}
+        busy={busy}
+        onWrite={writeFFState}
+        onEndGame={handleEndGame}
+        onAwardPoints={handleFFAwardPoints}
+      />
+    );
+  }
 
   const tiers = tierAvailability(questions);
   const ready = canStartGame(questions);
@@ -702,4 +818,63 @@ function Centered({ text }: { text: string }) {
 
 function getLockedInPoints(state: MillionaireGameState): number {
   return state.pointsFrozen ? state.finalPoints : state.bankedPoints;
+}
+
+// ─── Family Feud Pre-Game Screen ──────────────────────────────────────────────
+
+function FFPreGameScreen({
+  game, mainQs, fastMoneyQs, busy, ownerId, onStart,
+}: {
+  game: GameInstanceWithId;
+  mainQs: FamilyFeudMainQuestion[];
+  fastMoneyQs: FamilyFeudFastMoneyQuestion[];
+  busy: boolean;
+  ownerId: string | null;
+  onStart: () => void;
+}) {
+  const hasMain = mainQs.length === 3;
+  const hasMini = fastMoneyQs.length === 5;
+  const ready = hasMain && hasMini;
+  return (
+    <div className="min-h-screen bg-[var(--color-dark-bg)] text-[var(--color-cream)] font-sans p-[20px] flex flex-col gap-[20px]">
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)]">Family Feud</p>
+        <h1 className="text-[22px] font-bold mt-[2px]">{game.name}</h1>
+        <p className="text-[12px] text-[rgba(245,237,214,0.5)] mt-[4px]">{game.className}</p>
+      </div>
+
+      <div className="bg-[var(--color-dark-surface)] rounded-[10px] p-[16px] border border-[rgba(245,237,214,0.07)]">
+        <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[8px]">Question Status</p>
+        <div className="flex flex-col gap-[6px] text-[13px]">
+          <Row label="Main Questions (3 rounds)" value={`${mainQs.length} / 3`} ok={hasMain} />
+          <Row label="Fast Money Questions (5)" value={`${fastMoneyQs.length} / 5`} ok={hasMini} />
+          <Row label="Player 1 Timer" value={`${game.fastMoneyTimerPlayer1 ?? 20}s`} />
+          <Row label="Player 2 Timer" value={`${game.fastMoneyTimerPlayer2 ?? 25}s`} />
+        </div>
+      </div>
+
+      {!ready && (
+        <p className="text-[12px] text-red-400 leading-relaxed">
+          Upload 3 main round questions and 5 fast money questions on the Games page before starting.
+        </p>
+      )}
+
+      <div className="bg-[var(--color-dark-surface)] rounded-[10px] p-[14px] border border-[rgba(245,237,214,0.07)] text-[12px] text-[rgba(245,237,214,0.55)] leading-relaxed">
+        Open the display URL on your projector first, then start the game.
+        {ownerId && (
+          <Link
+            href={`/admin/teaching/${game.classId}/slides/display?owner=${ownerId}`}
+            target="_blank"
+            className="block mt-[8px] text-[var(--color-teal)] underline"
+          >
+            Open Display ↗
+          </Link>
+        )}
+      </div>
+
+      <BigButton onClick={onStart} color="gold" disabled={!ready || busy}>
+        {busy ? "Starting…" : "▶ Start Family Feud"}
+      </BigButton>
+    </div>
+  );
 }

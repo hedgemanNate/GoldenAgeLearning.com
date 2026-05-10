@@ -1,4 +1,4 @@
-export type GameType = "millionaire";
+export type GameType = "millionaire" | "familyFeud";
 
 // Phase machine for one full game session.
 // Transitions are driven exclusively by the instructor remote.
@@ -38,8 +38,10 @@ export interface GameInstance {
   classId: string;
   className: string;  // denormalized copy for display
   gameType: GameType;
-  timerSeconds: number;
+  timerSeconds?: number;          // Millionaire: 5–120. Absent for Family Feud.
   questionCount: number;
+  fastMoneyTimerPlayer1?: number; // Family Feud only. Default 20.
+  fastMoneyTimerPlayer2?: number; // Family Feud only. Default 25.
   createdAt: number;
   createdBy: string;  // uid of staff member who created it
 }
@@ -92,4 +94,146 @@ export interface MillionaireGameState {
   // Timer config stored in state so the display can call beginFirstQuestion
   // without needing the GameInstance (which is only on the instructor's device).
   timerSeconds: number;
+}
+
+// ─── Family Feud Types ───────────────────────────────────────────────────────
+
+// Exactly 20 phases as specified.
+export type FamilyFeudGamePhase =
+  | "idle"               // game loaded, opening screen, waiting to start
+  | "starting"           // intro fanfare plays, transition before Round 1
+  | "face-off"           // face-off question shown, waiting for buzz-in
+  | "face-off-buzz"      // a student has buzzed in, waiting for answer input
+  | "face-off-correct"   // buzz-in answer is on board — answer reveals, face-off ends
+  | "face-off-wrong"     // buzz-in answer is NOT on board — other student gets a chance
+  | "playing"            // class playing the board — answers being revealed
+  | "answer-revealed"    // an answer just flipped — brief display moment before returning to playing
+  | "strike"             // wrong answer — strike displayed, then returns to playing
+  | "three-strikes"      // third strike — remaining answers revealed, round ends
+  | "round-over"         // round summary shown, points tallied
+  | "round-transition"   // transition between rounds
+  | "fast-money-intro"   // Fast Money announced — intro fanfare
+  | "fast-money-player1"      // Player 1 answering — timer running
+  | "fast-money-player1-done" // Player 1 time up — answers hidden, Player 2 prepares
+  | "fast-money-player2"      // Player 2 answering — timer running
+  | "fast-money-player2-done" // Player 2 time up
+  | "fast-money-reveal"  // both players' answers revealed question by question
+  | "fast-money-score"   // final Fast Money score shown
+  | "game-over";         // final score shown, points awarded to students
+
+// A single main-game survey question with 5–8 ranked answers.
+export interface FamilyFeudMainQuestion {
+  round: 1 | 2 | 3;
+  question_text: string;
+  answer_1: string;
+  answer_2: string;
+  answer_3: string;
+  answer_4: string;
+  answer_5: string;
+  answer_6: string | null;
+  answer_7: string | null;
+  answer_8: string | null;
+  points_1: number;
+  points_2: number;
+  points_3: number;
+  points_4: number;
+  points_5: number;
+  points_6: number | null;
+  points_7: number | null;
+  points_8: number | null;
+  answer_count: number;  // 5–8
+}
+
+// One of the 5 Fast Money questions.
+export interface FamilyFeudFastMoneyQuestion {
+  question_text: string;
+  answer_1: string;
+  answer_2: string;
+  answer_3: string;
+  answer_4: string;
+  answer_5: string;
+  answer_6: string | null;
+  answer_7: string | null;
+  answer_8: string | null;
+  points_1: number;
+  points_2: number;
+  points_3: number;
+  points_4: number;
+  points_5: number;
+  points_6: number | null;
+  points_7: number | null;
+  points_8: number | null;
+  answer_count: number;  // 5–8
+}
+
+// A scoring selection made by the assistant during the reveal phase.
+// number  = 0-based index into the question's answers (the matched board answer)
+// "not-on-board" = no match; scores zero
+// "duplicate"    = matches Player 1's selection (Player 2 only); scores zero
+// null           = not yet scored
+export type FamilyFeudScoreSelection =
+  | number
+  | "not-on-board"
+  | "duplicate"
+  | null;
+
+export interface FamilyFeudFastMoneyState {
+  // Raw typed text from the timed rounds — 5 entries each (empty string = blank)
+  player1Answers: string[];
+  player2Answers: string[];
+
+  // Absolute end timestamp while a timed round is running; null otherwise
+  timerEndsAt: number | null;
+
+  // Reveal-phase selections — 5 entries each (null = not yet scored by assistant)
+  player1Selections: Array<number | "not-on-board" | null>;
+  player2Selections: FamilyFeudScoreSelection[];
+
+  // Which of the 5 questions have already been "flipped" on the display
+  revealedQuestions: boolean[];
+
+  // Which question the assistant is currently scoring in the reveal phase (0–4)
+  currentRevealQuestion: number;
+
+  // Running total as reveal-phase answers are confirmed
+  fastMoneyTotal: number;
+}
+
+export interface FamilyFeudGameState {
+  // Discriminator — lets display pages dispatch without checking GameInstance.gameType
+  gameType: "familyFeud";
+
+  // Questions loaded at game start; stored in state so display needs no extra DB read
+  mainQuestions: FamilyFeudMainQuestion[];      // exactly 3 (one per round)
+  fastMoneyQuestions: FamilyFeudFastMoneyQuestion[];  // exactly 5
+
+  phase: FamilyFeudGamePhase;
+
+  // 1-indexed current round (1–3)
+  currentRound: 1 | 2 | 3;
+
+  // 0-based indices of answers that have been revealed on the current board
+  revealedAnswerIndices: number[];
+
+  // Current strike count (0–3; reaching 3 ends the round)
+  strikes: number;
+
+  // Points earned per round — index 0 = round 1
+  roundTotals: [number, number, number];
+
+  // Running game total (roundTotals sum + fastMoneyState.fastMoneyTotal)
+  gameTotal: number;
+
+  // Which student buzzed in during face-off-buzz (1 or 2); null outside face-off
+  faceOffBuzzedStudent: 1 | 2 | null;
+
+  // Fast Money — null until fast-money-intro phase begins
+  fastMoneyState: FamilyFeudFastMoneyState | null;
+
+  // Config stored in state so display can read timers without the GameInstance
+  fastMoneyTimerPlayer1: number;  // seconds (default 20)
+  fastMoneyTimerPlayer2: number;  // seconds (default 25)
+
+  startedAt: number;
+  updatedAt: number;
 }

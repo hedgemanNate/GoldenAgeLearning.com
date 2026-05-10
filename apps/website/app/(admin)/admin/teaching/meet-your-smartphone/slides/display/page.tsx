@@ -5,9 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { setTeachingSessionSlide, updateTeachingSession } from "../../../../../../../lib/firebase/db";
 import { useTeachingSessionDisplay } from "../../../../../../../hooks/useTeachingSession";
-import MillionaireDisplay from "../../../../../../../components/teaching/millionaire/MillionaireDisplay";
-import type { MillionaireGameState } from "../../../../../../../types/game";
-import { beginFirstQuestion } from "../../../../../../../lib/games/millionaire";
+import GameDisplayDispatcher from "../../../../../../../components/teaching/GameDisplayDispatcher";
 import {
   meetYourSmartphoneSlides,
   type SlideContent,
@@ -875,21 +873,10 @@ function DisplayInner() {
   // display with the Millionaire renderer. State comes from the same
   // teaching-session subscription — no extra reads, no parallel sync layer.
   if (session?.mode === "game" && session.gameState) {
-    const gameState = session.gameState as unknown as MillionaireGameState;
     return (
       <div style={{ width: "100vw", minHeight: "100vh", backgroundColor: "#000" }}>
         <style>{fontFaces}</style>
-        <MillionaireDisplay
-          state={gameState}
-          gameName="Meet Your Smartphone"
-          audioEnabled={true}
-          onStartingComplete={ownerId ? async () => {
-            const gs = session.gameState as unknown as MillionaireGameState;
-            await updateTeachingSession(ownerId, {
-              gameState: beginFirstQuestion(gs, gs.timerSeconds) as unknown as Record<string, unknown>,
-            });
-          } : undefined}
-        />
+        <GameDisplayDispatcher session={session} ownerId={ownerId} gameName="Meet Your Smartphone" />
       </div>
     );
   }

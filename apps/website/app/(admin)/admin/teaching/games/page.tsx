@@ -3,17 +3,27 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "../../../../../hooks/useAuth";
+import Papa from "papaparse";
 import {
   subscribeToGames,
   createGame,
   deleteGame,
   replaceGameQuestions,
+  replaceFamilyFeudMainQuestions,
+  replaceFamilyFeudFastMoneyQuestions,
 } from "../../../../../lib/firebase/db";
-import type { GameInstanceWithId, GameQuestion } from "../../../../../types/game";
+import type {
+  GameInstanceWithId,
+  GameQuestion,
+  GameType,
+  FamilyFeudMainQuestion,
+  FamilyFeudFastMoneyQuestion,
+} from "../../../../../types/game";
 
 // ─── Game Types ────────────────────────────────────────────────────────────────
-const GAME_TYPES = [
-  { id: "millionaire" as const, name: "Who Wants to Be a Millionaire" },
+const GAME_TYPES: { id: GameType; name: string }[] = [
+  { id: "millionaire", name: "Who Wants to Be a Millionaire" },
+  { id: "familyFeud", name: "Family Feud" },
 ];
 
 // ─── Teaching Classes — mirrors the CLASSES manifest in teaching/page.tsx ─────
@@ -60,8 +70,10 @@ interface CreateGameModalProps {
 
 function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps) {
   const [slug, setSlug] = useState(TEACHING_CLASSES[0]?.slug ?? "");
-  const [gameType, setGameType] = useState<"millionaire">("millionaire");
+  const [gameType, setGameType] = useState<GameType>("millionaire");
   const [timerSeconds, setTimerSeconds] = useState(60);
+  const [p1Timer, setP1Timer] = useState(20);
+  const [p2Timer, setP2Timer] = useState(25);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -73,9 +85,14 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
     setError(null);
 
     if (!slug || !selectedClass) { setError("Please select a class."); return; }
-    if (timerSeconds < 5 || timerSeconds > 120) {
-      setError("Timer must be between 5 and 120 seconds.");
-      return;
+    if (gameType === "millionaire") {
+      if (timerSeconds < 5 || timerSeconds > 120) {
+        setError("Timer must be between 5 and 120 seconds.");
+        return;
+      }
+    } else {
+      if (p1Timer < 5 || p1Timer > 120) { setError("Player 1 timer must be 5–120 seconds."); return; }
+      if (p2Timer < 5 || p2Timer > 120) { setError("Player 2 timer must be 5–120 seconds."); return; }
     }
 
     setSaving(true);
@@ -85,7 +102,9 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
         classId: slug,
         className: selectedClass.name,
         gameType,
-        timerSeconds,
+        ...(gameType === "millionaire"
+          ? { timerSeconds }
+          : { fastMoneyTimerPlayer1: p1Timer, fastMoneyTimerPlayer2: p2Timer }),
         questionCount: 0,
         createdBy,
       });
@@ -149,7 +168,7 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
             </label>
             <select
               value={gameType}
-              onChange={(e) => setGameType(e.target.value as "millionaire")}
+              onChange={(e) => setGameType(e.target.value as GameType)}
               className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)]"
             >
               {GAME_TYPES.map((t) => (
@@ -158,20 +177,46 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
             </select>
           </div>
 
-          {/* Timer */}
-          <div className="flex flex-col gap-[6px]">
-            <label className="text-[12px] font-medium text-[rgba(245,237,214,0.6)] uppercase tracking-wider">
-              Timer Per Question (seconds)
-            </label>
-            <input
-              type="number"
-              min={5}
-              max={120}
-              value={timerSeconds}
-              onChange={(e) => setTimerSeconds(Number(e.target.value))}
-              className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
-            />
-          </div>
+          {/* Timer fields — conditional on game type */}
+          {gameType === "millionaire" && (
+            <div className="flex flex-col gap-[6px]">
+              <label className="text-[12px] font-medium text-[rgba(245,237,214,0.6)] uppercase tracking-wider">
+                Timer Per Question (seconds)
+              </label>
+              <input
+                type="number"
+                min={5}
+                max={120}
+                value={timerSeconds}
+                onChange={(e) => setTimerSeconds(Number(e.target.value))}
+                className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
+              />
+            </div>
+          )}
+          {gameType === "familyFeud" && (
+            <div className="flex flex-col gap-[12px]">
+              <div className="flex flex-col gap-[6px]">
+                <label className="text-[12px] font-medium text-[rgba(245,237,214,0.6)] uppercase tracking-wider">
+                  Fast Money — Player 1 Timer (seconds)
+                </label>
+                <input
+                  type="number" min={5} max={120} value={p1Timer}
+                  onChange={(e) => setP1Timer(Number(e.target.value))}
+                  className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
+                />
+              </div>
+              <div className="flex flex-col gap-[6px]">
+                <label className="text-[12px] font-medium text-[rgba(245,237,214,0.6)] uppercase tracking-wider">
+                  Fast Money — Player 2 Timer (seconds)
+                </label>
+                <input
+                  type="number" min={5} max={120} value={p2Timer}
+                  onChange={(e) => setP2Timer(Number(e.target.value))}
+                  className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
+                />
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="text-[13px] text-red-400">{error}</p>
@@ -499,6 +544,391 @@ function UploadQuestionsModal({ game, onClose }: UploadQuestionsModalProps) {
   );
 }
 
+// ─── Family Feud CSV parsers ───────────────────────────────────────────────────
+
+type FFMainParseResult =
+  | { ok: true; questions: FamilyFeudMainQuestion[] }
+  | { ok: false; errors: string[] };
+
+type FFMiniParseResult =
+  | { ok: true; questions: FamilyFeudFastMoneyQuestion[] }
+  | { ok: false; errors: string[] };
+
+function parseFFMainCSV(text: string): FFMainParseResult {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const errors: string[] = [];
+  const byRound: Record<number, FamilyFeudMainQuestion | null> = { 1: null, 2: null, 3: null };
+
+  if (result.data.length === 0) {
+    return { ok: false, errors: ["CSV is empty or has only a header row."] };
+  }
+
+  for (let i = 0; i < result.data.length; i++) {
+    const row = result.data[i];
+    const rowNum = i + 2; // 1-based, +1 for header
+
+    const roundRaw = (row["round"] ?? "").trim();
+    const round = parseInt(roundRaw, 10) as 1 | 2 | 3;
+    if (![1, 2, 3].includes(round)) {
+      errors.push(`Row ${rowNum}: "round" must be 1, 2, or 3 — got "${roundRaw}".`);
+      continue;
+    }
+    if (byRound[round] !== null) {
+      errors.push(`Row ${rowNum}: duplicate entry for round ${round}.`);
+      continue;
+    }
+
+    const question_text = (row["question_text"] ?? "").trim();
+    if (!question_text) {
+      errors.push(`Row ${rowNum}: "question_text" is empty.`);
+      continue;
+    }
+
+    // Collect answers (1–8); require at least 5
+    const answers: (string | null)[] = [];
+    const pts: (number | null)[] = [];
+    for (let a = 1; a <= 8; a++) {
+      const ans = (row[`answer_${a}`] ?? "").trim();
+      const ptRaw = (row[`points_${a}`] ?? "").trim();
+      if (a <= 5) {
+        if (!ans) errors.push(`Row ${rowNum}: "answer_${a}" is required (must have at least 5 answers).`);
+        if (!ptRaw) errors.push(`Row ${rowNum}: "points_${a}" is required.`);
+        answers.push(ans || null);
+        pts.push(ptRaw ? parseInt(ptRaw, 10) : null);
+      } else {
+        // 6–8 are optional — treat blank as null
+        answers.push(ans || null);
+        pts.push(ans && ptRaw ? parseInt(ptRaw, 10) : null);
+      }
+    }
+
+    const answer_count = answers.filter((a) => a !== null).length;
+    if (answer_count < 5) continue; // errors already added above
+
+    byRound[round] = {
+      round,
+      question_text,
+      answer_1: answers[0]!, answer_2: answers[1]!, answer_3: answers[2]!,
+      answer_4: answers[3]!, answer_5: answers[4]!,
+      answer_6: answers[5], answer_7: answers[6], answer_8: answers[7],
+      points_1: pts[0]!, points_2: pts[1]!, points_3: pts[2]!,
+      points_4: pts[3]!, points_5: pts[4]!,
+      points_6: pts[5], points_7: pts[6], points_8: pts[7],
+      answer_count,
+    };
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  const questions = [byRound[1], byRound[2], byRound[3]];
+  const missing = [1, 2, 3].filter((r) => byRound[r] === null);
+  if (missing.length > 0) {
+    return { ok: false, errors: [`Missing questions for round(s): ${missing.join(", ")}.`] };
+  }
+
+  return { ok: true, questions: questions as FamilyFeudMainQuestion[] };
+}
+
+function parseFFMiniCSV(text: string): FFMiniParseResult {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const errors: string[] = [];
+  const questions: FamilyFeudFastMoneyQuestion[] = [];
+
+  if (result.data.length === 0) {
+    return { ok: false, errors: ["CSV is empty or has only a header row."] };
+  }
+  if (result.data.length !== 5) {
+    errors.push(`Fast Money CSV must have exactly 5 questions — found ${result.data.length}.`);
+  }
+
+  for (let i = 0; i < result.data.length; i++) {
+    const row = result.data[i];
+    const rowNum = i + 2;
+
+    const question_text = (row["question_text"] ?? "").trim();
+    if (!question_text) errors.push(`Row ${rowNum}: "question_text" is empty.`);
+
+    const answers: (string | null)[] = [];
+    const pts: (number | null)[] = [];
+    for (let a = 1; a <= 8; a++) {
+      const ans = (row[`answer_${a}`] ?? "").trim();
+      const ptRaw = (row[`points_${a}`] ?? "").trim();
+      if (a <= 5) {
+        if (!ans) errors.push(`Row ${rowNum}: "answer_${a}" is required.`);
+        answers.push(ans || null);
+        pts.push(ptRaw ? parseInt(ptRaw, 10) : null);
+      } else {
+        answers.push(ans || null);
+        pts.push(ans && ptRaw ? parseInt(ptRaw, 10) : null);
+      }
+    }
+
+    if (errors.length === 0) {
+      questions.push({
+        question_text,
+        answer_1: answers[0]!, answer_2: answers[1]!, answer_3: answers[2]!,
+        answer_4: answers[3]!, answer_5: answers[4]!,
+        answer_6: answers[5], answer_7: answers[6], answer_8: answers[7],
+        points_1: pts[0]!, points_2: pts[1]!, points_3: pts[2]!,
+        points_4: pts[3]!, points_5: pts[4]!,
+        points_6: pts[5], points_7: pts[6], points_8: pts[7],
+        answer_count: answers.filter((a) => a !== null).length,
+      });
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, questions };
+}
+
+// ─── Family Feud Upload Modal ─────────────────────────────────────────────────
+
+interface FamilyFeudUploadModalProps {
+  game: GameInstanceWithId;
+  onClose: () => void;
+}
+
+function FamilyFeudUploadModal({ game, onClose }: FamilyFeudUploadModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const mainFileRef = useRef<HTMLInputElement>(null);
+  const miniFileRef = useRef<HTMLInputElement>(null);
+
+  const [mainParsed, setMainParsed] = useState<FamilyFeudMainQuestion[] | null>(null);
+  const [mainErrors, setMainErrors] = useState<string[]>([]);
+  const [mainFileName, setMainFileName] = useState("");
+
+  const [miniParsed, setMiniParsed] = useState<FamilyFeudFastMoneyQuestion[] | null>(null);
+  const [miniErrors, setMiniErrors] = useState<string[]>([]);
+  const [miniFileName, setMiniFileName] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const canSave = mainParsed !== null && miniParsed !== null;
+
+  function handleMainFile(file: File) {
+    if (!file.name.endsWith(".csv")) { setMainErrors(["Only .csv files are accepted."]); return; }
+    setMainFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const r = parseFFMainCSV(e.target?.result as string);
+      if ('errors' in r) { setMainParsed(null); setMainErrors(r.errors); return; }
+      setMainParsed(r.questions);
+      setMainErrors([]);
+    };
+    reader.readAsText(file);
+  }
+
+  function handleMiniFile(file: File) {
+    if (!file.name.endsWith(".csv")) { setMiniErrors(["Only .csv files are accepted."]); return; }
+    setMiniFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const r = parseFFMiniCSV(e.target?.result as string);
+      if ('errors' in r) { setMiniParsed(null); setMiniErrors(r.errors); return; }
+      setMiniParsed(r.questions);
+      setMiniErrors([]);
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleSave() {
+    if (!mainParsed || !miniParsed) return;
+    if (!confirm("This will replace any existing Family Feud questions for this game. Continue?")) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await replaceFamilyFeudMainQuestions(game.id, mainParsed);
+      await replaceFamilyFeudFastMoneyQuestions(game.id, miniParsed);
+      setSaved(true);
+    } catch {
+      setSaveError("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleOverlayClick(e: React.MouseEvent) {
+    if (e.target === overlayRef.current) onClose();
+  }
+
+  return (
+    <div
+      ref={overlayRef}
+      onClick={handleOverlayClick}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    >
+      <div className="bg-[var(--color-dark-surface)] rounded-[12px] border border-[rgba(245,237,214,0.1)] w-full max-w-[620px] mx-[16px] p-[28px] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-[6px]">
+          <h2 className="font-display text-[18px] font-bold text-[var(--color-cream)]">
+            Upload Family Feud Questions
+          </h2>
+          <button onClick={onClose} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] transition-colors" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-[12px] text-[rgba(245,237,214,0.4)] mb-[20px]">{game.name}</p>
+
+        {saved ? (
+          <div className="flex flex-col items-center gap-[12px] py-[24px]">
+            <div className="w-[48px] h-[48px] rounded-full bg-[rgba(201,168,76,0.12)] flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-[22px] h-[22px] text-[var(--color-gold)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <p className="text-[14px] font-semibold text-[var(--color-cream)]">Questions saved!</p>
+            <p className="text-[12px] text-[rgba(245,237,214,0.4)] text-center">
+              3 main questions + 5 Fast Money questions are live.
+            </p>
+            <button onClick={onClose} className="mt-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px]">
+              Done
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[20px]">
+
+            {/* ── Main Questions ── */}
+            <section>
+              <div className="flex items-center gap-[8px] mb-[8px]">
+                <span className="text-[13px] font-semibold text-[var(--color-cream)]">Main Questions CSV</span>
+                {mainParsed && <span className="text-[11px] text-[var(--color-gold)]">✓ 3 rounds parsed</span>}
+              </div>
+              <div className="bg-[rgba(245,237,214,0.04)] border border-[rgba(245,237,214,0.07)] rounded-[8px] px-[14px] py-[8px] mb-[10px]">
+                <p className="text-[11px] text-[rgba(245,237,214,0.5)] leading-relaxed">
+                  <span className="text-[rgba(245,237,214,0.7)] font-medium">Required columns: </span>
+                  round (1/2/3), question_text, answer_1…answer_5, points_1…points_5
+                  <br />
+                  <span className="text-[rgba(245,237,214,0.4)]">Optional: answer_6…answer_8, points_6…points_8</span>
+                </p>
+              </div>
+              <DropZone
+                label="Drop main questions CSV here"
+                fileName={mainFileName}
+                fileInputRef={mainFileRef}
+                onFile={handleMainFile}
+              />
+              {mainErrors.length > 0 && <ErrorList errors={mainErrors} />}
+              {mainParsed && (
+                <div className="mt-[8px] bg-[rgba(245,237,214,0.03)] rounded-[6px] border border-[rgba(245,237,214,0.07)]">
+                  {mainParsed.map((q, i) => (
+                    <div key={i} className="px-[12px] py-[8px] border-b border-[rgba(245,237,214,0.05)] last:border-0">
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)] mb-[1px]">Round {q.round}</p>
+                      <p className="text-[12px] text-[var(--color-cream)]">{q.question_text}</p>
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)]">
+                        {q.answer_count} answers · top: {q.answer_1} ({q.points_1}pts)
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ── Fast Money Questions ── */}
+            <section>
+              <div className="flex items-center gap-[8px] mb-[8px]">
+                <span className="text-[13px] font-semibold text-[var(--color-cream)]">Fast Money Questions CSV</span>
+                {miniParsed && <span className="text-[11px] text-[var(--color-gold)]">✓ 5 questions parsed</span>}
+              </div>
+              <div className="bg-[rgba(245,237,214,0.04)] border border-[rgba(245,237,214,0.07)] rounded-[8px] px-[14px] py-[8px] mb-[10px]">
+                <p className="text-[11px] text-[rgba(245,237,214,0.5)] leading-relaxed">
+                  <span className="text-[rgba(245,237,214,0.7)] font-medium">Required columns: </span>
+                  question_text, answer_1…answer_5, points_1…points_5
+                  <br />
+                  <span className="text-[rgba(245,237,214,0.4)]">Exactly 5 rows required · Optional: answer_6…answer_8, points_6…points_8</span>
+                </p>
+              </div>
+              <DropZone
+                label="Drop fast money questions CSV here"
+                fileName={miniFileName}
+                fileInputRef={miniFileRef}
+                onFile={handleMiniFile}
+              />
+              {miniErrors.length > 0 && <ErrorList errors={miniErrors} />}
+              {miniParsed && (
+                <div className="mt-[8px] bg-[rgba(245,237,214,0.03)] rounded-[6px] border border-[rgba(245,237,214,0.07)]">
+                  {miniParsed.map((q, i) => (
+                    <div key={i} className="px-[12px] py-[8px] border-b border-[rgba(245,237,214,0.05)] last:border-0">
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)] mb-[1px]">Q{i + 1}</p>
+                      <p className="text-[12px] text-[var(--color-cream)]">{q.question_text}</p>
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)]">
+                        {q.answer_count} answers · top: {q.answer_1} ({q.points_1}pts)
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {saveError && <p className="text-[12px] text-red-400">{saveError}</p>}
+
+            <div className="flex items-center justify-end gap-[10px]">
+              <button type="button" onClick={onClose} className="px-[16px] py-[8px] rounded-[6px] text-[13px] font-medium text-[rgba(245,237,214,0.6)] hover:text-[var(--color-cream)] transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!canSave || saving}
+                className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[18px] py-[8px] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving…" : "Save All Questions"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Shared sub-components for FamilyFeudUploadModal
+function DropZone({
+  label, fileName, fileInputRef, onFile,
+}: {
+  label: string;
+  fileName: string;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFile: (f: File) => void;
+}) {
+  return (
+    <div
+      onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onFile(f); }}
+      onDragOver={(e) => e.preventDefault()}
+      onClick={() => fileInputRef.current?.click()}
+      className="border-2 border-dashed border-[rgba(245,237,214,0.15)] hover:border-[var(--color-gold)] rounded-[8px] flex flex-col items-center justify-center gap-[6px] py-[20px] cursor-pointer transition-colors"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-[20px] h-[20px] text-[rgba(245,237,214,0.3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      {fileName
+        ? <p className="text-[12px] text-[var(--color-gold)]">{fileName}</p>
+        : <p className="text-[12px] text-[rgba(245,237,214,0.45)]">{label} or click to browse</p>
+      }
+      <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+    </div>
+  );
+}
+
+function ErrorList({ errors }: { errors: string[] }) {
+  return (
+    <div className="mt-[8px] bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[8px] px-[14px] py-[10px] max-h-[100px] overflow-y-auto">
+      {errors.map((err, i) => <p key={i} className="text-[12px] text-red-400 leading-relaxed">{err}</p>)}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminTeachingGames() {
   const { firebaseUser } = useAuth();
@@ -575,7 +1005,9 @@ export default function AdminTeachingGames() {
                   <td className="px-[16px] py-[13px] text-[var(--color-cream)] font-medium">{game.name}</td>
                   <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.7)]">{game.className}</td>
                   <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.6)]">{gameTypeLabel(game.gameType)}</td>
-                  <td className="w-[10ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">{game.timerSeconds}s</td>
+                  <td className="w-[10ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">
+                    {game.gameType === "familyFeud" ? "—" : `${game.timerSeconds ?? "—"}s`}
+                  </td>
                   <td className="w-[12ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">{game.questionCount}</td>
                   <td className="w-[26ch] px-[8px] py-[13px]">
                     <div className="flex items-center gap-[12px]">
@@ -639,13 +1071,18 @@ export default function AdminTeachingGames() {
         />
       )}
 
-      {/* Upload Questions Modal */}
-      {uploadGame && (
+      {/* Upload Questions Modal — routes to FF modal for Family Feud games */}
+      {uploadGame && uploadGame.gameType === "familyFeud" ? (
+        <FamilyFeudUploadModal
+          game={uploadGame}
+          onClose={() => setUploadGame(null)}
+        />
+      ) : uploadGame ? (
         <UploadQuestionsModal
           game={uploadGame}
           onClose={() => setUploadGame(null)}
         />
-      )}
+      ) : null}
 
     </div>
   );
