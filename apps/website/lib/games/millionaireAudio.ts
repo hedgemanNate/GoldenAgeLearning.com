@@ -2,7 +2,7 @@
 
 // Manages all Millionaire game audio. Audio is owned by the DISPLAY page only —
 // the instructor remote does not produce sound. Files are served from
-// `/audio/*.mp3` (drop them into `apps/website/public/audio/`).
+// `/audio/Millionaire/*.mp3` (drop them into `apps/website/public/audio/Millionaire/`).
 //
 // If a file is missing, playback fails silently — the game still works.
 //
@@ -18,23 +18,24 @@ import type { MillionaireGameState } from "../../types/game";
 
 // Map ladder index (0..14) → background music tier file.
 function tierMusicFor(questionIndex: number): string {
-  if (questionIndex <= 4)   return "/audio/100 1000 music.mp3";
-  if (questionIndex <= 9)   return "/audio/2000 32000.mp3";
-  if (questionIndex === 10) return "/audio/64000 music.mp3";
-  if (questionIndex <= 12)  return "/audio/125000 250000 music.mp3";
-  if (questionIndex === 13) return "/audio/500000 music.mp3";
-  return "/audio/1000000 music.mp3";
+  if (questionIndex <= 4)   return "/audio/Millionaire/100 1000 music.mp3";
+  if (questionIndex <= 9)   return "/audio/Millionaire/2000 32000.mp3";
+  if (questionIndex === 10) return "/audio/Millionaire/64000 music.mp3";
+  if (questionIndex <= 12)  return "/audio/Millionaire/125000 250000 music.mp3";
+  if (questionIndex === 13) return "/audio/Millionaire/500000 music.mp3";
+  return "/audio/Millionaire/1000000 music.mp3";
 }
 
 // One-shot SFX paths.
 const SFX = {
-  mainTheme:   "/audio/main theme.mp3",
-  letsPlay:    "/audio/lets play.mp3",
-  finalAnswer: "/audio/final answer.mp3",
-  correct:     "/audio/correctanswer.mp3",
-  wrong:       "/audio/wrong answer.mp3",
-  phoneFriend: "/audio/phone a friend.mp3",
-  walkAway:    "/audio/commerical break.mp3",
+  mainTheme:   "/audio/Millionaire/main theme.mp3",
+  letsPlay:    "/audio/Millionaire/lets play.mp3",
+  finalAnswer: "/audio/Millionaire/final answer.mp3",
+  correct:     "/audio/Millionaire/correctanswer.mp3",
+  wrong:       "/audio/Millionaire/wrong answer.mp3",
+  phoneFriend: "/audio/Millionaire/phone a friend.mp3",
+  walkAway:    "/audio/Millionaire/commerical break.mp3",
+  milWin:      "/audio/Millionaire/1000000 Win.mp3",
 } as const;
 
 // ─── Audio helpers ────────────────────────────────────────────────────────────
@@ -79,6 +80,10 @@ export function useMillionaireAudio(
   const lastPhase = useRef<string>("");
   const lastTierUrl = useRef<string>("");
 
+  // Tracks which timerEndsAt value we've already fired the expiry sound for,
+  // so we never double-fire for the same countdown.
+  const timerExpiredFiredFor = useRef<number | null>(null);
+
   // Stable ref so the onended closure always calls the latest callback.
   const onStartingCompleteRef = useRef(onStartingComplete);
   useEffect(() => { onStartingCompleteRef.current = onStartingComplete; }, [onStartingComplete]);
@@ -90,6 +95,45 @@ export function useMillionaireAudio(
       track.current = null;
     };
   }, []);
+
+  // ── Timer expiry: play wrong answer sound the moment the countdown hits zero.
+  // The main phase effect only fires on state changes — it won't notice the
+  // timer expiring mid-question. This effect watches timerEndsAt directly.
+  useEffect(() => {
+    if (!enabled || !state) return;
+
+    const timerEndsAt = state.timerEndsAt;
+    // Only fire when there's a live (non-paused) timer on an active question phase.
+    if (timerEndsAt == null) return;
+    if (state.timerPausedMs != null) return;
+    const activePhase =
+      state.phase === "question" ||
+      state.phase === "selected" ||
+      state.phase === "ask-instructor";
+    if (!activePhase || state.pointsFrozen) return;
+    // Don't re-fire for a timerEndsAt we've already handled.
+    if (timerExpiredFiredFor.current === timerEndsAt) return;
+
+    function fireExpiry() {
+      if (timerExpiredFiredFor.current === timerEndsAt) return;
+      timerExpiredFiredFor.current = timerEndsAt;
+      stopAudio(track.current);
+      lastTierUrl.current = "";
+      const a = makeAudio(SFX.wrong, false);
+      track.current = a;
+      safePlay(a);
+    }
+
+    const remaining = timerEndsAt - Date.now();
+    if (remaining <= 0) {
+      fireExpiry();
+      return;
+    }
+
+    const id = window.setTimeout(fireExpiry, remaining);
+    return () => window.clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, state?.timerEndsAt, state?.timerPausedMs, state?.phase, state?.pointsFrozen]);
 
   useEffect(() => {
     if (!enabled || !state) {
@@ -152,16 +196,34 @@ export function useMillionaireAudio(
     }
 
     // ── game-over ─────────────────────────────────────────────────────────────
+    // If the class answered Q15 correctly (1,000,000 pts, not frozen), play
+    // the million-win fanfare. Otherwise silence.
     if (phase === "game-over") {
-      if (phaseChanged) silence();
+      if (phaseChanged) {
+        const isMillionWin =
+          state.questionIndex === 14 &&
+          !state.pointsFrozen &&
+          state.finalPoints === 1_000_000;
+        if (isMillionWin) {
+          playOneShot(SFX.milWin);
+        } else {
+          silence();
+        }
+      }
       lastPhase.current = phase;
       return;
     }
 
     // ── question / selected / ask-instructor ──────────────────────────────────
     // Tier music loops. Silent when pointsFrozen (points already zeroed/banked).
+    // Also stay silent if the timer has already expired — the timer-expiry effect
+    // owns audio from that point on and we must not restart the thinking music.
     if (phase === "question" || phase === "selected" || phase === "ask-instructor") {
-      if (state.pointsFrozen) {
+      const timerExpired =
+        state.timerEndsAt != null &&
+        state.timerPausedMs == null &&
+        state.timerEndsAt <= Date.now();
+      if (state.pointsFrozen || timerExpired) {
         if (phaseChanged) silence();
       } else {
         playLoop(tierMusicFor(idx)); // no-op if same loop already running
@@ -205,9 +267,10 @@ export function useMillionaireAudio(
     }
 
     // ── safe-haven ────────────────────────────────────────────────────────────
-    // Display-only celebration. No audio — instructor advances manually.
+    // Milestone correct answer (Q5/Q10). Play the correct answer sound once —
+    // the phase jumps here directly (skipping revealed-correct) so we own it.
     if (phase === "safe-haven") {
-      if (phaseChanged) silence();
+      if (phaseChanged) playOneShot(SFX.correct);
       lastPhase.current = phase;
       return;
     }
