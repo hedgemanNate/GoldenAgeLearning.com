@@ -747,8 +747,9 @@ function FamilyFeudUploadModal({ game, onClose }: FamilyFeudUploadModalProps) {
       await replaceFamilyFeudMainQuestions(game.id, mainParsed);
       await replaceFamilyFeudFastMoneyQuestions(game.id, miniParsed);
       setSaved(true);
-    } catch {
-      setSaveError("Failed to save. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSaveError(`Failed to save: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -991,8 +992,6 @@ export default function AdminTeachingGames() {
                 <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Game Name</th>
                 <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Class</th>
                 <th className="text-left px-[16px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Game Type</th>
-                <th className="w-[10ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Timer</th>
-                <th className="w-[12ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium">Questions</th>
                 <th className="w-[26ch] text-left px-[8px] py-[12px] text-[10px] uppercase tracking-wider text-[rgba(245,237,214,0.3)] font-medium"></th>
               </tr>
             </thead>
@@ -1002,10 +1001,6 @@ export default function AdminTeachingGames() {
                   <td className="px-[16px] py-[13px] text-[var(--color-cream)] font-medium">{game.name}</td>
                   <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.7)]">{game.className}</td>
                   <td className="px-[16px] py-[13px] text-[rgba(245,237,214,0.6)]">{gameTypeLabel(game.gameType)}</td>
-                  <td className="w-[10ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">
-                    {game.gameType === "familyFeud" ? "—" : `${game.timerSeconds ?? "—"}s`}
-                  </td>
-                  <td className="w-[12ch] px-[8px] py-[13px] text-[rgba(245,237,214,0.6)]">{game.questionCount}</td>
                   <td className="w-[26ch] px-[8px] py-[13px]">
                     <div className="flex items-center gap-[12px]">
                       <Link
@@ -1044,6 +1039,10 @@ export default function AdminTeachingGames() {
             title="Who Wants to Be a Millionaire"
             description="A 15-question trivia game with a points ladder, lifelines, and live class participation. Questions are loaded via CSV and played on the projector with the instructor controlling from their phone."
           />
+            <InfoRow
+              title="Family Feud"
+              description="A team-based survey game with three main rounds and a Fast Money bonus. Main rounds require one question per round with up to 8 answers each; Fast Money requires exactly 5 questions. Upload via two CSVs: Main Questions CSV and Fast Money Questions CSV."
+            />
           <InfoRow
             title="How questions are loaded"
             description="Upload a CSV file to any game instance. The CSV must include: question, option_a, option_b, option_c, option_d, correct_answer, difficulty, and fifty_fifty_remove columns. The system validates every row before saving."
@@ -1056,6 +1055,17 @@ export default function AdminTeachingGames() {
             title="Game types available"
             description={`Currently available: ${GAME_TYPES.map((t) => t.name).join(", ")}. More game formats will be added to the platform in future updates.`}
           />
+        </div>
+      </div>
+      
+      {/* CSV templates download card */}
+      <div className="bg-[var(--color-dark-surface)] rounded-[10px] border border-[rgba(245,237,214,0.07)] px-[24px] py-[20px] mt-[16px]">
+        <h2 className="font-display text-[16px] font-bold text-[var(--color-cream)] mb-[12px]">CSV Templates</h2>
+        <p className="text-[12px] text-[rgba(245,237,214,0.45)] mb-[12px]">Download starter CSV templates for each game type. Use these as a guide — the uploader validates required columns.</p>
+        <div className="flex flex-wrap gap-[10px]">
+          <a href="/assests/millionaire-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Millionaire CSV Template</a>
+          <a href="/assests/family-feud-main-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Family Feud — Main Questions CSV</a>
+          <a href="/assests/family-feud-fastmoney-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Family Feud — Fast Money CSV</a>
         </div>
       </div>
 

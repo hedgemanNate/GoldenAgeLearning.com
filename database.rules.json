@@ -106,6 +106,20 @@
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
       }
     },
+    "familyFeudMainQuestions": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
+    },
+    "familyFeudFastMoneyQuestions": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
+    },
     "contactRequests": {
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
       "$requestId": {
