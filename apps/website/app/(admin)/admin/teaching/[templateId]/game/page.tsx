@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { GameRemoteForClass } from "../../../../../components/teaching/GameRemoteInner";
+import { GameRemoteForClass } from "../../../../../../components/teaching/GameRemoteInner";
 
 interface PageProps {
   params: Promise<{ templateId: string }>;
