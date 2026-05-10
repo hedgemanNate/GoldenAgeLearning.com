@@ -629,11 +629,15 @@ function FastMoneyRevealPhase({
   const answers = getAnswers(q);
   const pts = getPoints(q);
 
-  const p1sel = fm.player1Selections[current];
-  const p2sel = fm.player2Selections[current];
-  const isRevealed = fm.revealedQuestions[current];
+  const player1Selections = fm.player1Selections ?? Array(5).fill(null);
+  const player2Selections = fm.player2Selections ?? Array(5).fill(null);
+  const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
 
-  const allScoredAndRevealed = fm.revealedQuestions.every(Boolean);
+  const p1sel = player1Selections[current];
+  const p2sel = player2Selections[current];
+  const isRevealed = revealedQuestions[current];
+
+  const allScoredAndRevealed = revealedQuestions.every(Boolean);
 
   return (
     <RemoteShell title="Fast Money Reveal" subtitle={`Fast Money Total: ${fm.fastMoneyTotal}`}>
@@ -649,12 +653,12 @@ function FastMoneyRevealPhase({
               borderRadius: "8px",
               border: `2px solid ${i === current ? "#EC8B24" : "rgba(245,237,214,0.1)"}`,
               backgroundColor: i === current ? "rgba(236,139,36,0.15)" : "transparent",
-              color: fm.revealedQuestions[i] ? "#EC8B24" : "rgba(245,237,214,0.6)",
+              color: revealedQuestions[i] ? "#EC8B24" : "rgba(245,237,214,0.6)",
               fontSize: "13px", fontWeight: "bold",
               cursor: "pointer",
             }}
           >
-            {fm.revealedQuestions[i] ? "✓" : `Q${i + 1}`}
+            {revealedQuestions[i] ? "✓" : `Q${i + 1}`}
           </button>
         ))}
       </div>
@@ -676,7 +680,7 @@ function FastMoneyRevealPhase({
 
       {/* Player 1 typed answer + scoring */}
       <ScoringRow
-        label={`Player 1: "${fm.player1Answers[current] || "(no answer)"}"`}
+        label={`Player 1: "${(fm.player1Answers ?? [])[current] || "(no answer)"}"`}
         answers={answers}
         pts={pts}
         selection={p1sel}
@@ -687,7 +691,7 @@ function FastMoneyRevealPhase({
 
       {/* Player 2 typed answer + scoring */}
       <ScoringRow
-        label={`Player 2: "${fm.player2Answers[current] || "(no answer)"}"`}
+        label={`Player 2: "${(fm.player2Answers ?? [])[current] || "(no answer)"}"`}
         answers={answers}
         pts={pts}
         selection={p2sel}

@@ -351,7 +351,7 @@ export function setPlayer1Selection(
   selection: number | "not-on-board",
 ): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
-  const selections = [...state.fastMoneyState.player1Selections];
+  const selections = [...(state.fastMoneyState.player1Selections ?? [null, null, null, null, null])];
   selections[questionIndex] = selection;
   const fm = { ...state.fastMoneyState, player1Selections: selections };
   return patch(state, { fastMoneyState: fm });
@@ -364,7 +364,7 @@ export function setPlayer2Selection(
   selection: FamilyFeudScoreSelection,
 ): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
-  const selections = [...state.fastMoneyState.player2Selections];
+  const selections = [...(state.fastMoneyState.player2Selections ?? [null, null, null, null, null])];
   selections[questionIndex] = selection;
   const fm = { ...state.fastMoneyState, player2Selections: selections };
   return patch(state, { fastMoneyState: fm });
@@ -388,7 +388,7 @@ export function revealFastMoneyQuestion(
 ): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
   const fm = { ...state.fastMoneyState };
-  const revealedQs = [...fm.revealedQuestions];
+  const revealedQs = [...(fm.revealedQuestions ?? [false, false, false, false, false])];
   revealedQs[questionIndex] = true;
   fm.revealedQuestions = revealedQs;
 
@@ -404,10 +404,10 @@ export function revealFastMoneyQuestion(
     if (!fmq) continue;
     const qPts = getPoints(fmq);
 
-    const p1sel = fm.player1Selections[i];
+    const p1sel = (fm.player1Selections ?? [])[i];
     if (typeof p1sel === "number") total += qPts[p1sel] ?? 0;
 
-    const p2sel = fm.player2Selections[i];
+    const p2sel = (fm.player2Selections ?? [])[i];
     if (typeof p2sel === "number") total += qPts[p2sel] ?? 0;
   }
 

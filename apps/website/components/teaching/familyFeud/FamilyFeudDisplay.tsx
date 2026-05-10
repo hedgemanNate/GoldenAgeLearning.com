@@ -622,13 +622,19 @@ function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
         </div>
 
         {questions.map((q, i) => {
-          const revealed = fm.revealedQuestions[i];
-          const p1sel = fm.player1Selections[i];
-          const p2sel = fm.player2Selections[i];
+          const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
+          const player1Selections = fm.player1Selections ?? Array(5).fill(null);
+          const player2Selections = fm.player2Selections ?? Array(5).fill(null);
+          const player1Answers = fm.player1Answers ?? Array(5).fill("");
+          const player2Answers = fm.player2Answers ?? Array(5).fill("");
+
+          const revealed = revealedQuestions[i];
+          const p1sel = player1Selections[i];
+          const p2sel = player2Selections[i];
           const isCurrent = fm.currentRevealQuestion === i;
 
-          const p1ans = fm.player1Answers[i] || "—";
-          const p2ans = fm.player2Answers[i] || "—";
+          const p1ans = player1Answers[i] || "—";
+          const p2ans = player2Answers[i] || "—";
 
           const p1pts = selectionPoints(p1sel, i);
           const p2pts = selectionPoints(p2sel as number | "not-on-board" | "duplicate" | null, i);
