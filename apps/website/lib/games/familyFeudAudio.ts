@@ -1,307 +1,435 @@
 "use client";
 
-// Manages all Family Feud game audio. Audio is owned by the DISPLAY page only —
-// the instructor remote does not produce sound. Files are served from
-// `/audio/Family Feud/*.mp3`.
+// Manages all Family Feud game audio.
+// Audio is owned by the DISPLAY page only — the instructor remote produces no sound.
+// Files are served from `/audio/Family Feud/*.mp3`.
 //
-// GUARANTEE: No two audio tracks ever play simultaneously.
-// A single `track` ref holds the active Audio element. Every new sound stops
-// the previous one before starting. onended callbacks are nulled on stop so
-// they never fire after being superseded.
+// Architecture:
+//   loopRef  — the active looping background track.
+//   sfxRef   — the active one-shot sound effect.
 //
-// Audio file map (9 files → 16 spec triggers):
-//   ff-main-theme         → family-feud-theme.mp3         (loop, idle)
-//   ff-intro-fanfare      → drumroll.mp3                  (once, starting)
-//   ff-face-off-music     → family-feud-theme.mp3         (loop, face-off)
-//   ff-buzz-in            → family-feud-sound-fx.mp3      (once, face-off-buzz)
-//   ff-correct-ding       → family-feud-good-answer.mp3   (once, face-off-correct / answer-revealed)
-//   ff-wrong-buzz         → family-feud-strike-sfx.mp3    (once, face-off-wrong / strike)
-//   ff-three-strikes      → family-feud-strike-sfx.mp3    (once, three-strikes — same file, distinct moment)
-//   ff-main-game-music    → family-feud-theme.mp3         (loop, playing — pauses on strike/revealed, resumes)
-//   ff-round-over         → family-feud-win-sound-effect.mp3 (once, round-over)
-//   ff-round-transition   → drumroll.mp3                  (once, round-transition)
-//   ff-fast-money-intro   → family-feud-theme-after-1st-fast-money.mp3 (once, fast-money-intro)
-//   ff-fast-money-countdown → family-feud-theme-after-1st-fast-money.mp3 (loop, fast-money-player1/player2)
-//   ff-timer-expired      → family-feud-sound-fx.mp3      (once, player1-done / player2-done)
-//   ff-fast-money-reveal  → fast-money-answer-reveal.mp3  (once per flip, fast-money-reveal)
-//   ff-score-reveal       → family-feud-fast-money-ding.mp3 (once, fast-money-score)
-//   ff-game-over          → family-feud-win-sound-effect.mp3 (once, game-over)
+//   In every phase, at most ONE of {loopRef, sfxRef} is playing.
+//   The ONLY exception is fast-money-reveal, where loopRef holds
+//   fast_money_reveal.mp3 and sfxRef plays per-answer sounds on top.
+//
+// Loop files: music.mp3, thinking.mp3, fast_money_round_music.mp3, fast_money_reveal.mp3
+// All other files play once.
 
 import { useEffect, useRef } from "react";
 import type { FamilyFeudGameState } from "../../types/game";
+import { getPoints } from "./familyFeud";
 
-// ─── File paths ──────────────────────────────────────────────────────────────
+// ─── File paths ───────────────────────────────────────────────────────────────
 
-const AUDIO_DIR = "/audio/Family Feud";
+const DIR = "/audio/Family Feud";
 
-const SFX = {
-  theme:          `${AUDIO_DIR}/family-feud-theme.mp3`,
-  drumroll:       `${AUDIO_DIR}/drumroll.mp3`,
-  soundFx:        `${AUDIO_DIR}/family-feud-sound-fx.mp3`,
-  goodAnswer:     `${AUDIO_DIR}/family-feud-good-answer.mp3`,
-  strike:         `${AUDIO_DIR}/family-feud-strike-sfx_kN6Z99k.mp3`,
-  winSound:       `${AUDIO_DIR}/family-feud-win-sound-effect.mp3`,
-  fastMoneyTheme: `${AUDIO_DIR}/family-feud-theme-after-1st-fast-money.mp3`,
-  answerReveal:   `${AUDIO_DIR}/fast-money-answer-reveal.mp3`,
-  fastMoneyDing:  `${AUDIO_DIR}/family-feud-fast-money-ding.mp3`,
+const F = {
+  theme:               `${DIR}/family-feud-theme.mp3`,
+  music:               `${DIR}/music.mp3`,
+  introduce:           `${DIR}/introduce.mp3`,
+  thinking:            `${DIR}/thinking.mp3`,
+  correctAnswer:       `${DIR}/correct_answer.mp3`,
+  reveal1stCheering:   `${DIR}/reveal_1st_answer_cheering.mp3`,
+  wrongAnswer:         `${DIR}/wrong_answer.mp3`,
+  revealUsual1:        `${DIR}/reveal_usual_1.mp3`,
+  revealUsual2:        `${DIR}/reveal_usual_2.mp3`,
+  revealUsual3:        `${DIR}/reveal_usual_3_applause.mp3`,
+  lastWrongOoh:        `${DIR}/last_wrong_answer_ooh.mp3`,
+  revealAllRemaining:  `${DIR}/reveal_all_remaining_answers_applause.mp3`,
+  roundEndWin:         `${DIR}/round_end_win.mp3`,
+  roundEndLose:        `${DIR}/round_end_lose.mp3`,
+  roundEndResult:      `${DIR}/round_end_result.mp3`,
+  round23Flyout:       `${DIR}/round_2_3_flyout.mp3`,
+  fastMoneyRoundMusic: `${DIR}/fast_money_round_music.mp3`,
+  fastMoneyNoPoints:   `${DIR}/fast_money_no_points.mp3`,
+  fastMoneyRevealBg:   `${DIR}/fast_money_reveal.mp3`,
+  ohh1:                `${DIR}/reveal_1st_answer_fast_money_ohhing.mp3`,
+  ohh2:                `${DIR}/reveal_1st_answer_fast_money_ohhing_2.mp3`,
+  fastMoneyPoints:     `${DIR}/fast_money_points.mp3`,
+  repeatedAnswer:      `${DIR}/repeated_answer.mp3`,
+  fastMoneyApplause:   `${DIR}/fast_money_end_applause.mp3`,
+  gameEnd:             `${DIR}/game_end.mp3`,
 } as const;
 
 // ─── Audio helpers ────────────────────────────────────────────────────────────
 
-function makeAudio(src: string, loop = false): HTMLAudioElement {
+function make(src: string, loop = false): HTMLAudioElement {
   const a = new Audio(src);
   a.loop = loop;
   return a;
 }
 
 function safePlay(a: HTMLAudioElement): void {
-  a.play().catch(() => {
-    // Missing file or browser autoplay policy — fail silently.
-  });
+  a.play().catch(() => { /* autoplay policy / missing file — fail silently */ });
 }
 
-function stopAudio(a: HTMLAudioElement | null): void {
+function stop(a: HTMLAudioElement | null): void {
   if (!a) return;
   a.onended = null;
   a.pause();
   a.currentTime = 0;
 }
 
-// ─── Hook ────────────────────────────────────────────────────────────────────
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useFamilyFeudAudio(
   state: FamilyFeudGameState | null,
   enabled: boolean,
-  onIntroComplete?: () => void,       // called when ff-intro-fanfare ends (starting → face-off)
-  onFastMoneyIntroComplete?: () => void, // called when ff-fast-money-intro ends
-  onAnswerRevealSound?: () => void,    // called to play a one-shot reveal during fast-money-reveal
+  onStartingComplete?: () => void,
+  onFastMoneyIntroComplete?: () => void,
 ) {
-  const track = useRef<HTMLAudioElement | null>(null);
+  const loopRef = useRef<HTMLAudioElement | null>(null);
+  const loopSrc = useRef<string>("");
+  const sfxRef  = useRef<HTMLAudioElement | null>(null);
+
   const lastPhase = useRef<string>("");
-  const lastLoopSrc = useRef<string>("");
+  const prevPhase = useRef<string>(""); // set on phase change; used by round-over
 
-  // Keep latest callbacks in refs so closures don't go stale
-  const onIntroCompleteRef = useRef(onIntroComplete);
-  const onFastMoneyIntroCompleteRef = useRef(onFastMoneyIntroComplete);
-  useEffect(() => { onIntroCompleteRef.current = onIntroComplete; }, [onIntroComplete]);
-  useEffect(() => { onFastMoneyIntroCompleteRef.current = onFastMoneyIntroComplete; }, [onFastMoneyIntroComplete]);
+  // answer-revealed: rotate between reveal_usual_1 and reveal_usual_2
+  const revealRot = useRef<0 | 1>(0);
 
-  // Track the last reveal question index so we can detect new flips
-  const lastRevealedCount = useRef<number>(0);
+  // fast-money-reveal per-answer tracking
+  const fmLastRevealed = useRef<boolean[]>([false, false, false, false, false]);
+  const fmIsFirst      = useRef<boolean>(true);  // true until first question revealed
+  const fmUseOhh2      = useRef<boolean>(false); // alternates the two first-answer variants
 
-  // Stop everything on unmount
+  // Keep callbacks fresh in refs so onended closures don't go stale
+  const onStartingCompleteRef = useRef(onStartingComplete);
+  const onFastMoneyIntroRef   = useRef(onFastMoneyIntroComplete);
+  useEffect(() => { onStartingCompleteRef.current = onStartingComplete; }, [onStartingComplete]);
+  useEffect(() => { onFastMoneyIntroRef.current = onFastMoneyIntroComplete; }, [onFastMoneyIntroComplete]);
+
+  // Cleanup on unmount — no orphaned audio after navigation
   useEffect(() => {
     return () => {
-      stopAudio(track.current);
-      track.current = null;
+      stop(loopRef.current);
+      stop(sfxRef.current);
+      loopRef.current = null;
+      sfxRef.current  = null;
     };
   }, []);
 
+  // ─── Main effect (runs after every render) ─────────────────────────────────
   useEffect(() => {
     if (!enabled || !state) {
-      stopAudio(track.current);
-      track.current = null;
+      stop(loopRef.current); loopRef.current = null; loopSrc.current = "";
+      stop(sfxRef.current);  sfxRef.current  = null;
       lastPhase.current = "";
-      lastLoopSrc.current = "";
       return;
     }
 
-    const phase = state.phase;
-    const phaseChanged = phase !== lastPhase.current;
+    const phase   = state.phase;
+    const changed = phase !== lastPhase.current;
 
-    function playOneShot(src: string, onEnded?: () => void): void {
-      stopAudio(track.current);
-      lastLoopSrc.current = "";
-      const a = makeAudio(src, false);
+    if (changed) prevPhase.current = lastPhase.current;
+
+    // ── Scoped helpers ──────────────────────────────────────────────────────
+
+    /** Start a looping track. No-op if already playing this src. Stops sfxRef. */
+    function startLoop(src: string): void {
+      if (loopSrc.current === src) return;
+      stop(loopRef.current);
+      stop(sfxRef.current); sfxRef.current = null;
+      const a = make(src, true);
+      loopRef.current = a;
+      loopSrc.current = src;
+      safePlay(a);
+    }
+
+    /**
+     * Start the fast-money-reveal background loop.
+     * Does NOT stop sfxRef — allows simultaneous per-answer sounds.
+     */
+    function startBgLoop(src: string): void {
+      if (loopSrc.current === src) return;
+      stop(loopRef.current);
+      const a = make(src, true);
+      loopRef.current = a;
+      loopSrc.current = src;
+      safePlay(a);
+    }
+
+    /** Pause the loop without resetting currentTime (for answer-revealed / strike). */
+    function pauseLoop(): void {
+      loopRef.current?.pause();
+    }
+
+    /** Resume a paused loop. */
+    function resumeLoop(): void {
+      if (loopRef.current && loopRef.current.paused) {
+        safePlay(loopRef.current);
+      }
+    }
+
+    /** Stop and dispose the loop. */
+    function stopLoop(): void {
+      stop(loopRef.current);
+      loopRef.current = null;
+      loopSrc.current = "";
+    }
+
+    /** Play a one-shot SFX, replacing any previous SFX. Does not affect the loop. */
+    function playSfx(src: string, onEnded?: () => void): void {
+      stop(sfxRef.current);
+      const a = make(src, false);
       a.onended = onEnded ?? null;
-      track.current = a;
+      sfxRef.current = a;
       safePlay(a);
     }
 
-    function playLoop(src: string): void {
-      if (lastLoopSrc.current === src) return; // already playing this loop
-      stopAudio(track.current);
-      const a = makeAudio(src, true);
-      track.current = a;
-      lastLoopSrc.current = src;
-      safePlay(a);
+    /** Stop and dispose the current SFX. */
+    function stopSfx(): void {
+      stop(sfxRef.current);
+      sfxRef.current = null;
     }
 
+    /** Stop all audio. */
     function silence(): void {
-      stopAudio(track.current);
-      track.current = null;
-      lastLoopSrc.current = "";
+      stopLoop();
+      stopSfx();
     }
 
-    // ── idle ─────────────────────────────────────────────────────────────────
-    // ff-main-theme loops
+    // ── Phase handlers ──────────────────────────────────────────────────────
+
+    // idle — family-feud-theme.mp3 loops
     if (phase === "idle") {
-      if (phaseChanged) playLoop(SFX.theme);
+      if (changed) startLoop(F.theme);
       lastPhase.current = phase;
       return;
     }
 
-    // ── starting ─────────────────────────────────────────────────────────────
-    // ff-intro-fanfare plays once; when it ends, callback advances to face-off
+    // starting — introduce.mp3 once; callback fires to auto-advance to face-off
     if (phase === "starting") {
-      if (phaseChanged) {
-        playOneShot(SFX.drumroll, () => {
-          onIntroCompleteRef.current?.();
-        });
+      if (changed) {
+        stopLoop();
+        playSfx(F.introduce, () => onStartingCompleteRef.current?.());
       }
       lastPhase.current = phase;
       return;
     }
 
-    // ── face-off ─────────────────────────────────────────────────────────────
-    // ff-face-off-music loops
+    // face-off — thinking.mp3 loops while host reads the question
     if (phase === "face-off") {
-      if (phaseChanged) playLoop(SFX.theme);
+      if (changed) {
+        stopSfx();
+        startLoop(F.thinking);
+      }
       lastPhase.current = phase;
       return;
     }
 
-    // ── face-off-buzz ────────────────────────────────────────────────────────
-    // ff-buzz-in plays once
+    // face-off-buzz — physical podium buttons handle sound; game system is silent
     if (phase === "face-off-buzz") {
-      if (phaseChanged) playOneShot(SFX.soundFx);
+      if (changed) stopLoop(); // stop thinking.mp3
       lastPhase.current = phase;
       return;
     }
 
-    // ── face-off-correct ─────────────────────────────────────────────────────
-    // ff-correct-ding plays once
+    // face-off-correct — correct_answer.mp3 → reveal_1st_answer_cheering.mp3
     if (phase === "face-off-correct") {
-      if (phaseChanged) playOneShot(SFX.goodAnswer);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── face-off-wrong ───────────────────────────────────────────────────────
-    // ff-wrong-buzz plays once
-    if (phase === "face-off-wrong") {
-      if (phaseChanged) playOneShot(SFX.strike);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── playing ──────────────────────────────────────────────────────────────
-    // ff-main-game-music loops. Resumes (same loop, no restart) when returning
-    // from strike or answer-revealed — handled by the same "already playing" check.
-    if (phase === "playing") {
-      playLoop(SFX.theme);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── answer-revealed ──────────────────────────────────────────────────────
-    // ff-correct-ding plays once; main-game-music pauses
-    if (phase === "answer-revealed") {
-      if (phaseChanged) {
-        // Pause the loop during the brief reveal moment
-        if (track.current && !track.current.paused) {
-          track.current.pause();
-          lastLoopSrc.current = ""; // allow resume on next playing entry
-        }
-        playOneShot(SFX.goodAnswer);
-      }
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── strike ───────────────────────────────────────────────────────────────
-    // ff-wrong-buzz plays once; main-game-music pauses
-    if (phase === "strike") {
-      if (phaseChanged) {
-        stopAudio(track.current);
-        lastLoopSrc.current = "";
-        playOneShot(SFX.strike);
-      }
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── three-strikes ────────────────────────────────────────────────────────
-    // ff-three-strikes plays once (same strike SFX, distinct trigger)
-    if (phase === "three-strikes") {
-      if (phaseChanged) playOneShot(SFX.strike);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── round-over ───────────────────────────────────────────────────────────
-    if (phase === "round-over") {
-      if (phaseChanged) playOneShot(SFX.winSound);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── round-transition ─────────────────────────────────────────────────────
-    if (phase === "round-transition") {
-      if (phaseChanged) playOneShot(SFX.drumroll);
-      lastPhase.current = phase;
-      return;
-    }
-
-    // ── fast-money-intro ─────────────────────────────────────────────────────
-    // ff-fast-money-intro plays once; callback advances to fast-money-player1
-    if (phase === "fast-money-intro") {
-      if (phaseChanged) {
-        playOneShot(SFX.fastMoneyTheme, () => {
-          onFastMoneyIntroCompleteRef.current?.();
+      if (changed) {
+        stopLoop(); // stop thinking.mp3
+        playSfx(F.correctAnswer, () => {
+          playSfx(F.reveal1stCheering);
         });
       }
       lastPhase.current = phase;
       return;
     }
 
-    // ── fast-money-player1 / fast-money-player2 ───────────────────────────────
-    // ff-fast-money-countdown loops; stops immediately when timer expires
-    if (phase === "fast-money-player1" || phase === "fast-money-player2") {
-      if (phaseChanged) playLoop(SFX.fastMoneyTheme);
+    // face-off-wrong — wrong_answer.mp3 once
+    if (phase === "face-off-wrong") {
+      if (changed) {
+        stopLoop(); // stop thinking.mp3
+        playSfx(F.wrongAnswer);
+      }
       lastPhase.current = phase;
       return;
     }
 
-    // ── fast-money-player1-done / fast-money-player2-done ────────────────────
-    // ff-timer-expired plays once; countdown loop stops
-    if (phase === "fast-money-player1-done" || phase === "fast-money-player2-done") {
-      if (phaseChanged) playOneShot(SFX.soundFx);
+    // playing — no background music during the board; dry between SFX
+    if (phase === "playing") {
+      if (changed) {
+        stopLoop();
+        stopSfx();
+      }
       lastPhase.current = phase;
       return;
     }
 
-    // ── fast-money-reveal ────────────────────────────────────────────────────
-    // ff-fast-money-reveal plays once PER ANSWER FLIP — triggered by revealedQuestions changes
-    if (phase === "fast-money-reveal") {
-      if (phaseChanged) {
+    // answer-revealed — play reveal sound; board is dry so no loop to pause/resume
+    if (phase === "answer-revealed") {
+      if (changed) {
+        const q = state.mainQuestions[state.currentRound - 1];
+        const isBoardCleared = q
+          ? (state.revealedAnswerIndices?.length ?? 0) >= q.answer_count
+          : false;
+        let src: string;
+        if (isBoardCleared) {
+          src = F.revealUsual3;
+        } else {
+          src = revealRot.current === 0 ? F.revealUsual1 : F.revealUsual2;
+          revealRot.current = revealRot.current === 0 ? 1 : 0;
+        }
+        playSfx(src);
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // strike — wrong_answer.mp3 once; no loop to pause/resume
+    if (phase === "strike") {
+      if (changed) {
+        playSfx(F.wrongAnswer);
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // three-strikes — last_wrong_answer_ooh.mp3 → reveal_all_remaining_answers_applause.mp3
+    if (phase === "three-strikes") {
+      if (changed) {
+        stopLoop();
+        playSfx(F.lastWrongOoh, () => {
+          playSfx(F.revealAllRemaining);
+        });
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // round-over — win/lose/result based on how the round ended
+    if (phase === "round-over") {
+      if (changed) {
         silence();
-        lastRevealedCount.current = 0;
-      }
-      const revealedCount = state.fastMoneyState?.revealedQuestions.filter(Boolean).length ?? 0;
-      if (revealedCount > lastRevealedCount.current) {
-        lastRevealedCount.current = revealedCount;
-        playOneShot(SFX.answerReveal);
+        const src =
+          prevPhase.current === "three-strikes"   ? F.roundEndLose  :
+          prevPhase.current === "answer-revealed" ? F.roundEndWin   :
+          F.roundEndResult;
+        playSfx(src);
       }
       lastPhase.current = phase;
       return;
     }
 
-    // ── fast-money-score ─────────────────────────────────────────────────────
+    // round-transition — round_2_3_flyout.mp3 once
+    if (phase === "round-transition") {
+      if (changed) {
+        silence();
+        playSfx(F.round23Flyout);
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-intro — introduce.mp3 once; callback fires to auto-advance to player1
+    if (phase === "fast-money-intro") {
+      if (changed) {
+        silence();
+        playSfx(F.introduce, () => onFastMoneyIntroRef.current?.());
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-player1 / fast-money-player2 — fast_money_round_music.mp3 loops
+    // Always restart from the beginning (player2 is a fresh timer round)
+    if (phase === "fast-money-player1" || phase === "fast-money-player2") {
+      if (changed) {
+        stopSfx();
+        stop(loopRef.current); loopRef.current = null; loopSrc.current = "";
+        startLoop(F.fastMoneyRoundMusic);
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-player1-done / fast-money-player2-done — stop loop, fast_money_no_points.mp3
+    if (phase === "fast-money-player1-done" || phase === "fast-money-player2-done") {
+      if (changed) {
+        stopLoop();
+        playSfx(F.fastMoneyNoPoints);
+      }
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-reveal — fast_money_reveal.mp3 loops as background; per-answer sounds on top
+    if (phase === "fast-money-reveal") {
+      if (changed) {
+        stopSfx();
+        startBgLoop(F.fastMoneyRevealBg);
+        fmLastRevealed.current = [false, false, false, false, false];
+        fmIsFirst.current = true;
+        fmUseOhh2.current = false;
+      }
+
+      const fm = state.fastMoneyState;
+      const revealedNow = fm?.revealedQuestions ?? [false, false, false, false, false];
+
+      for (let i = 0; i < 5; i++) {
+        if (revealedNow[i] && !fmLastRevealed.current[i]) {
+          let src: string;
+
+          if (fmIsFirst.current) {
+            // Very first answer flip — one of the two ohhing variants
+            src = fmUseOhh2.current ? F.ohh2 : F.ohh1;
+            fmUseOhh2.current = !fmUseOhh2.current;
+            fmIsFirst.current = false;
+          } else if (fm) {
+            const p2sel = (fm.player2Selections ?? [])[i];
+            if (p2sel === "duplicate") {
+              src = F.repeatedAnswer;
+            } else {
+              const fmq = state.fastMoneyQuestions[i];
+              const ptsArr = fmq ? getPoints(fmq) : [];
+              const p1sel = (fm.player1Selections ?? [])[i];
+              const p1pts = typeof p1sel === "number" ? (ptsArr[p1sel] ?? 0) : 0;
+              const p2pts = typeof p2sel === "number" ? (ptsArr[p2sel] ?? 0) : 0;
+              src = (p1pts > 0 || p2pts > 0) ? F.fastMoneyPoints : F.fastMoneyNoPoints;
+            }
+          } else {
+            src = F.fastMoneyNoPoints;
+          }
+
+          fmLastRevealed.current = [...revealedNow];
+          playSfx(src); // touches only sfxRef; background loop keeps playing
+          break; // one sound per render cycle
+        }
+      }
+
+      // Ensure background loop is still running
+      if (loopSrc.current !== F.fastMoneyRevealBg) {
+        startBgLoop(F.fastMoneyRevealBg);
+      } else if (loopRef.current?.paused) {
+        safePlay(loopRef.current);
+      }
+
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-score — fast_money_end_applause.mp3 once
     if (phase === "fast-money-score") {
-      if (phaseChanged) playOneShot(SFX.fastMoneyDing);
+      if (changed) {
+        silence();
+        playSfx(F.fastMoneyApplause);
+      }
       lastPhase.current = phase;
       return;
     }
 
-    // ── game-over ────────────────────────────────────────────────────────────
+    // game-over — game_end.mp3 once
     if (phase === "game-over") {
-      if (phaseChanged) playOneShot(SFX.winSound);
+      if (changed) {
+        silence();
+        playSfx(F.gameEnd);
+      }
       lastPhase.current = phase;
       return;
     }
 
-    // Fallback: silence any leftover audio
+    // Unknown phase — silence everything
     silence();
     lastPhase.current = phase;
   });
