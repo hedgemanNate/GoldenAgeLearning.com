@@ -69,6 +69,7 @@ export default function FamilyFeudDisplay({
 
   if (phase === "fast-money-player1") return <FastMoneyPlayerScreen state={state} player={1} />;
   if (phase === "fast-money-player1-done") return <FastMoneyPlayerDoneScreen player={1} />;
+  if (phase === "fast-money-reveal-p1") return <FastMoneyRevealP1Screen state={state} />;
   if (phase === "fast-money-player2") return <FastMoneyPlayerScreen state={state} player={2} />;
   if (phase === "fast-money-player2-done") return <FastMoneyPlayerDoneScreen player={2} />;
   if (phase === "fast-money-reveal") return <FastMoneyRevealScreen state={state} />;
@@ -532,7 +533,6 @@ function FastMoneyPlayerScreen({ state, player }: { state: FamilyFeudGameState; 
 // ─── Fast Money Player Done Screen ────────────────────────────────────────────
 
 function FastMoneyPlayerDoneScreen({ player }: { player: 1 | 2 }) {
-  const nextPlayer = player === 1 ? 2 : null;
   return (
     <Shell>
       <div style={{
@@ -545,9 +545,9 @@ function FastMoneyPlayerDoneScreen({ player }: { player: 1 | 2 }) {
         }}>
           ⏱ Time&apos;s Up — Player {player}!
         </h2>
-        {nextPlayer ? (
+        {player === 1 ? (
           <p style={{ fontFamily: "'Lato', sans-serif", fontSize: "1.8vw", color: "#FAF5C9", margin: 0 }}>
-            Player 2, get ready…
+            Let&apos;s see how Player 1 did…
           </p>
         ) : (
           <p style={{ fontFamily: "'Lato', sans-serif", fontSize: "1.8vw", color: "#FAF5C9", margin: 0 }}>
@@ -559,30 +559,160 @@ function FastMoneyPlayerDoneScreen({ player }: { player: 1 | 2 }) {
   );
 }
 
+// ─── Fast Money Reveal P1 Screen ─────────────────────────────────────────────
+// Shows Player 1's answers being revealed one by one after their round.
+// P2 has not played yet — only P1 column is shown.
+
+function FastMoneyRevealP1Screen({ state }: { state: FamilyFeudGameState }) {
+  const fm = state.fastMoneyState;
+  const questions = state.fastMoneyQuestions;
+  if (!fm) return null;
+
+  const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
+  const player1Selections = fm.player1Selections ?? Array(5).fill(null);
+  const player1Answers = fm.player1Answers ?? Array(5).fill("");
+
+  function p1Points(i: number): number {
+    const sel = player1Selections[i];
+    if (typeof sel !== "number") return 0;
+    const q = questions[i];
+    if (!q) return 0;
+    return getPoints(q)[sel] ?? 0;
+  }
+
+  return (
+    <Shell>
+      {/* Top bar */}
+      <div style={{ backgroundColor: "#EC8B24", height: "1.2vh", width: "100%", flexShrink: 0 }} />
+
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "1.5vh 3vw", flexShrink: 0,
+      }}>
+        <span style={{ fontFamily: "'Garamond', serif", fontSize: "1.8vw", fontWeight: "bold", color: "#FAF5C9" }}>
+          Fast Money — Player 1
+        </span>
+        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: "1.5vw", color: "#EC8B24", fontWeight: "bold" }}>
+          Player 1 Total: {fm.fastMoneyTotal}
+        </span>
+        <span style={{ fontFamily: "'Lato', sans-serif", fontSize: "1.4vw", color: "#C8C199" }}>
+          Game Total: {state.gameTotal}
+        </span>
+      </div>
+
+      {/* Reveal rows */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1vh", padding: "0.5vh 4vw 2vh" }}>
+        {/* Column headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "0.4fr 2.5fr 1.5fr 0.8fr", gap: "1vw", padding: "0 0.5vw" }}>
+          {["#", "Question", "Answer", "Pts"].map((h) => (
+            <span key={h} style={{
+              fontFamily: "'Lato', sans-serif", fontSize: "1.1vw",
+              color: "#C8C199", fontWeight: "bold", textAlign: "center",
+            }}>
+              {h}
+            </span>
+          ))}
+        </div>
+
+        {questions.map((q, i) => {
+          const isRevealed = revealedQuestions[i];
+          const isCurrent = fm.currentRevealQuestion === i && !isRevealed;
+          const pts = isRevealed ? p1Points(i) : null;
+          const sel = player1Selections[i];
+          const boardAnswer = typeof sel === "number" ? getAnswers(q)[sel] : null;
+
+          return (
+            <div key={i} style={{
+              display: "grid", gridTemplateColumns: "0.4fr 2.5fr 1.5fr 0.8fr",
+              gap: "1vw",
+              backgroundColor: isCurrent ? "#1E272C" : isRevealed ? "#1a2226" : "transparent",
+              border: `1px solid ${isCurrent ? "#EC8B24" : isRevealed ? "rgba(236,139,36,0.4)" : "rgba(236,139,36,0.15)"}`,
+              borderRadius: "8px", padding: "1.2vh 0.5vw",
+              transition: "all 0.4s ease",
+            }}>
+              <span style={{
+                fontFamily: "'Lato', sans-serif", fontSize: "1.4vw",
+                color: "#EC8B24", fontWeight: "bold", textAlign: "center",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {i + 1}
+              </span>
+              <span style={{
+                fontFamily: "'Lato', sans-serif", fontSize: "1.3vw", color: "#FAF5C9",
+                display: "flex", alignItems: "center",
+              }}>
+                {q.question_text}
+              </span>
+              {/* Answer column — shows typed answer before reveal, board answer after */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.2vh" }}>
+                {isRevealed ? (
+                  <>
+                    <span style={{
+                      fontFamily: "'Lato', sans-serif", fontSize: "1.3vw",
+                      color: boardAnswer ? "#EC8B24" : "#C8C199",
+                    }}>
+                      {player1Answers[i] || "—"}
+                    </span>
+                    {boardAnswer && (
+                      <span style={{ fontFamily: "'Lato', sans-serif", fontSize: "1vw", color: "#C8C199", fontStyle: "italic" }}>
+                        → {boardAnswer}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ color: "#4a555c", fontSize: "1.3vw", fontStyle: "italic" }}>
+                    {player1Answers[i] || "—"}
+                  </span>
+                )}
+              </div>
+              {/* Points */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {isRevealed ? (
+                  <span style={{
+                    fontFamily: "'Garamond', serif", fontSize: "1.6vw", fontWeight: "bold",
+                    color: (pts ?? 0) > 0 ? "#FAF5C9" : "#C8C199",
+                  }}>
+                    {(pts ?? 0) > 0 ? `+${pts}` : "0"}
+                  </span>
+                ) : (
+                  <span style={{ color: "#4a555c", fontSize: "1.3vw" }}>—</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Shell>
+  );
+}
+
 // ─── Fast Money Reveal Screen ─────────────────────────────────────────────────
+// Player 2 reveal. P1 board is fully shown (static). P2 answers flip in one by one.
 
 function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
   const fm = state.fastMoneyState;
   const questions = state.fastMoneyQuestions;
   if (!fm) return null;
 
-  const pts = (qi: number) => {
-    const q = questions[qi];
-    if (!q) return [];
-    return getPoints(q);
-  };
+  const revealedP1 = fm.revealedQuestions ?? Array(5).fill(true);   // all P1 revealed
+  const revealedP2 = fm.revealedP2Questions ?? Array(5).fill(false);
+  const player1Selections = fm.player1Selections ?? Array(5).fill(null);
+  const player2Selections = fm.player2Selections ?? Array(5).fill(null);
+  const player1Answers = fm.player1Answers ?? Array(5).fill("");
+  const player2Answers = fm.player2Answers ?? Array(5).fill("");
 
-  function selectionPoints(sel: number | "not-on-board" | "duplicate" | null, qi: number): number {
+  function selPts(sel: number | "not-on-board" | "duplicate" | null, qi: number): number {
     if (typeof sel !== "number") return 0;
-    return pts(qi)[sel] ?? 0;
+    const q = questions[qi];
+    if (!q) return 0;
+    return getPoints(q)[sel] ?? 0;
   }
 
   return (
     <Shell>
       {/* Top bar */}
-      <div style={{
-        backgroundColor: "#EC8B24", height: "1.2vh", width: "100%", flexShrink: 0,
-      }} />
+      <div style={{ backgroundColor: "#EC8B24", height: "1.2vh", width: "100%", flexShrink: 0 }} />
 
       {/* Header */}
       <div style={{
@@ -601,16 +731,9 @@ function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
       </div>
 
       {/* Reveal grid */}
-      <div style={{
-        flex: 1, display: "flex", flexDirection: "column",
-        gap: "0.8vh", padding: "0.5vh 3vw 2vh",
-      }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.8vh", padding: "0.5vh 3vw 2vh" }}>
         {/* Column headers */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "0.4fr 2fr 1.2fr 1.2fr",
-          gap: "1vw", padding: "0 0.5vw",
-        }}>
+        <div style={{ display: "grid", gridTemplateColumns: "0.4fr 2fr 1.2fr 1.2fr", gap: "1vw", padding: "0 0.5vw" }}>
           {["#", "Question", "Player 1", "Player 2"].map((h) => (
             <span key={h} style={{
               fontFamily: "'Lato', sans-serif", fontSize: "1.1vw",
@@ -622,35 +745,27 @@ function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
         </div>
 
         {questions.map((q, i) => {
-          const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
-          const player1Selections = fm.player1Selections ?? Array(5).fill(null);
-          const player2Selections = fm.player2Selections ?? Array(5).fill(null);
-          const player1Answers = fm.player1Answers ?? Array(5).fill("");
-          const player2Answers = fm.player2Answers ?? Array(5).fill("");
+          const p1Revealed = revealedP1[i];
+          const p2Revealed = revealedP2[i];
+          const isCurrent = fm.currentRevealQuestion === i && !p2Revealed;
 
-          const revealed = revealedQuestions[i];
           const p1sel = player1Selections[i];
           const p2sel = player2Selections[i];
-          const isCurrent = fm.currentRevealQuestion === i;
+          const p1pts = selPts(p1sel, i);
+          const p2pts = selPts(p2sel as number | "not-on-board" | "duplicate" | null, i);
 
-          const p1ans = player1Answers[i] || "—";
-          const p2ans = player2Answers[i] || "—";
-
-          const p1pts = selectionPoints(p1sel, i);
-          const p2pts = selectionPoints(p2sel as number | "not-on-board" | "duplicate" | null, i);
+          const p1Ans = player1Answers[i] || "—";
+          const p2Ans = player2Answers[i] || "—";
 
           return (
             <div key={i} style={{
-              display: "grid",
-              gridTemplateColumns: "0.4fr 2fr 1.2fr 1.2fr",
+              display: "grid", gridTemplateColumns: "0.4fr 2fr 1.2fr 1.2fr",
               gap: "1vw",
               backgroundColor: isCurrent ? "#1E272C" : "transparent",
-              border: isCurrent ? "1px solid #EC8B24" : "1px solid transparent",
-              borderRadius: "8px",
-              padding: "1vh 0.5vw",
+              border: `1px solid ${isCurrent ? "#EC8B24" : "transparent"}`,
+              borderRadius: "8px", padding: "1vh 0.5vw",
               transition: "background-color 0.3s",
             }}>
-              {/* Number */}
               <span style={{
                 fontFamily: "'Lato', sans-serif", fontSize: "1.4vw",
                 color: "#EC8B24", fontWeight: "bold", textAlign: "center",
@@ -658,30 +773,26 @@ function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
               }}>
                 {i + 1}
               </span>
-              {/* Question */}
               <span style={{
                 fontFamily: "'Lato', sans-serif", fontSize: "1.3vw", color: "#FAF5C9",
                 display: "flex", alignItems: "center",
               }}>
                 {q.question_text}
               </span>
-              {/* Player 1 */}
-              <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                justifyContent: "center", gap: "0.3vh",
-              }}>
-                {revealed ? (
+
+              {/* Player 1 — always visible (revealed in P1 phase) */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.3vh" }}>
+                {p1Revealed ? (
                   <>
                     <span style={{
                       fontFamily: "'Lato', sans-serif", fontSize: "1.3vw",
                       color: typeof p1sel === "number" ? "#EC8B24" : "#C8C199",
                     }}>
-                      {p1ans}
+                      {p1Ans}
                     </span>
                     <span style={{
                       fontFamily: "'Lato', sans-serif", fontSize: "1.1vw",
-                      color: p1pts > 0 ? "#FAF5C9" : "#C8C199",
-                      fontWeight: "bold",
+                      color: p1pts > 0 ? "#FAF5C9" : "#C8C199", fontWeight: "bold",
                     }}>
                       {p1pts > 0 ? `+${p1pts}` : "0"}
                     </span>
@@ -690,24 +801,21 @@ function FastMoneyRevealScreen({ state }: { state: FamilyFeudGameState }) {
                   <span style={{ color: "#4a555c", fontSize: "1.3vw" }}>—</span>
                 )}
               </div>
-              {/* Player 2 */}
-              <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                justifyContent: "center", gap: "0.3vh",
-              }}>
-                {revealed ? (
+
+              {/* Player 2 — flips in via revealedP2Questions */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.3vh" }}>
+                {p2Revealed ? (
                   <>
                     <span style={{
                       fontFamily: "'Lato', sans-serif", fontSize: "1.3vw",
                       color: typeof p2sel === "number" ? "#EC8B24" : "#C8C199",
                     }}>
-                      {p2ans}
+                      {p2Ans}
                       {p2sel === "duplicate" && " (dup.)"}
                     </span>
                     <span style={{
                       fontFamily: "'Lato', sans-serif", fontSize: "1.1vw",
-                      color: p2pts > 0 ? "#FAF5C9" : "#C8C199",
-                      fontWeight: "bold",
+                      color: p2pts > 0 ? "#FAF5C9" : "#C8C199", fontWeight: "bold",
                     }}>
                       {p2pts > 0 ? `+${p2pts}` : "0"}
                     </span>

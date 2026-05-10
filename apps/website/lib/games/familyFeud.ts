@@ -283,6 +283,7 @@ export function startFastMoneyPlayer1(state: FamilyFeudGameState): FamilyFeudGam
     player1Selections: [null, null, null, null, null],
     player2Selections: [null, null, null, null, null],
     revealedQuestions: [false, false, false, false, false],
+    revealedP2Questions: [false, false, false, false, false],
     currentRevealQuestion: 0,
     fastMoneyTotal: 0,
   };
@@ -318,7 +319,61 @@ export function endFastMoneyPlayer1(state: FamilyFeudGameState): FamilyFeudGameS
   return patch(state, { phase: "fast-money-player1-done", fastMoneyState: fm });
 }
 
-// fast-money-player1-done → fast-money-player2
+// fast-money-player1-done → fast-money-reveal-p1 (begin revealing P1 answers)
+export function startFastMoneyRevealP1(state: FamilyFeudGameState): FamilyFeudGameState {
+  if (!state.fastMoneyState) return state;
+  const fm = { ...state.fastMoneyState, currentRevealQuestion: 0 };
+  return patch(state, { phase: "fast-money-reveal-p1", fastMoneyState: fm });
+}
+
+// Confirm a single P1 question's selection and flip it on the display.
+// Called during fast-money-reveal-p1. Updates fastMoneyTotal with P1 pts only.
+export function revealP1Question(
+  state: FamilyFeudGameState,
+  questionIndex: number,
+): FamilyFeudGameState {
+  if (!state.fastMoneyState) return state;
+  const fm = { ...state.fastMoneyState };
+  const revealedQs = [...(fm.revealedQuestions ?? [false, false, false, false, false])];
+  revealedQs[questionIndex] = true;
+  fm.revealedQuestions = revealedQs;
+
+  // Recompute P1-only total from all revealed P1 questions
+  let total = 0;
+  for (let i = 0; i < 5; i++) {
+    if (!revealedQs[i]) continue;
+    const fmq = state.fastMoneyQuestions[i];
+    if (!fmq) continue;
+    const qPts = getPoints(fmq);
+    const p1sel = (fm.player1Selections ?? [])[i];
+    if (typeof p1sel === "number") total += qPts[p1sel] ?? 0;
+  }
+  fm.fastMoneyTotal = total;
+
+  // Advance to the next un-revealed P1 question
+  let next = questionIndex + 1;
+  while (next < 5 && revealedQs[next]) next++;
+  if (next >= 5) next = questionIndex;
+  fm.currentRevealQuestion = next;
+
+  return patch(state, {
+    fastMoneyState: fm,
+    gameTotal: state.roundTotals.reduce((a, b) => a + b, 0) + total,
+  });
+}
+
+// fast-money-reveal-p1 → fast-money-player2 (after all P1 answers revealed)
+export function startFastMoneyPlayer2FromReveal(state: FamilyFeudGameState): FamilyFeudGameState {
+  if (!state.fastMoneyState) return state;
+  const now = Date.now();
+  const fm = {
+    ...state.fastMoneyState,
+    timerEndsAt: now + state.fastMoneyTimerPlayer2 * 1000,
+  };
+  return patch(state, { phase: "fast-money-player2", fastMoneyState: fm });
+}
+
+// fast-money-player1-done → fast-money-player2 (legacy / skip path)
 export function startFastMoneyPlayer2(state: FamilyFeudGameState): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
   const now = Date.now();
@@ -339,7 +394,11 @@ export function endFastMoneyPlayer2(state: FamilyFeudGameState): FamilyFeudGameS
 // fast-money-player2-done → fast-money-reveal
 export function startFastMoneyReveal(state: FamilyFeudGameState): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
-  const fm = { ...state.fastMoneyState, currentRevealQuestion: 0 };
+  const fm = {
+    ...state.fastMoneyState,
+    currentRevealQuestion: 0,
+    revealedP2Questions: [false, false, false, false, false] as boolean[],
+  };
   return patch(state, { phase: "fast-money-reveal", fastMoneyState: fm });
 }
 
@@ -380,43 +439,47 @@ export function setCurrentRevealQuestion(
   return patch(state, { fastMoneyState: fm });
 }
 
-// Confirm current question's selections and trigger the answer flip on the display.
-// Computes points from both players' selections and updates fastMoneyTotal.
+// Confirm current question's P2 selection and trigger the answer flip on the display.
+// Called during fast-money-reveal (P2 reveal phase). Updates fastMoneyTotal = P1 total + P2 so far.
 export function revealFastMoneyQuestion(
   state: FamilyFeudGameState,
   questionIndex: number,
 ): FamilyFeudGameState {
   if (!state.fastMoneyState) return state;
   const fm = { ...state.fastMoneyState };
-  const revealedQs = [...(fm.revealedQuestions ?? [false, false, false, false, false])];
-  revealedQs[questionIndex] = true;
-  fm.revealedQuestions = revealedQs;
 
-  // Compute running total from all revealed questions
+  // Flip the P2 reveal flag
+  const revealedP2 = [...(fm.revealedP2Questions ?? [false, false, false, false, false])];
+  revealedP2[questionIndex] = true;
+  fm.revealedP2Questions = revealedP2;
+
+  // Recompute total: P1 pts (all already revealed) + P2 pts for revealed P2 questions
   let total = 0;
-  const q = state.fastMoneyQuestions[questionIndex];
-  const pts = q ? getPoints(q) : [];
-
-  // Recompute total from all revealed questions to ensure accuracy
   for (let i = 0; i < 5; i++) {
-    if (!revealedQs[i]) continue;
     const fmq = state.fastMoneyQuestions[i];
     if (!fmq) continue;
     const qPts = getPoints(fmq);
 
-    const p1sel = (fm.player1Selections ?? [])[i];
-    if (typeof p1sel === "number") total += qPts[p1sel] ?? 0;
+    // P1 pts — count if P1 question was revealed during fast-money-reveal-p1
+    const revealedP1 = fm.revealedQuestions ?? [];
+    if (revealedP1[i]) {
+      const p1sel = (fm.player1Selections ?? [])[i];
+      if (typeof p1sel === "number") total += qPts[p1sel] ?? 0;
+    }
 
-    const p2sel = (fm.player2Selections ?? [])[i];
-    if (typeof p2sel === "number") total += qPts[p2sel] ?? 0;
+    // P2 pts — count if P2 question has been revealed
+    if (revealedP2[i]) {
+      const p2sel = (fm.player2Selections ?? [])[i];
+      if (typeof p2sel === "number") total += qPts[p2sel] ?? 0;
+    }
   }
 
   fm.fastMoneyTotal = total;
 
-  // Advance to the next un-revealed question (if any)
+  // Advance to the next un-revealed P2 question
   let next = questionIndex + 1;
-  while (next < 5 && revealedQs[next]) next++;
-  if (next >= 5) next = questionIndex; // already on last
+  while (next < 5 && revealedP2[next]) next++;
+  if (next >= 5) next = questionIndex;
   fm.currentRevealQuestion = next;
 
   return patch(state, {

@@ -114,10 +114,11 @@ export type FamilyFeudGamePhase =
   | "round-transition"   // transition between rounds
   | "fast-money-intro"   // Fast Money announced — intro fanfare
   | "fast-money-player1"      // Player 1 answering — timer running
-  | "fast-money-player1-done" // Player 1 time up — answers hidden, Player 2 prepares
+  | "fast-money-player1-done" // Player 1 time up — Player 1 answers about to be revealed
+  | "fast-money-reveal-p1"    // Player 1 answers revealed one by one; then Player 2 takes their round
   | "fast-money-player2"      // Player 2 answering — timer running
   | "fast-money-player2-done" // Player 2 time up
-  | "fast-money-reveal"  // both players' answers revealed question by question
+  | "fast-money-reveal"  // Player 2 answers revealed (Player 1 board already showing)
   | "fast-money-score"   // final Fast Money score shown
   | "game-over";         // final score shown, points awarded to students
 
@@ -189,8 +190,11 @@ export interface FamilyFeudFastMoneyState {
   player1Selections: Array<number | "not-on-board" | null>;
   player2Selections: FamilyFeudScoreSelection[];
 
-  // Which of the 5 questions have already been "flipped" on the display
+  // Which of the 5 P1 questions have been "flipped" on the display (fast-money-reveal-p1)
   revealedQuestions: boolean[];
+
+  // Which of the 5 P2 questions have been "flipped" on the display (fast-money-reveal)
+  revealedP2Questions: boolean[];
 
   // Which question the assistant is currently scoring in the reveal phase (0–4)
   currentRevealQuestion: number;

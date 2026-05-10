@@ -36,7 +36,9 @@ import {
   startFastMoneyPlayer1,
   updateFastMoneyAnswer,
   endFastMoneyPlayer1,
-  startFastMoneyPlayer2,
+  startFastMoneyRevealP1,
+  revealP1Question,
+  startFastMoneyPlayer2FromReveal,
   endFastMoneyPlayer2,
   startFastMoneyReveal,
   setPlayer1Selection,
@@ -368,13 +370,25 @@ export default function FamilyFeudRemote({
     return (
       <RemoteShell title={game.name} subtitle="Player 1 Done">
         <Section>
-          <StatusLabel>⏱ Player 1 time up. Player 1 answers are now hidden.</StatusLabel>
-          <BigButton disabled={busy} onClick={() => write(startFastMoneyPlayer2(state))}>
-            ▶ Start Player 2 Round
+          <StatusLabel>⏱ Player 1 time up. Reveal Player 1&apos;s answers now.</StatusLabel>
+          <BigButton disabled={busy} onClick={() => write(startFastMoneyRevealP1(state))}>
+            ▶ Reveal Player 1 Answers
           </BigButton>
         </Section>
         <EndZone onEnd={onEndGame} busy={busy} />
       </RemoteShell>
+    );
+  }
+
+  // ─── Fast Money Reveal P1 ────────────────────────────────────────────────
+  if (phase === "fast-money-reveal-p1") {
+    return (
+      <FastMoneyRevealP1Phase
+        state={state}
+        busy={busy}
+        onWrite={write}
+        onEndGame={onEndGame}
+      />
     );
   }
 
@@ -382,9 +396,9 @@ export default function FamilyFeudRemote({
     return (
       <RemoteShell title={game.name} subtitle="Player 2 Done">
         <Section>
-          <StatusLabel>⏱ Player 2 time up. Ready to reveal.</StatusLabel>
+          <StatusLabel>⏱ Player 2 time up. Ready to reveal Player 2&apos;s answers.</StatusLabel>
           <BigButton disabled={busy} onClick={() => write(startFastMoneyReveal(state))}>
-            ▶ Start Reveal
+            ▶ Start Player 2 Reveal
           </BigButton>
         </Section>
         <EndZone onEnd={onEndGame} busy={busy} />
@@ -392,7 +406,7 @@ export default function FamilyFeudRemote({
     );
   }
 
-  // ─── Fast Money Reveal ────────────────────────────────────────────────────
+  // ─── Fast Money Reveal (P2) ───────────────────────────────────────────────
   if (phase === "fast-money-reveal") {
     return (
       <FastMoneyRevealPhase
@@ -608,7 +622,110 @@ function FastMoneyTypingPhase({
   );
 }
 
-// ─── Fast Money Reveal Phase ──────────────────────────────────────────────────
+// ─── Fast Money Reveal P1 Phase ───────────────────────────────────────────────
+// Scores and reveals Player 1's answers. After all 5 flip, launches Player 2 round.
+
+function FastMoneyRevealP1Phase({
+  state, busy, onWrite, onEndGame,
+}: {
+  state: FamilyFeudGameState;
+  busy: boolean;
+  onWrite: (s: FamilyFeudGameState) => Promise<void>;
+  onEndGame: () => Promise<void>;
+}) {
+  const fm = state.fastMoneyState;
+  const questions = state.fastMoneyQuestions;
+  if (!fm) return null;
+
+  const current = fm.currentRevealQuestion;
+  const q = questions[current];
+  if (!q) return null;
+
+  const answers = getAnswers(q);
+  const pts = getPoints(q);
+
+  const player1Selections = fm.player1Selections ?? Array(5).fill(null);
+  const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
+  const p1sel = player1Selections[current];
+  const isRevealed = revealedQuestions[current];
+  const allP1Revealed = revealedQuestions.every(Boolean);
+
+  return (
+    <RemoteShell title="Fast Money — Player 1 Reveal" subtitle={`P1 Total so far: ${fm.fastMoneyTotal}`}>
+
+      {/* Question navigator */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+        {questions.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => onWrite(setCurrentRevealQuestion(state, i))}
+            style={{
+              flex: 1, padding: "8px 0", borderRadius: "8px",
+              border: `2px solid ${i === current ? "#EC8B24" : "rgba(245,237,214,0.1)"}`,
+              backgroundColor: i === current ? "rgba(236,139,36,0.15)" : "transparent",
+              color: revealedQuestions[i] ? "#EC8B24" : "rgba(245,237,214,0.6)",
+              fontSize: "13px", fontWeight: "bold", cursor: "pointer",
+            }}
+          >
+            {revealedQuestions[i] ? "✓" : `Q${i + 1}`}
+          </button>
+        ))}
+      </div>
+
+      {/* Current question */}
+      <div style={{
+        backgroundColor: "var(--color-dark-surface)", borderRadius: "10px",
+        padding: "12px", marginBottom: "10px", border: "1px solid rgba(245,237,214,0.08)",
+      }}>
+        <p style={{ fontSize: "12px", color: "rgba(245,237,214,0.45)", margin: "0 0 4px" }}>Q{current + 1}</p>
+        <p style={{ fontSize: "14px", color: "var(--color-cream)", margin: 0 }}>{q.question_text}</p>
+      </div>
+
+      {/* Player 1 scoring only */}
+      <ScoringRow
+        label={`Player 1: "${(fm.player1Answers ?? [])[current] || "(no answer)"}"`}
+        answers={answers}
+        pts={pts}
+        selection={p1sel}
+        isDuplicate={false}
+        onSelect={(sel) => onWrite(setPlayer1Selection(state, current, sel as number | "not-on-board"))}
+        disabled={busy}
+      />
+
+      {/* Reveal / confirmed */}
+      <div style={{ marginTop: "12px" }}>
+        {isRevealed ? (
+          <div style={{ textAlign: "center", color: "#EC8B24", fontSize: "13px" }}>
+            ✓ Q{current + 1} revealed
+          </div>
+        ) : (
+          <BigButton
+            disabled={busy || p1sel === null}
+            onClick={() => onWrite(revealP1Question(state, current))}
+          >
+            🔓 Reveal Q{current + 1} on Display
+          </BigButton>
+        )}
+      </div>
+
+      {/* After all 5 P1 answers revealed → launch P2 round */}
+      {allP1Revealed && (
+        <div style={{ marginTop: "16px" }}>
+          <BigButton disabled={busy} onClick={() => onWrite(startFastMoneyPlayer2FromReveal(state))}>
+            ▶ Start Player 2 Round
+          </BigButton>
+        </div>
+      )}
+
+      <div style={{ marginTop: "12px" }}>
+        <EndZone onEnd={onEndGame} busy={busy} />
+      </div>
+    </RemoteShell>
+  );
+}
+
+// ─── Fast Money Reveal Phase (P2) ─────────────────────────────────────────────
+// Scores and reveals Player 2's answers. P1 board is already shown on display.
 
 function FastMoneyRevealPhase({
   state, busy, onWrite, onEndGame,
@@ -631,16 +748,16 @@ function FastMoneyRevealPhase({
 
   const player1Selections = fm.player1Selections ?? Array(5).fill(null);
   const player2Selections = fm.player2Selections ?? Array(5).fill(null);
-  const revealedQuestions = fm.revealedQuestions ?? Array(5).fill(false);
+  const revealedP2Questions = fm.revealedP2Questions ?? Array(5).fill(false);
 
   const p1sel = player1Selections[current];
   const p2sel = player2Selections[current];
-  const isRevealed = revealedQuestions[current];
+  const isRevealed = revealedP2Questions[current];
 
-  const allScoredAndRevealed = revealedQuestions.every(Boolean);
+  const allP2Revealed = revealedP2Questions.every(Boolean);
 
   return (
-    <RemoteShell title="Fast Money Reveal" subtitle={`Fast Money Total: ${fm.fastMoneyTotal}`}>
+    <RemoteShell title="Fast Money — Player 2 Reveal" subtitle={`Fast Money Total: ${fm.fastMoneyTotal}`}>
 
       {/* Question navigator — 5 tabs */}
       <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
@@ -649,45 +766,43 @@ function FastMoneyRevealPhase({
             key={i}
             onClick={() => onWrite(setCurrentRevealQuestion(state, i))}
             style={{
-              flex: 1, padding: "8px 0",
-              borderRadius: "8px",
+              flex: 1, padding: "8px 0", borderRadius: "8px",
               border: `2px solid ${i === current ? "#EC8B24" : "rgba(245,237,214,0.1)"}`,
               backgroundColor: i === current ? "rgba(236,139,36,0.15)" : "transparent",
-              color: revealedQuestions[i] ? "#EC8B24" : "rgba(245,237,214,0.6)",
-              fontSize: "13px", fontWeight: "bold",
-              cursor: "pointer",
+              color: revealedP2Questions[i] ? "#EC8B24" : "rgba(245,237,214,0.6)",
+              fontSize: "13px", fontWeight: "bold", cursor: "pointer",
             }}
           >
-            {revealedQuestions[i] ? "✓" : `Q${i + 1}`}
+            {revealedP2Questions[i] ? "✓" : `Q${i + 1}`}
           </button>
         ))}
       </div>
 
       {/* Current question */}
       <div style={{
-        backgroundColor: "var(--color-dark-surface)",
-        borderRadius: "10px", padding: "12px",
-        marginBottom: "10px",
-        border: "1px solid rgba(245,237,214,0.08)",
+        backgroundColor: "var(--color-dark-surface)", borderRadius: "10px",
+        padding: "12px", marginBottom: "10px", border: "1px solid rgba(245,237,214,0.08)",
       }}>
-        <p style={{ fontSize: "12px", color: "rgba(245,237,214,0.45)", margin: "0 0 4px" }}>
-          Q{current + 1}
-        </p>
-        <p style={{ fontSize: "14px", color: "var(--color-cream)", margin: 0 }}>
-          {q.question_text}
-        </p>
+        <p style={{ fontSize: "12px", color: "rgba(245,237,214,0.45)", margin: "0 0 4px" }}>Q{current + 1}</p>
+        <p style={{ fontSize: "14px", color: "var(--color-cream)", margin: 0 }}>{q.question_text}</p>
       </div>
 
-      {/* Player 1 typed answer + scoring */}
-      <ScoringRow
-        label={`Player 1: "${(fm.player1Answers ?? [])[current] || "(no answer)"}"`}
-        answers={answers}
-        pts={pts}
-        selection={p1sel}
-        isDuplicate={false}
-        onSelect={(sel) => onWrite(setPlayer1Selection(state, current, sel as number | "not-on-board"))}
-        disabled={busy}
-      />
+      {/* Player 1 answer — read-only reference */}
+      <div style={{
+        backgroundColor: "var(--color-dark-surface)", borderRadius: "10px",
+        padding: "10px 12px", marginBottom: "8px",
+        border: "1px solid rgba(245,237,214,0.08)",
+        opacity: 0.65,
+      }}>
+        <p style={{ fontSize: "11px", color: "rgba(245,237,214,0.45)", margin: "0 0 4px" }}>
+          Player 1 (already revealed)
+        </p>
+        <p style={{ fontSize: "13px", color: "var(--color-cream)", margin: 0 }}>
+          {(fm.player1Answers ?? [])[current] || "(no answer)"}
+          {typeof p1sel === "number" && ` → ${answers[p1sel]} (${pts[p1sel]} pts)`}
+          {p1sel === "not-on-board" && " → Not on board (0 pts)"}
+        </p>
+      </div>
 
       {/* Player 2 typed answer + scoring */}
       <ScoringRow
@@ -708,7 +823,7 @@ function FastMoneyRevealPhase({
           </div>
         ) : (
           <BigButton
-            disabled={busy || (p1sel === null && p2sel === null)}
+            disabled={busy || p2sel === null}
             onClick={() => onWrite(revealFastMoneyQuestion(state, current))}
           >
             🔓 Reveal Q{current + 1} on Display
@@ -716,8 +831,8 @@ function FastMoneyRevealPhase({
         )}
       </div>
 
-      {/* Finalize when all done */}
-      {allScoredAndRevealed && (
+      {/* Finalize when all P2 done */}
+      {allP2Revealed && (
         <div style={{ marginTop: "12px" }}>
           <BigButton disabled={busy} onClick={() => onWrite(finalizeFastMoney(state))}>
             ✅ All Revealed — Show Score

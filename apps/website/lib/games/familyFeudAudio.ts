@@ -353,7 +353,48 @@ export function useFamilyFeudAudio(
       return;
     }
 
-    // fast-money-reveal — per-answer: reveal sting → reaction sound
+    // fast-money-reveal-p1 — per-answer: reveal sting → reaction sound (Player 1 answers)
+    if (phase === "fast-money-reveal-p1") {
+      if (changed) {
+        stopLoop();
+        stopSfx();
+        fmLastRevealed.current = [false, false, false, false, false];
+        fmIsFirst.current = true;
+        fmUseOhh2.current = false;
+      }
+
+      const fm = state.fastMoneyState;
+      const revealedNow = fm?.revealedQuestions ?? [false, false, false, false, false];
+
+      for (let i = 0; i < 5; i++) {
+        if (revealedNow[i] && !fmLastRevealed.current[i]) {
+          let reactionSrc: string;
+
+          if (fmIsFirst.current) {
+            reactionSrc = fmUseOhh2.current ? F.ohh2 : F.ohh1;
+            fmUseOhh2.current = !fmUseOhh2.current;
+            fmIsFirst.current = false;
+          } else if (fm) {
+            const fmq = state.fastMoneyQuestions[i];
+            const ptsArr = fmq ? getPoints(fmq) : [];
+            const p1sel = (fm.player1Selections ?? [])[i];
+            const p1pts = typeof p1sel === "number" ? (ptsArr[p1sel] ?? 0) : 0;
+            reactionSrc = p1pts > 0 ? F.fastMoneyPoints : F.fastMoneyNoPoints;
+          } else {
+            reactionSrc = F.fastMoneyNoPoints;
+          }
+
+          fmLastRevealed.current = [...revealedNow];
+          playSfx(F.fastMoneyRevealBg, () => playSfx(reactionSrc));
+          break;
+        }
+      }
+
+      lastPhase.current = phase;
+      return;
+    }
+
+    // fast-money-reveal — per-answer: reveal sting → reaction sound (Player 2 answers)
     // fast_money_reveal.mp3 plays once each time an answer is flipped,
     // then chains into the audience reaction (ohh / points / no-points).
     if (phase === "fast-money-reveal") {
@@ -366,7 +407,7 @@ export function useFamilyFeudAudio(
       }
 
       const fm = state.fastMoneyState;
-      const revealedNow = fm?.revealedQuestions ?? [false, false, false, false, false];
+      const revealedNow = fm?.revealedP2Questions ?? [false, false, false, false, false];
 
       for (let i = 0; i < 5; i++) {
         if (revealedNow[i] && !fmLastRevealed.current[i]) {
@@ -384,10 +425,8 @@ export function useFamilyFeudAudio(
             } else {
               const fmq = state.fastMoneyQuestions[i];
               const ptsArr = fmq ? getPoints(fmq) : [];
-              const p1sel = (fm.player1Selections ?? [])[i];
-              const p1pts = typeof p1sel === "number" ? (ptsArr[p1sel] ?? 0) : 0;
               const p2pts = typeof p2sel === "number" ? (ptsArr[p2sel] ?? 0) : 0;
-              reactionSrc = (p1pts > 0 || p2pts > 0) ? F.fastMoneyPoints : F.fastMoneyNoPoints;
+              reactionSrc = p2pts > 0 ? F.fastMoneyPoints : F.fastMoneyNoPoints;
             }
           } else {
             reactionSrc = F.fastMoneyNoPoints;
