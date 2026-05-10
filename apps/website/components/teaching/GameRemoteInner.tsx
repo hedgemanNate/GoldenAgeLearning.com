@@ -814,10 +814,16 @@ function AnswerButtons({
             key={letter}
             onClick={() => onTap(letter)}
             disabled={disabled}
-            className={classes}
+            className={classes + " relative"}
             title={q ? q[`option_${letter}` as const] : ""}
           >
             {letter.toUpperCase()}
+            {isCorrect && !hidden && (
+              <span
+                className="absolute top-[6px] right-[8px] w-[8px] h-[8px] rounded-full bg-[#4ade80]"
+                aria-label="correct answer"
+              />
+            )}
           </button>
         );
       })}
