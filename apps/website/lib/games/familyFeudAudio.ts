@@ -332,33 +332,34 @@ export function useFamilyFeudAudio(
       return;
     }
 
-    // fast-money-player1 / fast-money-player2 — fast_money_round_music.mp3 loops
-    // Always restart from the beginning (player2 is a fresh timer round)
+    // fast-money-player1 / fast-money-player2 — fast_money_round_music.mp3 plays ONCE (no loop)
+    // On the real show the music plays for the answering window then stops; it does not repeat.
     if (phase === "fast-money-player1" || phase === "fast-money-player2") {
       if (changed) {
-        stopSfx();
-        stop(loopRef.current); loopRef.current = null; loopSrc.current = "";
-        startLoop(F.fastMoneyRoundMusic);
+        stopLoop();
+        playSfx(F.fastMoneyRoundMusic); // one-shot; playSfx stops any previous SFX
       }
       lastPhase.current = phase;
       return;
     }
 
-    // fast-money-player1-done / fast-money-player2-done — stop loop, fast_money_no_points.mp3
+    // fast-money-player1-done / fast-money-player2-done — cut music, play done sound
     if (phase === "fast-money-player1-done" || phase === "fast-money-player2-done") {
       if (changed) {
         stopLoop();
-        playSfx(F.fastMoneyNoPoints);
+        playSfx(F.fastMoneyNoPoints); // playSfx stops round music if still playing
       }
       lastPhase.current = phase;
       return;
     }
 
-    // fast-money-reveal — fast_money_reveal.mp3 loops as background; per-answer sounds on top
+    // fast-money-reveal — per-answer: reveal sting → reaction sound
+    // fast_money_reveal.mp3 plays once each time an answer is flipped,
+    // then chains into the audience reaction (ohh / points / no-points).
     if (phase === "fast-money-reveal") {
       if (changed) {
+        stopLoop();
         stopSfx();
-        startBgLoop(F.fastMoneyRevealBg);
         fmLastRevealed.current = [false, false, false, false, false];
         fmIsFirst.current = true;
         fmUseOhh2.current = false;
@@ -369,40 +370,34 @@ export function useFamilyFeudAudio(
 
       for (let i = 0; i < 5; i++) {
         if (revealedNow[i] && !fmLastRevealed.current[i]) {
-          let src: string;
+          let reactionSrc: string;
 
           if (fmIsFirst.current) {
             // Very first answer flip — one of the two ohhing variants
-            src = fmUseOhh2.current ? F.ohh2 : F.ohh1;
+            reactionSrc = fmUseOhh2.current ? F.ohh2 : F.ohh1;
             fmUseOhh2.current = !fmUseOhh2.current;
             fmIsFirst.current = false;
           } else if (fm) {
             const p2sel = (fm.player2Selections ?? [])[i];
             if (p2sel === "duplicate") {
-              src = F.repeatedAnswer;
+              reactionSrc = F.repeatedAnswer;
             } else {
               const fmq = state.fastMoneyQuestions[i];
               const ptsArr = fmq ? getPoints(fmq) : [];
               const p1sel = (fm.player1Selections ?? [])[i];
               const p1pts = typeof p1sel === "number" ? (ptsArr[p1sel] ?? 0) : 0;
               const p2pts = typeof p2sel === "number" ? (ptsArr[p2sel] ?? 0) : 0;
-              src = (p1pts > 0 || p2pts > 0) ? F.fastMoneyPoints : F.fastMoneyNoPoints;
+              reactionSrc = (p1pts > 0 || p2pts > 0) ? F.fastMoneyPoints : F.fastMoneyNoPoints;
             }
           } else {
-            src = F.fastMoneyNoPoints;
+            reactionSrc = F.fastMoneyNoPoints;
           }
 
           fmLastRevealed.current = [...revealedNow];
-          playSfx(src); // touches only sfxRef; background loop keeps playing
+          // Play reveal sting, then chain into audience reaction
+          playSfx(F.fastMoneyRevealBg, () => playSfx(reactionSrc));
           break; // one sound per render cycle
         }
-      }
-
-      // Ensure background loop is still running
-      if (loopSrc.current !== F.fastMoneyRevealBg) {
-        startBgLoop(F.fastMoneyRevealBg);
-      } else if (loopRef.current?.paused) {
-        safePlay(loopRef.current);
       }
 
       lastPhase.current = phase;
