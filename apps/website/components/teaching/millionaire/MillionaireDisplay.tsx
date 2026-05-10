@@ -376,16 +376,16 @@ function Timer({ state }: { state: MillionaireGameState }) {
   const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
-    if (state.timerEndsAt === null) return;
+    if (state.timerEndsAt == null) return;
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
   }, [state.timerEndsAt]);
 
-  const isPaused = state.timerPausedMs !== null;
+  const isPaused = state.timerPausedMs != null;
   let remaining: number;
   if (isPaused) {
     remaining = Math.max(0, Math.ceil((state.timerPausedMs ?? 0) / 1000));
-  } else if (state.timerEndsAt === null) {
+  } else if (state.timerEndsAt == null) {
     return <div style={{ width: "8vw" }} />;
   } else {
     remaining = Math.max(0, Math.ceil((state.timerEndsAt - now) / 1000));

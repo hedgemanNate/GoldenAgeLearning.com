@@ -21,7 +21,13 @@ import type { Message, MessageWithId } from "../../types/message";
 import type { Payment, PaymentWithId } from "../../types/payment";
 import type { ActivityLog, ActivityLogWithId } from "../../types/activityLog";
 import type { ClassTemplate, ClassTemplateWithId, TaxonomyTag } from "../../types/classTemplate";
-import type { GameInstance, GameInstanceWithId, GameQuestion } from "../../types/game";
+import type {
+  GameInstance,
+  GameInstanceWithId,
+  GameQuestion,
+  FamilyFeudMainQuestion,
+  FamilyFeudFastMoneyQuestion,
+} from "../../types/game";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
@@ -629,12 +635,24 @@ export async function updateGame(
 export async function deleteGame(gameId: string): Promise<void> {
   await set(ref(db, `games/${gameId}`), null);
   await set(ref(db, `gameQuestions/${gameId}`), null);
+  await set(ref(db, `familyFeudMainQuestions/${gameId}`), null);
+  await set(ref(db, `familyFeudFastMoneyQuestions/${gameId}`), null);
 }
 
 export async function getGame(gameId: string): Promise<GameInstanceWithId | null> {
   const snap = await get(ref(db, `games/${gameId}`));
   if (!snap.exists()) return null;
   return { id: gameId, ...(snap.val() as GameInstance) };
+}
+
+/** Returns all games for a given classId, sorted newest-first. */
+export async function getGamesByClassId(classId: string): Promise<GameInstanceWithId[]> {
+  const snap = await get(query(ref(db, "games"), orderByChild("classId"), equalTo(classId)));
+  if (!snap.exists()) return [];
+  const games = Object.entries(snap.val() as Record<string, GameInstance>).map(
+    ([id, val]) => ({ id, ...val }),
+  );
+  return games.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 }
 
 export function subscribeToGames(
@@ -683,4 +701,40 @@ export async function awardGamePoints(
   >(functions, "awardGamePoints");
   const result = await callable({ pointsMap, classId });
   return result.data;
+}
+
+// ─── Family Feud Questions ────────────────────────────────────────────────────
+
+export async function replaceFamilyFeudMainQuestions(
+  gameId: string,
+  questions: FamilyFeudMainQuestion[],
+): Promise<void> {
+  await set(ref(db, `familyFeudMainQuestions/${gameId}`), questions);
+}
+
+export async function getFamilyFeudMainQuestions(
+  gameId: string,
+): Promise<FamilyFeudMainQuestion[]> {
+  const snap = await get(ref(db, `familyFeudMainQuestions/${gameId}`));
+  if (!snap.exists()) return [];
+  const val = snap.val() as FamilyFeudMainQuestion[] | Record<string, FamilyFeudMainQuestion>;
+  if (Array.isArray(val)) return val;
+  return Object.values(val);
+}
+
+export async function replaceFamilyFeudFastMoneyQuestions(
+  gameId: string,
+  questions: FamilyFeudFastMoneyQuestion[],
+): Promise<void> {
+  await set(ref(db, `familyFeudFastMoneyQuestions/${gameId}`), questions);
+}
+
+export async function getFamilyFeudFastMoneyQuestions(
+  gameId: string,
+): Promise<FamilyFeudFastMoneyQuestion[]> {
+  const snap = await get(ref(db, `familyFeudFastMoneyQuestions/${gameId}`));
+  if (!snap.exists()) return [];
+  const val = snap.val() as FamilyFeudFastMoneyQuestion[] | Record<string, FamilyFeudFastMoneyQuestion>;
+  if (Array.isArray(val)) return val;
+  return Object.values(val);
 }

@@ -5,9 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { setTeachingSessionSlide, updateTeachingSession } from "../../../../../../../lib/firebase/db";
 import { useTeachingSessionDisplay } from "../../../../../../../hooks/useTeachingSession";
-import MillionaireDisplay from "../../../../../../../components/teaching/millionaire/MillionaireDisplay";
-import type { MillionaireGameState } from "../../../../../../../types/game";
-import { beginFirstQuestion } from "../../../../../../../lib/games/millionaire";
+import GameDisplayDispatcher from "../../../../../../../components/teaching/GameDisplayDispatcher";
 import {
   captureTheMomentSlides,
   type SlideContent,
@@ -87,24 +85,9 @@ function DisplayInner() {
 
   if (session.mode === "game") {
     if (session.gameState) {
-      const gameState = session.gameState as unknown as MillionaireGameState;
       return (
         <FullScreen>
-          <MillionaireDisplay
-            state={gameState}
-            gameName="Capture the Moment"
-            audioEnabled={true}
-            onStartingComplete={
-              ownerId
-                ? async () => {
-                    const gs = session.gameState as unknown as MillionaireGameState;
-                    await updateTeachingSession(ownerId, {
-                      gameState: beginFirstQuestion(gs, gs.timerSeconds) as unknown as Record<string, unknown>,
-                    });
-                  }
-                : undefined
-            }
-          />
+          <GameDisplayDispatcher session={session} ownerId={ownerId} gameName="Capture the Moment" />
         </FullScreen>
       );
     }

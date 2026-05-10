@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTeachingSession } from "../../../../../../hooks/useTeachingSession";
 import { meetYourSmartphoneSlides } from "../_slides/content";
 
@@ -23,6 +24,7 @@ export default function MeetYourSmartphoneSlidesLaunch() {
     ownerId,
   } = useTeachingSession();
   const [busy, setBusy] = useState(false);
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -185,7 +187,7 @@ export default function MeetYourSmartphoneSlidesLaunch() {
           Slides Mode
         </button>
         <button
-          onClick={() => setMode("game")}
+          onClick={async () => { await setMode("game"); router.push(`/admin/teaching/${CLASS_SLUG}/game`); }}
           style={modeBtn(session?.mode === "game")}
         >
           Game Mode

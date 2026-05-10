@@ -10,7 +10,7 @@ import type { GameInstanceWithId } from "../../../../types/game";
 // Add a new entry here each time a new class is ready for teaching assets.
 // Set each asset's href when its page is built; leave it null when not yet built.
 // classSlug must match the classId stored on GameInstance (set when creating a game).
-interface ClassEntry {
+export interface ClassEntry {
   classSlug: string;
   name: string;
   category: string;
@@ -24,7 +24,7 @@ interface ClassEntry {
   };
 }
 
-const CLASSES: ClassEntry[] = [
+export const CLASSES: ClassEntry[] = [
   {
     classSlug: "meet-your-smartphone",
     name: "Class 1 Meet Your Smartphone",
