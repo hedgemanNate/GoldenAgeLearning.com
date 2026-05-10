@@ -167,7 +167,8 @@ function FaceOffScreen({ state }: { state: FamilyFeudGameState }) {
 
   const buzzer = state.faceOffBuzzedStudent;
   const phase = state.phase;
-  const revealedIdx = state.revealedAnswerIndices[0] ?? -1;
+  const revealedAnswerIndices = state.revealedAnswerIndices ?? [];
+  const revealedIdx = revealedAnswerIndices[0] ?? -1;
 
   return (
     <Shell>
@@ -241,8 +242,9 @@ function BoardScreen({ state }: { state: FamilyFeudGameState }) {
   const pts = q ? getPoints(q) : [];
   const phase = state.phase;
 
-  const revealedSet = new Set(state.revealedAnswerIndices);
-  const roundPoints = state.revealedAnswerIndices.reduce((sum, idx) => sum + (pts[idx] ?? 0), 0);
+  const revealedAnswerIndices = state.revealedAnswerIndices ?? [];
+  const revealedSet = new Set(revealedAnswerIndices);
+  const roundPoints = revealedAnswerIndices.reduce((sum, idx) => sum + (pts[idx] ?? 0), 0);
 
   return (
     <Shell>
@@ -290,7 +292,7 @@ function BoardScreen({ state }: { state: FamilyFeudGameState }) {
             points={revealedSet.has(i) ? pts[i] : null}
             revealed={revealedSet.has(i)}
             strike={false}
-            flash={phase === "answer-revealed" && i === state.revealedAnswerIndices[state.revealedAnswerIndices.length - 1]}
+            flash={phase === "answer-revealed" && i === revealedAnswerIndices[revealedAnswerIndices.length - 1]}
           />
         ))}
       </div>

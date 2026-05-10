@@ -164,7 +164,7 @@ export function applyBoardAnswer(
   state: FamilyFeudGameState,
   answerIndex: number,
 ): FamilyFeudGameState {
-  const newRevealed = [...state.revealedAnswerIndices, answerIndex];
+  const newRevealed = [...(state.revealedAnswerIndices ?? []), answerIndex];
   const q = getCurrentQuestion(state);
   const allRevealed = q ? newRevealed.length === q.answer_count : false;
 
@@ -192,10 +192,11 @@ export function applyBoardAnswer(
 // answer-revealed → playing (called after brief display delay; or round-over if auto-detected)
 export function advanceFromAnswerRevealed(state: FamilyFeudGameState): FamilyFeudGameState {
   const q = getCurrentQuestion(state);
-  const allRevealed = q ? state.revealedAnswerIndices.length === q.answer_count : false;
+  const safeRevealed = state.revealedAnswerIndices ?? [];
+  const allRevealed = q ? safeRevealed.length === q.answer_count : false;
 
   if (allRevealed) {
-    const roundPoints = q ? computeRevealedPoints(q, state.revealedAnswerIndices) : 0;
+    const roundPoints = q ? computeRevealedPoints(q, safeRevealed) : 0;
     const newRoundTotals = [...state.roundTotals] as [number, number, number];
     newRoundTotals[state.currentRound - 1] = roundPoints;
     const newGameTotal = newRoundTotals.reduce((a, b) => a + b, 0);

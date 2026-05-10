@@ -645,6 +645,16 @@ export async function getGame(gameId: string): Promise<GameInstanceWithId | null
   return { id: gameId, ...(snap.val() as GameInstance) };
 }
 
+/** Returns all games for a given classId, sorted newest-first. */
+export async function getGamesByClassId(classId: string): Promise<GameInstanceWithId[]> {
+  const snap = await get(query(ref(db, "games"), orderByChild("classId"), equalTo(classId)));
+  if (!snap.exists()) return [];
+  const games = Object.entries(snap.val() as Record<string, GameInstance>).map(
+    ([id, val]) => ({ id, ...val }),
+  );
+  return games.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
 export function subscribeToGames(
   callback: (games: GameInstanceWithId[]) => void,
   onError?: (error: Error) => void,

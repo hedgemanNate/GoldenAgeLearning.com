@@ -225,7 +225,7 @@ export default function FamilyFeudRemote({
   if (phase === "playing" || phase === "answer-revealed") {
     const q = getCurrentQuestion(state);
     const answers = q ? getAnswers(q) : [];
-    const revealed = new Set(state.revealedAnswerIndices);
+    const revealed = new Set(state.revealedAnswerIndices ?? []);
 
     return (
       <RemoteShell title={game.name} subtitle={`Round ${state.currentRound} — Strikes: ${"✗".repeat(state.strikes)}${"○".repeat(3 - state.strikes)}`}>
