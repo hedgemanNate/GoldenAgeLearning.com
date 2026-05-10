@@ -19,6 +19,7 @@ import type {
   FamilyFeudMainQuestion,
   FamilyFeudFastMoneyQuestion,
 } from "../../../../../types/game";
+import { CLASSES } from "../page";
 
 // ─── Game Types ────────────────────────────────────────────────────────────────
 const GAME_TYPES: { id: GameType; name: string }[] = [
@@ -26,12 +27,8 @@ const GAME_TYPES: { id: GameType; name: string }[] = [
   { id: "familyFeud", name: "Family Feud" },
 ];
 
-// ─── Teaching Classes — mirrors the CLASSES manifest in teaching/page.tsx ─────
-// Add a new entry here whenever a class card is added to /teaching.
-const TEACHING_CLASSES = [
-  { slug: "meet-your-smartphone",  name: "Class 1: Meet Your Smartphone" },
-  { slug: "master-the-keyboard",   name: "Class 2: Master the Keyboard" },
-];
+// ─── Teaching Classes — derived from the shared CLASSES manifest ──────────────
+const TEACHING_CLASSES = CLASSES.map((c) => ({ slug: c.classSlug, name: c.name }));
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyState() {
