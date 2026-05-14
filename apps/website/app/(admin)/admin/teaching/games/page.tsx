@@ -11,6 +11,8 @@ import {
   replaceGameQuestions,
   replaceFamilyFeudMainQuestions,
   replaceFamilyFeudFastMoneyQuestions,
+  replaceJeopardyClues,
+  replaceJeopardyFinalClue,
 } from "../../../../../lib/firebase/db";
 import type {
   GameInstanceWithId,
@@ -18,6 +20,8 @@ import type {
   GameType,
   FamilyFeudMainQuestion,
   FamilyFeudFastMoneyQuestion,
+  JeopardyClue,
+  JeopardyFinalClue,
 } from "../../../../../types/game";
 import { CLASSES } from "../page";
 
@@ -25,6 +29,7 @@ import { CLASSES } from "../page";
 const GAME_TYPES: { id: GameType; name: string }[] = [
   { id: "millionaire", name: "Who Wants to Be a Millionaire" },
   { id: "familyFeud", name: "Family Feud" },
+  { id: "jeopardy", name: "Jeopardy!" },
 ];
 
 // ─── Teaching Classes — derived from the shared CLASSES manifest ──────────────
@@ -71,6 +76,7 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
   const [timerSeconds, setTimerSeconds] = useState(60);
   const [p1Timer, setP1Timer] = useState(20);
   const [p2Timer, setP2Timer] = useState(25);
+  const [answerTimer, setAnswerTimer] = useState(30);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -87,9 +93,11 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
         setError("Timer must be between 5 and 120 seconds.");
         return;
       }
-    } else {
+    } else if (gameType === "familyFeud") {
       if (p1Timer < 5 || p1Timer > 120) { setError("Player 1 timer must be 5–120 seconds."); return; }
       if (p2Timer < 5 || p2Timer > 120) { setError("Player 2 timer must be 5–120 seconds."); return; }
+    } else if (gameType === "jeopardy") {
+      if (answerTimer < 5 || answerTimer > 120) { setError("Answer timer must be 5–120 seconds."); return; }
     }
 
     setSaving(true);
@@ -101,7 +109,9 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
         gameType,
         ...(gameType === "millionaire"
           ? { timerSeconds }
-          : { fastMoneyTimerPlayer1: p1Timer, fastMoneyTimerPlayer2: p2Timer }),
+          : gameType === "familyFeud"
+          ? { fastMoneyTimerPlayer1: p1Timer, fastMoneyTimerPlayer2: p2Timer }
+          : { answerTimerSeconds: answerTimer }),
         questionCount: 0,
         createdBy,
       });
@@ -212,6 +222,18 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
                   className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
                 />
               </div>
+            </div>
+          )}
+          {gameType === "jeopardy" && (
+            <div className="flex flex-col gap-[6px]">
+              <label className="text-[12px] font-medium text-[rgba(245,237,214,0.6)] uppercase tracking-wider">
+                Answer Timer Per Clue (seconds)
+              </label>
+              <input
+                type="number" min={5} max={120} value={answerTimer}
+                onChange={(e) => setAnswerTimer(Number(e.target.value))}
+                className="bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.12)] rounded-[6px] px-[12px] py-[9px] text-[14px] text-[var(--color-cream)] focus:outline-none focus:border-[var(--color-gold)] w-[120px]"
+              />
             </div>
           )}
 
@@ -535,6 +557,294 @@ function UploadQuestionsModal({ game, onClose }: UploadQuestionsModalProps) {
               </button>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Jeopardy CSV parsers ────────────────────────────────────────────────────
+
+type JeopardyMainParseResult =
+  | { ok: true; clues: JeopardyClue[] }
+  | { ok: false; errors: string[] };
+
+type JeopardyFinalParseResult =
+  | { ok: true; clue: JeopardyFinalClue }
+  | { ok: false; errors: string[] };
+
+const JEOPARDY_POINT_VALUES = [200, 400, 600, 800, 1000] as const;
+
+function parseJeopardyMainCSV(text: string): JeopardyMainParseResult {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const errors: string[] = [];
+
+  if (result.data.length === 0) return { ok: false, errors: ["CSV is empty."] };
+  if (result.data.length !== 20) {
+    errors.push(`Must have exactly 20 rows (4 categories × 5 values) — found ${result.data.length}.`);
+  }
+
+  const requiredCols = ["category_number", "category_name", "point_value", "clue_text", "correct_response", "is_daily_double"];
+  const headers = Object.keys(result.data[0] ?? {});
+  const missingCols = requiredCols.filter((c) => !headers.includes(c));
+  if (missingCols.length > 0) {
+    return { ok: false, errors: [`Missing required columns: ${missingCols.join(", ")}.`] };
+  }
+
+  const clues: JeopardyClue[] = [];
+  let ddCount = 0;
+
+  for (let i = 0; i < result.data.length; i++) {
+    const row = result.data[i];
+    const rowNum = i + 2;
+
+    const catNumRaw = (row["category_number"] ?? "").trim();
+    const catName = (row["category_name"] ?? "").trim();
+    const ptRaw = (row["point_value"] ?? "").trim();
+    const clueText = (row["clue_text"] ?? "").trim();
+    const correctResponse = (row["correct_response"] ?? "").trim();
+    const isDDRaw = (row["is_daily_double"] ?? "").trim().toLowerCase();
+
+    const catNum = parseInt(catNumRaw, 10) as 1 | 2 | 3 | 4;
+    if (![1, 2, 3, 4].includes(catNum)) errors.push(`Row ${rowNum}: category_number must be 1–4, got "${catNumRaw}".`);
+    if (!catName) errors.push(`Row ${rowNum}: category_name is empty.`);
+    const ptValue = parseInt(ptRaw, 10);
+    if (!JEOPARDY_POINT_VALUES.includes(ptValue as typeof JEOPARDY_POINT_VALUES[number])) {
+      errors.push(`Row ${rowNum}: point_value must be 200, 400, 600, 800, or 1000 — got "${ptRaw}".`);
+    }
+    if (!clueText) errors.push(`Row ${rowNum}: clue_text is empty.`);
+    if (!correctResponse) errors.push(`Row ${rowNum}: correct_response is empty.`);
+    const isDD = isDDRaw === "true" || isDDRaw === "1" || isDDRaw === "yes";
+    if (isDD) ddCount++;
+
+    if (errors.length === 0 || errors.filter(e => e.startsWith(`Row ${rowNum}`)).length === 0) {
+      clues.push({
+        clueId: i + 1,
+        categoryNumber: catNum,
+        categoryName: catName,
+        pointValue: ptValue as typeof JEOPARDY_POINT_VALUES[number],
+        clueText,
+        correctResponse,
+        isDailyDouble: isDD,
+      });
+    }
+  }
+
+  // Cross-row validations (only if per-row errors are clean)
+  if (errors.length === 0) {
+    if (ddCount !== 1) errors.push(`Must have exactly 1 Daily Double — found ${ddCount}.`);
+    for (const cat of [1, 2, 3, 4] as const) {
+      const catClues = clues.filter((c) => c.categoryNumber === cat);
+      if (catClues.length !== 5) {
+        errors.push(`Category ${cat} must have 5 clues — found ${catClues.length}.`);
+        continue;
+      }
+      const vals = catClues.map((c) => c.pointValue);
+      for (const v of JEOPARDY_POINT_VALUES) {
+        if (!vals.includes(v)) errors.push(`Category ${cat} is missing the $${v} clue.`);
+      }
+      const names = new Set(catClues.map((c) => c.categoryName));
+      if (names.size > 1) {
+        errors.push(`Category ${cat} has inconsistent names: ${[...names].join(", ")}.`);
+      }
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, clues };
+}
+
+function parseJeopardyFinalCSV(text: string): JeopardyFinalParseResult {
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  if (result.data.length === 0) return { ok: false, errors: ["CSV is empty."] };
+  if (result.data.length !== 1) return { ok: false, errors: [`Final Jeopardy CSV must have exactly 1 data row — found ${result.data.length}.`] };
+
+  const row = result.data[0];
+  const categoryName = (row["category_name"] ?? "").trim();
+  const clueText = (row["clue_text"] ?? "").trim();
+  const correctResponse = (row["correct_response"] ?? "").trim();
+
+  const errors: string[] = [];
+  if (!categoryName) errors.push("category_name is empty.");
+  if (!clueText) errors.push("clue_text is empty.");
+  if (!correctResponse) errors.push("correct_response is empty.");
+  if (errors.length > 0) return { ok: false, errors };
+
+  return { ok: true, clue: { categoryName, clueText, correctResponse } };
+}
+
+// ─── Jeopardy Upload Modal ────────────────────────────────────────────────────
+
+interface JeopardyUploadModalProps {
+  game: GameInstanceWithId;
+  onClose: () => void;
+}
+
+function JeopardyUploadModal({ game, onClose }: JeopardyUploadModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const mainFileRef = useRef<HTMLInputElement>(null);
+  const finalFileRef = useRef<HTMLInputElement>(null);
+
+  const [mainParsed, setMainParsed] = useState<JeopardyClue[] | null>(null);
+  const [mainErrors, setMainErrors] = useState<string[]>([]);
+  const [mainFileName, setMainFileName] = useState("");
+
+  const [finalParsed, setFinalParsed] = useState<JeopardyFinalClue | null>(null);
+  const [finalErrors, setFinalErrors] = useState<string[]>([]);
+  const [finalFileName, setFinalFileName] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const canSave = mainParsed !== null && finalParsed !== null;
+
+  function handleMainFile(file: File) {
+    if (!file.name.endsWith(".csv")) { setMainErrors(["Only .csv files are accepted."]); return; }
+    setMainFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const r = parseJeopardyMainCSV(e.target?.result as string);
+      if (r.ok) {
+        setMainParsed(r.clues);
+        setMainErrors([]);
+      } else {
+        setMainParsed(null);
+        setMainErrors((r as { ok: false; errors: string[] }).errors);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function handleFinalFile(file: File) {
+    if (!file.name.endsWith(".csv")) { setFinalErrors(["Only .csv files are accepted."]); return; }
+    setFinalFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const r = parseJeopardyFinalCSV(e.target?.result as string);
+      if (r.ok) {
+        setFinalParsed(r.clue);
+        setFinalErrors([]);
+      } else {
+        setFinalParsed(null);
+        setFinalErrors((r as { ok: false; errors: string[] }).errors);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleSave() {
+    if (!mainParsed || !finalParsed) return;
+    if (!confirm("This will replace any existing Jeopardy clues for this game. Continue?")) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await replaceJeopardyClues(game.id, mainParsed);
+      await replaceJeopardyFinalClue(game.id, finalParsed);
+      setSaved(true);
+    } catch (err) {
+      setSaveError(`Failed to save: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleOverlayClick(e: React.MouseEvent) {
+    if (e.target === overlayRef.current) onClose();
+  }
+
+  return (
+    <div ref={overlayRef} onClick={handleOverlayClick} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-[var(--color-dark-surface)] rounded-[12px] border border-[rgba(245,237,214,0.1)] w-full max-w-[620px] mx-[16px] p-[28px] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-[6px]">
+          <h2 className="font-display text-[18px] font-bold text-[var(--color-cream)]">Upload Jeopardy! Clues</h2>
+          <button onClick={onClose} className="text-[rgba(245,237,214,0.4)] hover:text-[var(--color-cream)] transition-colors" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-[12px] text-[rgba(245,237,214,0.4)] mb-[20px]">{game.name}</p>
+
+        {saved ? (
+          <div className="flex flex-col items-center gap-[12px] py-[24px]">
+            <div className="w-[48px] h-[48px] rounded-full bg-[rgba(201,168,76,0.12)] flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-[22px] h-[22px] text-[var(--color-gold)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <p className="text-[14px] font-semibold text-[var(--color-cream)]">Clues saved!</p>
+            <p className="text-[12px] text-[rgba(245,237,214,0.4)] text-center">20 board clues + Final Jeopardy clue are live.</p>
+            <button onClick={onClose} className="mt-[8px] bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[20px] py-[9px] rounded-[6px]">Done</button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[20px]">
+            {/* Board clues */}
+            <section>
+              <div className="flex items-center gap-[8px] mb-[8px]">
+                <span className="text-[13px] font-semibold text-[var(--color-cream)]">Board Clues CSV (20 rows)</span>
+                {mainParsed && <span className="text-[11px] text-[var(--color-gold)]">✓ 20 clues parsed</span>}
+              </div>
+              <div className="bg-[rgba(245,237,214,0.04)] border border-[rgba(245,237,214,0.07)] rounded-[8px] px-[14px] py-[8px] mb-[10px]">
+                <p className="text-[11px] text-[rgba(245,237,214,0.5)] leading-relaxed">
+                  <span className="text-[rgba(245,237,214,0.7)] font-medium">Required columns: </span>
+                  category_number (1–4), category_name, point_value (200/400/600/800/1000), clue_text, correct_response, is_daily_double (true/false)
+                  <br />
+                  <span className="text-[rgba(245,237,214,0.4)]">Exactly 20 rows · 4 categories × 5 values · Exactly 1 Daily Double</span>
+                </p>
+              </div>
+              <DropZone label="Drop board clues CSV here" fileName={mainFileName} fileInputRef={mainFileRef} onFile={handleMainFile} />
+              {mainErrors.length > 0 && <ErrorList errors={mainErrors} />}
+              {mainParsed && (
+                <div className="mt-[8px] bg-[rgba(245,237,214,0.03)] rounded-[6px] border border-[rgba(245,237,214,0.07)] max-h-[140px] overflow-y-auto">
+                  {mainParsed.slice(0, 5).map((c, i) => (
+                    <div key={i} className="px-[12px] py-[8px] border-b border-[rgba(245,237,214,0.05)] last:border-0">
+                      <p className="text-[11px] text-[rgba(245,237,214,0.35)]">Cat {c.categoryNumber} · ${c.pointValue}{c.isDailyDouble ? " · DD" : ""}</p>
+                      <p className="text-[12px] text-[var(--color-cream)]">{c.clueText}</p>
+                    </div>
+                  ))}
+                  {mainParsed.length > 5 && <p className="px-[12px] py-[8px] text-[11px] text-[rgba(245,237,214,0.3)]">…and {mainParsed.length - 5} more</p>}
+                </div>
+              )}
+            </section>
+
+            {/* Final Jeopardy clue */}
+            <section>
+              <div className="flex items-center gap-[8px] mb-[8px]">
+                <span className="text-[13px] font-semibold text-[var(--color-cream)]">Final Jeopardy CSV (1 row)</span>
+                {finalParsed && <span className="text-[11px] text-[var(--color-gold)]">✓ Parsed</span>}
+              </div>
+              <div className="bg-[rgba(245,237,214,0.04)] border border-[rgba(245,237,214,0.07)] rounded-[8px] px-[14px] py-[8px] mb-[10px]">
+                <p className="text-[11px] text-[rgba(245,237,214,0.5)] leading-relaxed">
+                  <span className="text-[rgba(245,237,214,0.7)] font-medium">Required columns: </span>
+                  category_name, clue_text, correct_response · Exactly 1 row
+                </p>
+              </div>
+              <DropZone label="Drop Final Jeopardy CSV here" fileName={finalFileName} fileInputRef={finalFileRef} onFile={handleFinalFile} />
+              {finalErrors.length > 0 && <ErrorList errors={finalErrors} />}
+              {finalParsed && (
+                <div className="mt-[8px] bg-[rgba(245,237,214,0.03)] rounded-[6px] border border-[rgba(245,237,214,0.07)] px-[12px] py-[10px]">
+                  <p className="text-[11px] text-[rgba(245,237,214,0.35)] mb-[2px]">Category: {finalParsed.categoryName}</p>
+                  <p className="text-[12px] text-[var(--color-cream)]">{finalParsed.clueText}</p>
+                </div>
+              )}
+            </section>
+
+            {saveError && <p className="text-[12px] text-red-400">{saveError}</p>}
+
+            <div className="flex items-center justify-end gap-[10px]">
+              <button type="button" onClick={onClose} className="px-[16px] py-[8px] rounded-[6px] text-[13px] font-medium text-[rgba(245,237,214,0.6)] hover:text-[var(--color-cream)] transition-colors">Cancel</button>
+              <button onClick={handleSave} disabled={!canSave || saving} className="bg-[var(--color-gold)] text-[var(--color-dark-bg)] font-semibold text-[13px] px-[18px] py-[8px] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed">
+                {saving ? "Saving…" : "Save All Clues"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -1043,6 +1353,10 @@ export default function AdminTeachingGames() {
               title="Family Feud"
               description="A team-based survey game with three main rounds and a Fast Money bonus. Main rounds require one question per round with up to 8 answers each; Fast Money requires exactly 5 questions. Upload via two CSVs: Main Questions CSV and Fast Money Questions CSV."
             />
+            <InfoRow
+              title="Jeopardy!"
+              description="A cooperative board game with 4 categories × 5 clue values ($200–$1,000), one Daily Double, and a Final Jeopardy round. The class plays as one team — the instructor judges responses verbally and marks correct/wrong. Points from the final score are awarded to all enrolled students at game end. Upload via two CSVs: Board Clues CSV (20 rows) and Final Jeopardy CSV (1 row)."
+            />
           <InfoRow
             title="How questions are loaded"
             description="Upload a CSV file to any game instance. The CSV must include: question, option_a, option_b, option_c, option_d, correct_answer, difficulty, and fifty_fifty_remove columns. The system validates every row before saving."
@@ -1066,6 +1380,8 @@ export default function AdminTeachingGames() {
           <a href="/assests/millionaire-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Millionaire CSV Template</a>
           <a href="/assests/family-feud-main-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Family Feud — Main Questions CSV</a>
           <a href="/assests/family-feud-fastmoney-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Family Feud — Fast Money CSV</a>
+          <a href="/assests/jeopardy-board-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Jeopardy! — Board Clues CSV</a>
+          <a href="/assests/jeopardy-final-template.csv" download className="px-[14px] py-[8px] bg-[rgba(245,237,214,0.05)] border border-[rgba(245,237,214,0.07)] rounded-[6px] text-[13px] text-[var(--color-cream)] hover:bg-[rgba(245,237,214,0.04)] transition-colors">Jeopardy! — Final Jeopardy CSV</a>
         </div>
       </div>
 
@@ -1078,17 +1394,13 @@ export default function AdminTeachingGames() {
         />
       )}
 
-      {/* Upload Questions Modal — routes to FF modal for Family Feud games */}
+      {/* Upload Questions Modal — routes based on game type */}
       {uploadGame && uploadGame.gameType === "familyFeud" ? (
-        <FamilyFeudUploadModal
-          game={uploadGame}
-          onClose={() => setUploadGame(null)}
-        />
+        <FamilyFeudUploadModal game={uploadGame} onClose={() => setUploadGame(null)} />
+      ) : uploadGame && uploadGame.gameType === "jeopardy" ? (
+        <JeopardyUploadModal game={uploadGame} onClose={() => setUploadGame(null)} />
       ) : uploadGame ? (
-        <UploadQuestionsModal
-          game={uploadGame}
-          onClose={() => setUploadGame(null)}
-        />
+        <UploadQuestionsModal game={uploadGame} onClose={() => setUploadGame(null)} />
       ) : null}
 
     </div>

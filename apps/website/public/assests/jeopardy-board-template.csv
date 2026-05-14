@@ -1,0 +1,21 @@
+category_number,category_name,point_value,clue_text,correct_response,is_daily_double
+1,Category One,200,Clue text goes here,Correct response goes here,false
+1,Category One,400,Clue text goes here,Correct response goes here,false
+1,Category One,600,Clue text goes here,Correct response goes here,false
+1,Category One,800,Clue text goes here,Correct response goes here,false
+1,Category One,1000,Clue text goes here,Correct response goes here,false
+2,Category Two,200,Clue text goes here,Correct response goes here,false
+2,Category Two,400,Clue text goes here,Correct response goes here,false
+2,Category Two,600,Clue text goes here,Correct response goes here,false
+2,Category Two,800,Clue text goes here,Correct response goes here,false
+2,Category Two,1000,Clue text goes here,Correct response goes here,false
+3,Category Three,200,Clue text goes here,Correct response goes here,false
+3,Category Three,400,Clue text goes here,Correct response goes here,false
+3,Category Three,600,Clue text goes here,Correct response goes here,true
+3,Category Three,800,Clue text goes here,Correct response goes here,false
+3,Category Three,1000,Clue text goes here,Correct response goes here,false
+4,Category Four,200,Clue text goes here,Correct response goes here,false
+4,Category Four,400,Clue text goes here,Correct response goes here,false
+4,Category Four,600,Clue text goes here,Correct response goes here,false
+4,Category Four,800,Clue text goes here,Correct response goes here,false
+4,Category Four,1000,Clue text goes here,Correct response goes here,false

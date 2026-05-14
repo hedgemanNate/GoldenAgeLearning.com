@@ -27,6 +27,8 @@ import type {
   GameQuestion,
   FamilyFeudMainQuestion,
   FamilyFeudFastMoneyQuestion,
+  JeopardyClue,
+  JeopardyFinalClue,
 } from "../../types/game";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -586,6 +588,7 @@ export async function bindTeachingSessionDisplay(
 export async function endTeachingSession(ownerId: string): Promise<void> {
   await updateTeachingSession(ownerId, {
     status: "ended",
+    gameState: null,
     endedAt: Date.now(),
   });
 }
@@ -637,6 +640,8 @@ export async function deleteGame(gameId: string): Promise<void> {
   await set(ref(db, `gameQuestions/${gameId}`), null);
   await set(ref(db, `familyFeudMainQuestions/${gameId}`), null);
   await set(ref(db, `familyFeudFastMoneyQuestions/${gameId}`), null);
+  await set(ref(db, `jeopardyClues/${gameId}`), null);
+  await set(ref(db, `jeopardyFinalClue/${gameId}`), null);
 }
 
 export async function getGame(gameId: string): Promise<GameInstanceWithId | null> {
@@ -737,4 +742,34 @@ export async function getFamilyFeudFastMoneyQuestions(
   const val = snap.val() as FamilyFeudFastMoneyQuestion[] | Record<string, FamilyFeudFastMoneyQuestion>;
   if (Array.isArray(val)) return val;
   return Object.values(val);
+}
+
+// ─── Jeopardy Questions ───────────────────────────────────────────────────────
+
+export async function replaceJeopardyClues(
+  gameId: string,
+  clues: JeopardyClue[],
+): Promise<void> {
+  await set(ref(db, `jeopardyClues/${gameId}`), clues);
+}
+
+export async function getJeopardyClues(gameId: string): Promise<JeopardyClue[]> {
+  const snap = await get(ref(db, `jeopardyClues/${gameId}`));
+  if (!snap.exists()) return [];
+  const val = snap.val() as JeopardyClue[] | Record<string, JeopardyClue>;
+  if (Array.isArray(val)) return val;
+  return Object.values(val);
+}
+
+export async function replaceJeopardyFinalClue(
+  gameId: string,
+  clue: JeopardyFinalClue,
+): Promise<void> {
+  await set(ref(db, `jeopardyFinalClue/${gameId}`), clue);
+}
+
+export async function getJeopardyFinalClue(gameId: string): Promise<JeopardyFinalClue | null> {
+  const snap = await get(ref(db, `jeopardyFinalClue/${gameId}`));
+  if (!snap.exists()) return null;
+  return snap.val() as JeopardyFinalClue;
 }

@@ -7,12 +7,14 @@
 
 import { useCallback, useState } from "react";
 import type { TeachingSession } from "../../types/teachingSession";
-import type { MillionaireGameState, FamilyFeudGameState } from "../../types/game";
+import type { MillionaireGameState, FamilyFeudGameState, JeopardyGameState, JeopardyClue } from "../../types/game";
 import { beginFirstQuestion } from "../../lib/games/millionaire";
 import { beginFaceOff, startFastMoneyPlayer1 } from "../../lib/games/familyFeud";
+import { beginBoard, beginFJJudging } from "../../lib/games/jeopardy";
 import { updateTeachingSession } from "../../lib/firebase/db";
 import MillionaireDisplay from "./millionaire/MillionaireDisplay";
 import FamilyFeudDisplay from "./familyFeud/FamilyFeudDisplay";
+import JeopardyDisplay from "./jeopardy/JeopardyDisplay";
 
 interface Props {
   session: TeachingSession;
@@ -21,6 +23,22 @@ interface Props {
 }
 
 const AUDIO_UNLOCK_PROBE = "/audio/Family Feud/music.mp3";
+
+// Firebase stores JS arrays as objects with integer string keys when they're
+// embedded inside a larger document (e.g., gameState.clues, gameState.claimedIndices).
+// Normalize all array fields back to real arrays.
+function normalizeJeopardyState(raw: JeopardyGameState): JeopardyGameState {
+  const clues: JeopardyClue[] = Array.isArray(raw.clues)
+    ? raw.clues
+    : Object.values(raw.clues as unknown as Record<string, JeopardyClue>);
+  const rawClaimed = raw.claimedIndices as unknown;
+  const claimedIndices: number[] = Array.isArray(rawClaimed)
+    ? (rawClaimed as number[])
+    : rawClaimed != null
+      ? Object.values(rawClaimed as Record<string, number>)
+      : [];
+  return { ...raw, clues, claimedIndices };
+}
 
 async function unlockDisplayAudio(): Promise<boolean> {
   try {
@@ -75,6 +93,27 @@ export default function GameDisplayDispatcher({ session, ownerId, gameName }: Pr
           const latest = session.gameState as unknown as FamilyFeudGameState;
           await updateTeachingSession(ownerId, {
             gameState: startFastMoneyPlayer1(latest) as unknown as Record<string, unknown>,
+          });
+        } : undefined}
+      />
+    );
+  } else if (gs.gameType === "jeopardy") {
+    const state = normalizeJeopardyState(gs as unknown as JeopardyGameState);
+    content = (
+      <JeopardyDisplay
+        state={state}
+        gameName={gameName}
+        audioEnabled={audioUnlocked}
+        onStartingComplete={ownerId ? async () => {
+          const latest = normalizeJeopardyState(session.gameState as unknown as JeopardyGameState);
+          await updateTeachingSession(ownerId, {
+            gameState: beginBoard(latest) as unknown as Record<string, unknown>,
+          });
+        } : undefined}
+        onFinalJeopardyThinkComplete={ownerId ? async () => {
+          const latest = normalizeJeopardyState(session.gameState as unknown as JeopardyGameState);
+          await updateTeachingSession(ownerId, {
+            gameState: beginFJJudging(latest) as unknown as Record<string, unknown>,
           });
         } : undefined}
       />

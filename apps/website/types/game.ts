@@ -1,4 +1,4 @@
-export type GameType = "millionaire" | "familyFeud";
+export type GameType = "millionaire" | "familyFeud" | "jeopardy";
 
 // Phase machine for one full game session.
 // Transitions are driven exclusively by the instructor remote.
@@ -38,10 +38,11 @@ export interface GameInstance {
   classId: string;
   className: string;  // denormalized copy for display
   gameType: GameType;
-  timerSeconds?: number;          // Millionaire: 5–120. Absent for Family Feud.
+  timerSeconds?: number;          // Millionaire: 5–120. Absent for Family Feud/Jeopardy.
   questionCount: number;
   fastMoneyTimerPlayer1?: number; // Family Feud only. Default 20.
   fastMoneyTimerPlayer2?: number; // Family Feud only. Default 25.
+  answerTimerSeconds?: number;    // Jeopardy only. Default 30.
   createdAt: number;
   createdBy: string;  // uid of staff member who created it
 }
@@ -237,6 +238,86 @@ export interface FamilyFeudGameState {
   // Config stored in state so display can read timers without the GameInstance
   fastMoneyTimerPlayer1: number;  // seconds (default 20)
   fastMoneyTimerPlayer2: number;  // seconds (default 25)
+
+  startedAt: number;
+  updatedAt: number;
+}
+
+// ─── Jeopardy Types ──────────────────────────────────────────────────────────
+
+// Exactly 22 phases.
+export type JeopardyGamePhase =
+  | "idle"                          // game loaded, opening screen
+  | "starting"                      // intro plays, board appears, category titles reveal
+  | "board"                         // class choosing next clue
+  | "clue"                          // clue displayed, timer running — standard clue
+  | "correct"                       // correct answer — chime, response shown briefly
+  | "wrong"                         // wrong answer — buzzer, response shown briefly
+  | "time-expired"                  // timer ran out — time's up sound, response shown
+  | "daily-double-reveal"           // DD stinger plays, animation shown
+  | "daily-double-wager"            // category shown, class entering wager
+  | "daily-double-clue"             // wager confirmed, clue revealed, timer running
+  | "daily-double-correct"          // DD correct — chime, wager added
+  | "daily-double-wrong"            // DD wrong — buzzer, half wager deducted
+  | "daily-double-time-expired"     // DD time expired — no points change
+  | "board-complete"                // all clues resolved — sting, transition to FJ
+  | "final-jeopardy-intro"          // fanfare, Final Jeopardy announced
+  | "final-jeopardy-category"       // category revealed, clue not shown yet
+  | "final-jeopardy-wager"          // class deciding wager, instructor entering amount
+  | "final-jeopardy-clue"           // clue revealed, Think! music playing 30 seconds
+  | "final-jeopardy-judging"        // Think! music ended, instructor judges response
+  | "final-jeopardy-correct"        // correct — full wager added, result displayed
+  | "final-jeopardy-wrong"          // wrong — full wager deducted, correct response shown
+  | "game-over";                    // final score shown, points awarded
+
+// A single clue on the main board (20 total: 4 categories × 5 values).
+export interface JeopardyClue {
+  clueId: number;                   // 1-based, auto-assigned at upload
+  categoryNumber: 1 | 2 | 3 | 4;   // which column
+  categoryName: string;             // displayed at top of column
+  pointValue: 200 | 400 | 600 | 800 | 1000;
+  clueText: string;                 // the answer-phrased clue displayed on the board
+  correctResponse: string;          // the question the class must give
+  isDailyDouble: boolean;           // true for exactly one clue on the board
+}
+
+// The single Final Jeopardy clue.
+export interface JeopardyFinalClue {
+  categoryName: string;             // revealed before the clue text
+  clueText: string;
+  correctResponse: string;
+}
+
+export interface JeopardyGameState {
+  // Discriminator — lets GameDisplayDispatcher route without checking GameInstance.
+  gameType: "jeopardy";
+
+  // Full set of 20 clues stored in state so the display needs no extra DB read.
+  clues: JeopardyClue[];
+  finalClue: JeopardyFinalClue;
+
+  phase: JeopardyGamePhase;
+
+  // 0-based indices of clues that have been claimed (answered or timed out).
+  claimedIndices: number[];
+
+  // Index into `clues` of the currently active clue; null when on board/idle.
+  activeClueIndex: number | null;
+
+  // Running class score. Never drops below zero.
+  currentScore: number;
+
+  // Wager amount — set during daily-double-wager or final-jeopardy-wager.
+  // Retained through the clue/judging/result phases for display.
+  currentWager: number;
+
+  // Absolute end timestamp while a clue timer is running; null otherwise.
+  // Used by both display and remote to compute the same countdown.
+  timerEndsAt: number | null;
+
+  // Answer timer duration stored in state so display can show countdown
+  // without needing the GameInstance.
+  answerTimerSeconds: number;
 
   startedAt: number;
   updatedAt: number;
