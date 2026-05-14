@@ -74,9 +74,9 @@ function CreateGameModal({ onClose, onCreated, createdBy }: CreateGameModalProps
   const [slug, setSlug] = useState(TEACHING_CLASSES[0]?.slug ?? "");
   const [gameType, setGameType] = useState<GameType>("millionaire");
   const [timerSeconds, setTimerSeconds] = useState(60);
-  const [p1Timer, setP1Timer] = useState(20);
-  const [p2Timer, setP2Timer] = useState(25);
-  const [answerTimer, setAnswerTimer] = useState(30);
+  const [p1Timer, setP1Timer] = useState(60);
+  const [p2Timer, setP2Timer] = useState(65);
+  const [answerTimer, setAnswerTimer] = useState(60);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -1249,7 +1249,14 @@ export default function AdminTeachingGames() {
   // Subscribe to games in real time
   useEffect(() => {
     const unsub = subscribeToGames((g) => {
-      setGames(g);
+      // Sort ascending by the leading class number in className, then by name
+      const sorted = [...g].sort((a, b) => {
+        const numA = parseInt(a.className.match(/\d+/)?.[0] ?? "0", 10);
+        const numB = parseInt(b.className.match(/\d+/)?.[0] ?? "0", 10);
+        if (numA !== numB) return numA - numB;
+        return a.name.localeCompare(b.name);
+      });
+      setGames(sorted);
       setLoadingGames(false);
     });
     return unsub;

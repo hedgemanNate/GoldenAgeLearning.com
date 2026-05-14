@@ -40,9 +40,9 @@ export interface GameInstance {
   gameType: GameType;
   timerSeconds?: number;          // Millionaire: 5–120. Absent for Family Feud/Jeopardy.
   questionCount: number;
-  fastMoneyTimerPlayer1?: number; // Family Feud only. Default 20.
-  fastMoneyTimerPlayer2?: number; // Family Feud only. Default 25.
-  answerTimerSeconds?: number;    // Jeopardy only. Default 30.
+  fastMoneyTimerPlayer1?: number; // Family Feud only. Default 60.
+  fastMoneyTimerPlayer2?: number; // Family Feud only. Default 65.
+  answerTimerSeconds?: number;    // Jeopardy only. Default 60.
   createdAt: number;
   createdBy: string;  // uid of staff member who created it
 }
@@ -236,8 +236,9 @@ export interface FamilyFeudGameState {
   fastMoneyState: FamilyFeudFastMoneyState | null;
 
   // Config stored in state so display can read timers without the GameInstance
-  fastMoneyTimerPlayer1: number;  // seconds (default 20)
-  fastMoneyTimerPlayer2: number;  // seconds (default 25)
+  fastMoneyTimerPlayer1: number;  // seconds (default 60)
+  fastMoneyTimerPlayer2: number;  // seconds (default 65)
+
 
   startedAt: number;
   updatedAt: number;
