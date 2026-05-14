@@ -15,6 +15,7 @@ interface Customer {
   lastActive: string;
   totalBookings: number;
   totalSpent: number;
+  pointsTotal: number;
   notes: string;
   isActive: boolean;
 }
@@ -71,6 +72,7 @@ export default function AdminCustomers() {
         lastActive: u.lastLoginAt ? fmtDate(u.lastLoginAt) : "Never",
         totalBookings: custBookings.length,
         totalSpent: Math.round(totalSpent),
+        pointsTotal: u.points_total ?? 0,
         notes: u.notes ?? "",
         isActive: isActive(u.lastLoginAt),
       };
@@ -263,7 +265,7 @@ export default function AdminCustomers() {
             <div className="px-[24px] py-[20px]">
               {profileTab === "details" && (
                 <div className="space-y-[12px]">
-                  {[["Name", selectedCustomer.name], ["Email", selectedCustomer.email], ["Phone", selectedCustomer.phone], ["Last Active", selectedCustomer.lastActive]].map(([label, val]) => (
+                  {[["Name", selectedCustomer.name], ["Email", selectedCustomer.email], ["Phone", selectedCustomer.phone], ["Last Active", selectedCustomer.lastActive], ["Total Points", selectedCustomer.pointsTotal.toLocaleString()]].map(([label, val]) => (
                     <div key={label} className="flex justify-between items-center py-[10px] border-b border-[rgba(245,237,214,0.06)]">
                       <span className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.35)]">{label}</span>
                       <span className="text-[13px] text-[var(--color-cream)]">{val}</span>

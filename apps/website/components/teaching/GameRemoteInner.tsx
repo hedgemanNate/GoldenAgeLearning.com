@@ -290,7 +290,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
     try {
       const bookings = await getBookingsByClass(game.classId);
       const pointsMap: Record<string, number> = {};
-      for (const b of bookings) {
+      for (const b of bookings.filter((b) => b.status === "paid")) {
         pointsMap[b.customerId] = ffState.gameTotal;
       }
       const result = await awardGamePoints(pointsMap, game.classId);
@@ -338,7 +338,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
     try {
       const bookings = await getBookingsByClass(game.classId);
       const pointsMap: Record<string, number> = {};
-      for (const b of bookings) {
+      for (const b of bookings.filter((b) => b.status === "paid")) {
         pointsMap[b.customerId] = jState.currentScore;
       }
       const result = await awardGamePoints(pointsMap, game.classId);
@@ -528,7 +528,12 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
     if (!confirm(`Award ${gameState.finalPoints.toLocaleString()} points to enrolled students?`)) return;
     setBusy(true);
     try {
-      const result = await awardGamePoints({}, game.classId);
+      const bookings = await getBookingsByClass(game.classId);
+      const pointsMap: Record<string, number> = {};
+      for (const b of bookings.filter((b) => b.status === "paid")) {
+        pointsMap[b.customerId] = gameState.finalPoints;
+      }
+      const result = await awardGamePoints(pointsMap, game.classId);
       alert(`Points awarded to ${result.awarded} students.`);
     } catch (e) {
       alert(`Failed to award points: ${e instanceof Error ? e.message : "unknown error"}`);
