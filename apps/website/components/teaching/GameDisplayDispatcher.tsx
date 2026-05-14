@@ -25,12 +25,19 @@ interface Props {
 const AUDIO_UNLOCK_PROBE = "/audio/Family Feud/music.mp3";
 
 // Firebase stores JS arrays as objects with integer string keys when they're
-// embedded inside a larger document (e.g., gameState.clues). Normalize back.
+// embedded inside a larger document (e.g., gameState.clues, gameState.claimedIndices).
+// Normalize all array fields back to real arrays.
 function normalizeJeopardyState(raw: JeopardyGameState): JeopardyGameState {
   const clues: JeopardyClue[] = Array.isArray(raw.clues)
     ? raw.clues
     : Object.values(raw.clues as unknown as Record<string, JeopardyClue>);
-  return { ...raw, clues };
+  const rawClaimed = raw.claimedIndices as unknown;
+  const claimedIndices: number[] = Array.isArray(rawClaimed)
+    ? (rawClaimed as number[])
+    : rawClaimed != null
+      ? Object.values(rawClaimed as Record<string, number>)
+      : [];
+  return { ...raw, clues, claimedIndices };
 }
 
 async function unlockDisplayAudio(): Promise<boolean> {

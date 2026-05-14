@@ -63,6 +63,21 @@ import type {
 
 type AnswerLetter = "a" | "b" | "c" | "d";
 
+// Firebase stores JS arrays as objects with integer string keys when embedded
+// inside a larger document. Normalize all array fields back to real arrays.
+function normalizeJeopardyState(raw: JeopardyGameState): JeopardyGameState {
+  const clues: JeopardyClue[] = Array.isArray(raw.clues)
+    ? raw.clues
+    : Object.values(raw.clues as unknown as Record<string, JeopardyClue>);
+  const rawClaimed = raw.claimedIndices as unknown;
+  const claimedIndices: number[] = Array.isArray(rawClaimed)
+    ? (rawClaimed as number[])
+    : rawClaimed != null
+      ? Object.values(rawClaimed as Record<string, number>)
+      : [];
+  return { ...raw, clues, claimedIndices };
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /** Renders the game remote for a known gameId. */
@@ -185,7 +200,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
   const jeopardyGameState: JeopardyGameState | null = useMemo(() => {
     if (!session || session.status !== "active" || session.mode !== "game" || !session.gameState) return null;
     if ((session.gameState as Record<string, unknown>).gameType !== "jeopardy") return null;
-    return session.gameState as unknown as JeopardyGameState;
+    return normalizeJeopardyState(session.gameState as unknown as JeopardyGameState);
   }, [session]);
 
   // ─── State write helpers ───────────────────────────────────────────────
