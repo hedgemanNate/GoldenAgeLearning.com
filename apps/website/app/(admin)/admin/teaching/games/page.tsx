@@ -275,34 +275,34 @@ type ParseResult =
   | { ok: false; errors: string[] };
 
 function parseCSV(text: string): ParseResult {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
-  if (lines.length < 2) return { ok: false, errors: ["CSV must have a header row and at least one question."] };
+  const result = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  if (result.data.length === 0) return { ok: false, errors: ["CSV must have a header row and at least one question."] };
+
+  const headers = Object.keys(result.data[0] ?? {});
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
   if (missing.length > 0) {
     return { ok: false, errors: [`Missing required columns: ${missing.join(", ")}`] };
   }
 
-  const idx = (col: string) => headers.indexOf(col);
   const errors: string[] = [];
   const questions: GameQuestion[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    // Simple CSV split — handles unquoted fields; sufficient for question data
-    const cells = lines[i].split(",").map((c) => c.trim());
-    const row = i + 1; // 1-based for user-facing messages
+  for (let i = 0; i < result.data.length; i++) {
+    const rowData = result.data[i];
+    const row = i + 2; // 1-based for user-facing messages (row 1 is header)
 
-    const get = (col: string) => cells[idx(col)] ?? "";
-
-    const question   = get("question");
-    const option_a   = get("option_a");
-    const option_b   = get("option_b");
-    const option_c   = get("option_c");
-    const option_d   = get("option_d");
-    const correct    = get("correct_answer").toLowerCase();
-    const diffRaw    = get("difficulty");
-    const fiftyFifty = get("fifty_fifty_remove");
+    const question   = (rowData["question"]          ?? "").trim();
+    const option_a   = (rowData["option_a"]           ?? "").trim();
+    const option_b   = (rowData["option_b"]           ?? "").trim();
+    const option_c   = (rowData["option_c"]           ?? "").trim();
+    const option_d   = (rowData["option_d"]           ?? "").trim();
+    const correct    = (rowData["correct_answer"]     ?? "").trim().toLowerCase();
+    const diffRaw    = (rowData["difficulty"]         ?? "").trim();
+    const fiftyFifty = (rowData["fifty_fifty_remove"] ?? "").trim();
 
     if (!question)  errors.push(`Row ${row}: "question" is empty.`);
     if (!option_a)  errors.push(`Row ${row}: "option_a" is empty.`);
