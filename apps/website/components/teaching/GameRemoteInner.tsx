@@ -16,6 +16,8 @@ import {
   getGameQuestions,
   getFamilyFeudMainQuestions,
   getFamilyFeudFastMoneyQuestions,
+  getJeopardyClues,
+  getJeopardyFinalClue,
   getGamesByClassId,
   getBookingsByClass,
   updateTeachingSession,
@@ -40,7 +42,13 @@ import {
   initialGameState as ffInitialState,
   canStartFamilyFeudGame,
 } from "../../lib/games/familyFeud";
+import {
+  initialGameState as jeopardyInitialState,
+  canStartJeopardyGame,
+  endGame as jeopardyEndGame,
+} from "../../lib/games/jeopardy";
 import FamilyFeudRemote from "./familyFeud/FamilyFeudRemote";
+import JeopardyRemote from "./jeopardy/JeopardyRemote";
 import type {
   GameInstanceWithId,
   GameQuestion,
@@ -48,6 +56,9 @@ import type {
   FamilyFeudMainQuestion,
   FamilyFeudFastMoneyQuestion,
   FamilyFeudGameState,
+  JeopardyClue,
+  JeopardyFinalClue,
+  JeopardyGameState,
 } from "../../types/game";
 
 type AnswerLetter = "a" | "b" | "c" | "d";
@@ -108,6 +119,8 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [ffMainQuestions, setFfMainQuestions] = useState<FamilyFeudMainQuestion[]>([]);
   const [ffFastMoneyQuestions, setFfFastMoneyQuestions] = useState<FamilyFeudFastMoneyQuestion[]>([]);
+  const [jeopardyClues, setJeopardyClues] = useState<JeopardyClue[]>([]);
+  const [jeopardyFinalClue, setJeopardyFinalClue] = useState<JeopardyFinalClue | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,6 +147,16 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
               setFfFastMoneyQuestions(fastMoneyQs);
             }
           }
+          if (g.gameType === "jeopardy") {
+            const [clues, finalClue] = await Promise.all([
+              getJeopardyClues(gameId),
+              getJeopardyFinalClue(gameId),
+            ]);
+            if (!cancelled) {
+              setJeopardyClues(clues);
+              setJeopardyFinalClue(finalClue);
+            }
+          }
         }
       } catch {
         if (!cancelled) setLoadError("Failed to load game.");
@@ -158,6 +181,13 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
     return session.gameState as unknown as FamilyFeudGameState;
   }, [session]);
 
+  // ─── Derived: live Jeopardy game state from session ────────────────────
+  const jeopardyGameState: JeopardyGameState | null = useMemo(() => {
+    if (!session || session.status !== "active" || session.mode !== "game" || !session.gameState) return null;
+    if ((session.gameState as Record<string, unknown>).gameType !== "jeopardy") return null;
+    return session.gameState as unknown as JeopardyGameState;
+  }, [session]);
+
   // ─── State write helpers ───────────────────────────────────────────────
   const writeState = useCallback(
     async (patch: MillionaireGameState) => {
@@ -170,6 +200,13 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
   );
 
   const writeFFState = useCallback(async (s: FamilyFeudGameState) => {
+    if (!ownerId) return;
+    await updateTeachingSession(ownerId, {
+      gameState: s as unknown as Record<string, unknown>,
+    });
+  }, [ownerId]);
+
+  const writeJeopardyState = useCallback(async (s: JeopardyGameState) => {
     if (!ownerId) return;
     await updateTeachingSession(ownerId, {
       gameState: s as unknown as Record<string, unknown>,
@@ -240,6 +277,54 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
       const pointsMap: Record<string, number> = {};
       for (const b of bookings) {
         pointsMap[b.customerId] = ffState.gameTotal;
+      }
+      const result = await awardGamePoints(pointsMap, game.classId);
+      alert(`Points awarded to ${result.awarded} students.`);
+      await endTeachingSession(ownerId);
+    } catch (e) {
+      alert(`Failed to award points: ${e instanceof Error ? e.message : "unknown error"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ─── START GAME (Jeopardy) ─────────────────────────────────────────────
+  const handleJeopardyStartGame = async () => {
+    if (!user || !game) return;
+    if (!canStartJeopardyGame(jeopardyClues, jeopardyFinalClue)) {
+      alert("Upload 20 clues (4 categories × 5 values, exactly 1 Daily Double) and a Final Jeopardy clue before starting.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await startTeachingSession({
+        ownerId: user.uid,
+        ownerName: user.name,
+        classSlug: game.classId,
+        totalSlides: 0,
+      });
+      await setTeachingSessionMode(user.uid, "game");
+      const initialState = jeopardyInitialState(
+        jeopardyClues,
+        jeopardyFinalClue!,
+        game.answerTimerSeconds ?? 30,
+      );
+      await writeStateFor(user.uid, initialState);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ─── JEOPARDY AWARD POINTS ─────────────────────────────────────────────
+  const handleJeopardyAwardPoints = async (jState: JeopardyGameState) => {
+    if (!game || !ownerId) return;
+    if (!confirm(`Award ${jState.currentScore} points to all enrolled students?`)) return;
+    setBusy(true);
+    try {
+      const bookings = await getBookingsByClass(game.classId);
+      const pointsMap: Record<string, number> = {};
+      for (const b of bookings) {
+        pointsMap[b.customerId] = jState.currentScore;
       }
       const result = await awardGamePoints(pointsMap, game.classId);
       alert(`Points awarded to ${result.awarded} students.`);
@@ -371,6 +456,18 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
     });
   };
 
+  // ─── CLEAR STALE STATE ───────────────────────────────────────────────
+  const handleClearState = async () => {
+    if (!ownerId) return;
+    if (!confirm("Clear the stale game state from the display? The projector will go back to idle.")) return;
+    setBusy(true);
+    try {
+      await updateTeachingSession(ownerId, { gameState: null });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // ─── END GAME ──────────────────────────────────────────────────────────
   const handleEndGame = async () => {
     if (!ownerId) return;
@@ -430,9 +527,44 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
   if (loadError) return <Centered text={loadError} />;
   if (!game) return <Centered text="Game not found." />;
 
+  // ─── Jeopardy dispatch ─────────────────────────────────────────────────
+  if (game.gameType === "jeopardy") {
+    if (!jeopardyGameState) {
+      return (
+        <JeopardyPreGameScreen
+          game={game}
+          clues={jeopardyClues}
+          finalClue={jeopardyFinalClue}
+          busy={busy}
+          ownerId={ownerId}
+          onStart={handleJeopardyStartGame}
+          onClearState={session ? handleClearState : undefined}
+        />
+      );
+    }
+    return (
+      <JeopardyRemote
+        game={game}
+        state={jeopardyGameState}
+        busy={busy}
+        onWrite={async (s) => {
+          setBusy(true);
+          try {
+            await writeJeopardyState(s);
+            // When game-over phase is written, auto-award points and end session
+            if (s.phase === "game-over") {
+              await handleJeopardyAwardPoints(s);
+            }
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    );
+  }
+
   // ─── Family Feud dispatch ──────────────────────────────────────────────
-  if (game.gameType === "familyFeud") {
-    if (!ffGameState) {
+  if (game.gameType === "familyFeud") {    if (!ffGameState) {
       return (
         <FFPreGameScreen
           game={game}
@@ -441,6 +573,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
           busy={busy}
           ownerId={ownerId}
           onStart={handleFFStartGame}
+          onClearState={session ? handleClearState : undefined}
         />
       );
     }
@@ -474,6 +607,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
         busy={busy}
         ownerId={ownerId}
         onStart={handleStartGame}
+        onClearState={session ? handleClearState : undefined}
       />
     );
   }
@@ -620,7 +754,7 @@ function GameRemoteCore({ gameId }: { gameId: string }) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PreGameScreen({
-  game, questionCount, tiers, ready, busy, ownerId, onStart,
+  game, questionCount, tiers, ready, busy, ownerId, onStart, onClearState,
 }: {
   game: GameInstanceWithId;
   questionCount: number;
@@ -629,6 +763,7 @@ function PreGameScreen({
   busy: boolean;
   ownerId: string | null;
   onStart: () => void;
+  onClearState?: () => Promise<void>;
 }) {
   return (
     <div className="min-h-screen bg-[var(--color-dark-bg)] text-[var(--color-cream)] font-sans p-[20px] flex flex-col gap-[20px]">
@@ -672,12 +807,22 @@ function PreGameScreen({
       <BigButton onClick={onStart} color="gold" disabled={!ready || busy}>
         {busy ? "Starting…" : "▶ Start Game"}
       </BigButton>
+
+      {onClearState && (
+        <button
+          onClick={onClearState}
+          disabled={busy}
+          className="w-full py-[10px] rounded-[8px] bg-transparent border border-[rgba(245,237,214,0.1)] text-[rgba(245,237,214,0.4)] text-[12px] hover:text-[rgba(245,237,214,0.65)] hover:border-[rgba(245,237,214,0.2)] transition-colors disabled:opacity-30"
+        >
+          Clear Stale Display State
+        </button>
+      )}
     </div>
   );
 }
 
 function FFPreGameScreen({
-  game, mainQs, fastMoneyQs, busy, ownerId, onStart,
+  game, mainQs, fastMoneyQs, busy, ownerId, onStart, onClearState,
 }: {
   game: GameInstanceWithId;
   mainQs: FamilyFeudMainQuestion[];
@@ -685,6 +830,7 @@ function FFPreGameScreen({
   busy: boolean;
   ownerId: string | null;
   onStart: () => void;
+  onClearState?: () => Promise<void>;
 }) {
   const hasMain = mainQs.length === 3;
   const hasMini = fastMoneyQs.length === 5;
@@ -729,6 +875,83 @@ function FFPreGameScreen({
       <BigButton onClick={onStart} color="gold" disabled={!ready || busy}>
         {busy ? "Starting…" : "▶ Start Family Feud"}
       </BigButton>
+
+      {onClearState && (
+        <button
+          onClick={onClearState}
+          disabled={busy}
+          className="w-full py-[10px] rounded-[8px] bg-transparent border border-[rgba(245,237,214,0.1)] text-[rgba(245,237,214,0.4)] text-[12px] hover:text-[rgba(245,237,214,0.65)] hover:border-[rgba(245,237,214,0.2)] transition-colors disabled:opacity-30"
+        >
+          Clear Stale Display State
+        </button>
+      )}
+    </div>
+  );
+}
+
+function JeopardyPreGameScreen({
+  game, clues, finalClue, busy, ownerId, onStart, onClearState,
+}: {
+  game: GameInstanceWithId;
+  clues: JeopardyClue[];
+  finalClue: JeopardyFinalClue | null;
+  busy: boolean;
+  ownerId: string | null;
+  onStart: () => void;
+  onClearState?: () => Promise<void>;
+}) {
+  const hasClues = clues.length === 20;
+  const hasFinal = !!finalClue;
+  const ready = hasClues && hasFinal;
+  return (
+    <div className="min-h-screen bg-[var(--color-dark-bg)] text-[var(--color-cream)] font-sans p-[20px] flex flex-col gap-[20px]">
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)]">Jeopardy!</p>
+        <h1 className="text-[22px] font-bold mt-[2px]">{game.name}</h1>
+        <p className="text-[12px] text-[rgba(245,237,214,0.5)] mt-[4px]">{game.className}</p>
+      </div>
+
+      <div className="bg-[var(--color-dark-surface)] rounded-[10px] p-[16px] border border-[rgba(245,237,214,0.07)]">
+        <p className="text-[11px] uppercase tracking-wider text-[rgba(245,237,214,0.4)] mb-[8px]">Content Status</p>
+        <div className="flex flex-col gap-[6px] text-[13px]">
+          <Row label="Board Clues (4 cats × 5)" value={`${clues.length} / 20`} ok={hasClues} />
+          <Row label="Final Jeopardy Clue" value={hasFinal ? "✓ Ready" : "Missing"} ok={hasFinal} />
+          <Row label="Answer Timer" value={`${game.answerTimerSeconds ?? 30}s`} />
+        </div>
+      </div>
+
+      {!ready && (
+        <p className="text-[12px] text-red-400 leading-relaxed">
+          Upload 20 board clues and a Final Jeopardy clue on the Games page before starting.
+        </p>
+      )}
+
+      <div className="bg-[var(--color-dark-surface)] rounded-[10px] p-[14px] border border-[rgba(245,237,214,0.07)] text-[12px] text-[rgba(245,237,214,0.55)] leading-relaxed">
+        Open the display URL on your projector first, then start the game.
+        {ownerId && (
+          <Link
+            href={`/admin/teaching/${game.classId}/slides/display?owner=${ownerId}`}
+            target="_blank"
+            className="block mt-[8px] text-[var(--color-teal)] underline"
+          >
+            Open Display ↗
+          </Link>
+        )}
+      </div>
+
+      <BigButton onClick={onStart} color="gold" disabled={!ready || busy}>
+        {busy ? "Starting…" : "▶ Start Jeopardy!"}
+      </BigButton>
+
+      {onClearState && (
+        <button
+          onClick={onClearState}
+          disabled={busy}
+          className="w-full py-[10px] rounded-[8px] bg-transparent border border-[rgba(245,237,214,0.1)] text-[rgba(245,237,214,0.4)] text-[12px] hover:text-[rgba(245,237,214,0.65)] hover:border-[rgba(245,237,214,0.2)] transition-colors disabled:opacity-30"
+        >
+          Clear Stale Display State
+        </button>
+      )}
     </div>
   );
 }

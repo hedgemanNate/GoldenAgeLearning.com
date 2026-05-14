@@ -121,6 +121,20 @@
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
       }
     },
+    "jeopardyClues": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
+    },
+    "jeopardyFinalClue": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+      "$gameId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')"
+      }
+    },
     "contactRequests": {
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'staff' || root.child('users').child(auth.uid).child('role').val() == 'superAdmin')",
       "$requestId": {

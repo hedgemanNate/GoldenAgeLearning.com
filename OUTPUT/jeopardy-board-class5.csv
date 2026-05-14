@@ -1,0 +1,21 @@
+category_number,category_name,point_value,clue_text,correct_response,is_daily_double
+1,Contacts,200,This app stores names and phone numbers on your device,Contacts,false
+1,Contacts,400,Use this button on a contact page to change a person's information,Edit,false
+1,Contacts,600,The box where you type a person's given name when creating a contact,First Name,false
+1,Contacts,800,The contact field where you enter a person's digits,Phone,false
+1,Contacts,1000,The screen that displays a single person's information,Contact card,false
+2,Phone App,200,Tap this green icon to open calling features,Phone,false
+2,Phone App,400,This tab shows who you called most recently,Recents,false
+2,Phone App,600,This tab brings up the number pad for manual dialing,Keypad,false
+2,Phone App,800,The short VIP list of people you call often is called,Favorites,false
+2,Phone App,1000,From here you access your full list of saved names and numbers,Contacts,false
+3,Create & Edit,200,Tap this symbol (usually a plus) to add a new contact,+,false
+3,Create & Edit,400,In class we typed this example first name,Jane,false
+3,Create & Edit,600,In class we used this example last name,Appleseed,true
+3,Create & Edit,800,The fake example phone number used in class,555-123-4567,false
+3,Create & Edit,1000,After entering name and number, tap this to store the contact,Save,false
+4,Calling Skills,200,From a contact page, tap this to start a call,Phone number,false
+4,Calling Skills,400,To answer an incoming call you usually swipe this colored button,Green button,false
+4,Calling Skills,600,To ignore or send a call to voicemail you swipe this colored button,Red button,false
+4,Calling Skills,800,This motion is used to answer or reject calls on most phones,Swipe,false
+4,Calling Skills,1000,Add a frequently-called person to this short list to call them quickly,Favorites,false
